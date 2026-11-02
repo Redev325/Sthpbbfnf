@@ -857,6 +857,16 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
             raise RuntimeError("Could not locate the Bad Apple fields for diagnostic insertion.")
         source = source.replace(field_marker, fields, 1)
 
+    camera_stack_marker = "\\t\\tFlxG.cameras.add(camOther, false);"
+    camera_stack_code = camera_stack_marker + """\\n\\t\\tcamDebug = new FlxCamera();
+\\t\\tcamDebug.bgColor.alpha = 0;
+\\t\\tFlxG.cameras.add(camDebug, false);
+"""
+    if "camDebug = new FlxCamera();" not in source:
+        if camera_stack_marker not in source:
+            raise RuntimeError("Could not locate the camera stack for the diagnostic camera.")
+        source = source.replace(camera_stack_marker, camera_stack_code, 1)
+
     camera_marker = "\t\tFlxG.cameras.setDefaultDrawTarget(camGame, true);"
     camera_code = camera_marker + """
 \n\t\t// camOther is drawn above the game/HUD cameras, keeping diagnostics visible.
@@ -864,14 +874,14 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tblackDiagnosticBg.makeGraphic(412, 126, 0xE0101010);
 \t\tblackDiagnosticBg.alpha = 0.94;
 \t\tblackDiagnosticBg.scrollFactor.set(0, 0);
-\t\tblackDiagnosticBg.cameras = [camOther];
+\t\tblackDiagnosticBg.cameras = [camDebug];
 \t\tblackDiagnosticBg.visible = false;
 \t\tadd(blackDiagnosticBg);
 
 \t\tblackDiagnosticText = new FlxText(FlxG.width - 416, 130, 396, "BLACKOUT DIAGNOSTICS\\nWaiting for 5:40...", 12);
 \t\tblackDiagnosticText.setFormat(Paths.font("vcr.ttf"), 12, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 \t\tblackDiagnosticText.scrollFactor.set(0, 0);
-\t\tblackDiagnosticText.cameras = [camOther];
+\t\tblackDiagnosticText.cameras = [camDebug];
 \t\tblackDiagnosticText.visible = false;
 \t\tadd(blackDiagnosticText);
 """
