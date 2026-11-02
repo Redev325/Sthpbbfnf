@@ -229,6 +229,10 @@ def patch_south_stage(
 	var badAppleWhiteBg:FlxSprite;
 	var badAppleSilhouetteActive:Bool = false;
 	var badAppleLastCameraSection:Int = -1;
+	var southCameraDadX:Float = -320;
+	var southCameraDadY:Float = 400;
+	var southCameraBoyfriendX:Float = 1200;
+	var southCameraBoyfriendY:Float = 540;
 
 	function tweenBadAppleSpriteColor(sprite:FlxSprite, targetColor:FlxColor, duration:Float):Void
 	{
@@ -722,7 +726,8 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t// then fades it back out over value1 seconds. Keep it separate from the
 \t\t// stage's persistent black layer and keep the HUD camera unobscured.
 \t\tsouthBlackFlashOverlay = new FlxSprite(0, 0);
-\t\tsouthBlackFlashOverlay.makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
+\t\tsouthBlackFlashOverlay.makeGraphic(2700, 2700, FlxColor.BLACK);
+\t\tsouthBlackFlashOverlay.scale.set(2, 2);
 \t\tsouthBlackFlashOverlay.scrollFactor.set(0, 0);
 \t\tsouthBlackFlashOverlay.cameras = [camGame];
 \t\tsouthBlackFlashOverlay.alpha = 0;
@@ -819,22 +824,53 @@ case 'badapplelol':
 \t\t\t\t\t}
 \t\t\t\t}
 
-\t\t\tcase 'aCamaraZoom' | 'aCamaraZoom1':
-\t\t\t\tif (curStage == 'south')
-\t\t\t\t{
-\t\t\t\t\tvar targetCameraZoom:Float = Std.parseFloat(value1);
-\t\t\t\t\tvar cameraZoomDuration:Float = Std.parseFloat(value2);
-\t\t\t\t\tif (!Math.isNaN(targetCameraZoom) && targetCameraZoom > 0)
-\t\t\t\t\t{
-\t\t\t\t\t\tFlxTween.cancelTweensOf(FlxG.camera);
-\t\t\t\t\t\tif (Math.isNaN(cameraZoomDuration) || cameraZoomDuration <= 0)
-\t\t\t\t\t\t\tFlxG.camera.zoom = targetCameraZoom;
-\t\t\t\t\t\telse
-\t\t\t\t\t\t\tFlxTween.tween(FlxG.camera, {zoom: targetCameraZoom}, cameraZoomDuration, {ease: FlxEase.quadInOut});
-\t\t\t\t\t}
-\t\t\t\t}
+			case 'aofisetiBF' | 'ofisetiBF' | 'aofisetiBF-fest':
+				if (curStage == 'south')
+				{
+					var newBoyfriendCameraX:Float = Std.parseFloat(value1);
+					var newBoyfriendCameraY:Float = Std.parseFloat(value2);
+					if (!Math.isNaN(newBoyfriendCameraX)) southCameraBoyfriendX = newBoyfriendCameraX;
+					if (!Math.isNaN(newBoyfriendCameraY)) southCameraBoyfriendY = newBoyfriendCameraY;
+					moveCameraSection();
+				}
 
-\t\t\tcase 'Camera Follow Pos':"""
+			case 'aofisetiDad' | 'ofisetiDad' | 'aofisetiDad-fest':
+				if (curStage == 'south')
+				{
+					var newDadCameraX:Float = Std.parseFloat(value1);
+					var newDadCameraY:Float = Std.parseFloat(value2);
+					if (!Math.isNaN(newDadCameraX)) southCameraDadX = newDadCameraX;
+					if (!Math.isNaN(newDadCameraY)) southCameraDadY = newDadCameraY;
+					moveCameraSection();
+				}
+
+			case 'aCamaraZoom' | 'aCamaraZoom1':
+				if (curStage == 'south')
+				{
+					var targetCameraZoom:Float = Std.parseFloat(value1);
+					var cameraZoomDuration:Float = Std.parseFloat(value2);
+					if (!Math.isNaN(targetCameraZoom) && targetCameraZoom > 0)
+					{
+						FlxTween.cancelTweensOf(camGame);
+						if (Math.isNaN(cameraZoomDuration) || cameraZoomDuration <= 0)
+						{
+							defaultCamZoom = targetCameraZoom;
+							camGame.zoom = targetCameraZoom;
+						}
+						else
+						{
+							var cameraZoomEase:Float->Float = eventName == 'aCamaraZoom1' ? FlxEase.expoOut : FlxEase.sineInOut;
+							FlxTween.tween(camGame, {zoom: targetCameraZoom}, cameraZoomDuration, {
+								ease: cameraZoomEase,
+								onComplete: function(twn:FlxTween) {
+									defaultCamZoom = camGame.zoom;
+								}
+							});
+						}
+					}
+				}
+
+case 'Camera Follow Pos':"""
     if "case 'Flash Black' | 'aCameraFlashBlack' | 'Camera Flash':" not in source:
         if len(source.split(event_marker)) - 1 != 1:
             raise RuntimeError("Expected one Camera Follow Pos event marker for South overlay event handling.")
@@ -850,6 +886,24 @@ case 'badapplelol':
     missing = [item for item in required if item not in source]
     if missing:
         raise RuntimeError("South overlay/flash event patch is incomplete: " + repr(missing))
+    move_camera_marker = "\tfunction moveCameraSection():Void {"
+    move_camera_code = move_camera_marker + """
+\t\tif (curStage == 'south' && SONG != null && SONG.notes[curSection] != null)
+\t\t{
+\t\t\t// The original camera script uses fixed stage-space positions,
+\t\t\t// updated by aofisetiBF/aofisetiDad chart events.
+\t\t\tif (SONG.notes[curSection].mustHitSection)
+\t\t\t\tcamFollow.set(southCameraBoyfriendX, southCameraBoyfriendY);
+\t\t\telse
+\t\t\t\tcamFollow.set(southCameraDadX, southCameraDadY);
+\t\t\treturn;
+\t\t}
+"""
+    if "southCameraBoyfriendX, southCameraBoyfriendY" not in source:
+        if move_camera_marker not in source:
+            raise RuntimeError("Could not find Psych Engine moveCameraSection() for South custom camera targeting.")
+        source = source.replace(move_camera_marker, move_camera_code, 1)
+
     play_file.write_text(source, encoding="utf-8")
 
 
