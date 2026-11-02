@@ -334,8 +334,9 @@ def patch_south_stage(
 				southSnow.alpha = 0;
 				add(southSnow);
 
-				var southKyle:BGSprite = new BGSprite('kyle s', 608, 164, 1, 1, ['anim'], true);
-				// The atlas contains "anim0000..." frames; there is no "idle" prefix.
+				var southKyle:BGSprite = new BGSprite('kyle s', 608, 164, 1, 1, ['idle'], true);
+				// Keep the original looping idle and one-shot anim sequences.
+				southKyle.animation.addByPrefix('anim', 'idle', 24, true);
 				southKyle.animation.addByPrefix('anim1', 'anim', 22, false);
 				// The original stage reveals this sprite only through chart events.
 				southKyle.alpha = 0;
