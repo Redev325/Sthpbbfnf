@@ -548,6 +548,32 @@ def patch_south_stage(
             raise RuntimeError("Could not find the PlayState opponentNoteHit insertion point.")
         source = source.replace(note_marker, note_code, 1)
 
+    # Kyle's notes in the chart are player-side in several sections, so
+    # the original Lua goodNoteHit callback must also be ported. The previous
+    # native hook only covered opponentNoteHit, leaving Kyle in idle whenever
+    # the player hit a Kyle note.
+    good_note_marker = "if(!note.noAnimation) {"
+    good_note_code = """        if (curStage == 'south' && note.noteType == 'kyle')
+        {
+            var kylePlayerAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
+            if (southKyleCharacter != null && southKyleCharacter.alpha > 0.01)
+            {
+                southKyleCharacter.playAnim(kylePlayerAnim, true);
+                southKyleCharacter.holdTimer = 0;
+            }
+            if (southKyleCCharacter != null && southKyleCCharacter.alpha > 0.01)
+            {
+                southKyleCCharacter.playAnim(kylePlayerAnim, true);
+                southKyleCCharacter.holdTimer = 0;
+            }
+        }
+
+        if(!note.noAnimation) {"""
+    if "var kylePlayerAnim:String" not in source:
+        if good_note_marker not in source:
+            raise RuntimeError("Could not find the PlayState goodNoteHit animation insertion point.")
+        source = source.replace(good_note_marker, good_note_code, 1)
+
     event_marker = "case 'Camera Follow Pos':"
     event_code = """\t\t\tcase 'aObject Play Animation':
 \t\t\t\tif (curStage == 'south')
