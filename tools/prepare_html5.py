@@ -772,6 +772,7 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \tvar camDebug:FlxCamera;
 \tvar blackDiagnosticBg:FlxSprite;
 \tvar blackDiagnosticText:FlxText;
+\tvar blackDiagnosticArmed:Bool = false;
 \tvar blackDiagnosticLastEvent:String = "none";
 \tvar blackDiagnosticLastEventTime:Float = 0;
 \tvar blackDiagnosticEventHistory:Array<String> = [];
@@ -795,7 +796,9 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tif (blackDiagnosticText == null || blackDiagnosticBg == null) return;
 
 \t\tvar songMs:Float = Conductor.songPosition;
-\t\tvar shouldShow:Bool = songMs >= 340000;
+\t\t// Arm at 5:50 and keep the panel visible even if gameplay pauses afterward.
+\t\tif (songMs >= 350000) blackDiagnosticArmed = true;
+\t\tvar shouldShow:Bool = blackDiagnosticArmed;
 \t\tvar blackLayer:BGSprite = southAnimatedObjects.get('black');
 \t\tvar blackbarLayer:BGSprite = southAnimatedObjects.get('blackbar');
 \t\tvar whiteLayer:BGSprite = southAnimatedObjects.get('white');
@@ -872,16 +875,16 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
     camera_marker = "\t\tFlxG.cameras.setDefaultDrawTarget(camGame, true);"
     camera_code = camera_marker + """
 \n\t\t// camOther is drawn above the game/HUD cameras, keeping diagnostics visible.
-\t\tblackDiagnosticBg = new FlxSprite(FlxG.width - 424, 124);
-\t\tblackDiagnosticBg.makeGraphic(412, 126, 0xE0101010);
+\t\tblackDiagnosticBg = new FlxSprite(FlxG.width - 532, 108);
+\t\tblackDiagnosticBg.makeGraphic(520, 174, 0xE0101010);
 \t\tblackDiagnosticBg.alpha = 0.94;
 \t\tblackDiagnosticBg.scrollFactor.set(0, 0);
 \t\tblackDiagnosticBg.cameras = [camDebug];
 \t\tblackDiagnosticBg.visible = false;
 \t\tadd(blackDiagnosticBg);
 
-\t\tblackDiagnosticText = new FlxText(FlxG.width - 416, 130, 396, "BLACKOUT DIAGNOSTICS\\nWaiting for 5:40...", 12);
-\t\tblackDiagnosticText.setFormat(Paths.font("vcr.ttf"), 12, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+\t\tblackDiagnosticText = new FlxText(FlxG.width - 524, 114, 504, "BLACKOUT DIAGNOSTICS\\nWaiting for 5:50...", 11);
+\t\tblackDiagnosticText.setFormat(Paths.font("vcr.ttf"), 11, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 \t\tblackDiagnosticText.scrollFactor.set(0, 0);
 \t\tblackDiagnosticText.cameras = [camDebug];
 \t\tblackDiagnosticText.visible = false;
@@ -905,6 +908,14 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tblackDiagnosticLastEventTime = Conductor.songPosition;
 \t\tblackDiagnosticEventHistory.push(blackDiagnosticLastEvent + " @ " + Std.string(Std.int(Conductor.songPosition)) + "ms");
 \t\tif (blackDiagnosticEventHistory.length > 4) blackDiagnosticEventHistory.shift();
+\t\t// A second, event-driven trigger guarantees the panel appears at the
+\t\t// actual late Bad Apple transition even if the update-time check is missed.
+\t\tif (Conductor.songPosition >= 350000 && (eventName == 'badapplelol' || eventName == 'Flash Black' || eventName == 'aCameraFlashBlack'))
+\t\t{
+\t\t\tblackDiagnosticArmed = true;
+\t\t\tif (blackDiagnosticBg != null) blackDiagnosticBg.visible = true;
+\t\t\tif (blackDiagnosticText != null) blackDiagnosticText.visible = true;
+\t\t}
 \t\tswitch(eventName) {"""
     if "blackDiagnosticLastEvent = eventName" not in source:
         if event_marker not in source:
