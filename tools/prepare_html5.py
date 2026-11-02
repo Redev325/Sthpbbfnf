@@ -706,7 +706,11 @@ def main() -> int:
     for lua_file in (mod / "data" / "bloodbath").glob("*.lua"):
         lua_source = lua_file.read_text(encoding="utf-8", errors="replace")
         for match in re.findall(r'''characterPath\s*=\s*['"]characters/([^'"]+)''', lua_source):
-            character_names.add(match.strip())
+            lua_character = match.strip()
+            # Some Lua-controlled sprites (for example Clyde) are not Psych
+            # Character JSON definitions. Only include names with a real JSON.
+            if (mod / "characters" / f"{lua_character}.json").is_file():
+                character_names.add(lua_character)
 
     for event_group in song.get("events", []):
         if not isinstance(event_group, list) or len(event_group) < 2:
