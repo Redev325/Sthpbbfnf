@@ -90,7 +90,7 @@ def patch_south_stage(engine: Path) -> None:
 
     # Keep references to the original stage's animated light overlays so the
     # stage.lua step changes can be reproduced natively in the HTML5 build.
-    class_marker = "class PlayState extends MusicBeatState\\n{"
+    class_marker = "class PlayState extends MusicBeatState\n{"
     fields = """class PlayState extends MusicBeatState
 {
 	var southLightOverlay:BGSprite;
@@ -104,7 +104,7 @@ def patch_south_stage(engine: Path) -> None:
             raise RuntimeError("Could not locate the PlayState class declaration.")
         source = source.replace(class_marker, fields, 1)
 
-    marker = "\\t\\t\\tcase 'stage': //Week 1"
+    marker = "\t\t\tcase 'stage': //Week 1"
     stage_code = """			case 'south':
 				// Native HTML5 recreation of the South Park Bloodbath stage.lua
 				// scene layers. Every texture/atlas is copied from the supplied mod.
@@ -239,7 +239,7 @@ def patch_south_stage(engine: Path) -> None:
             raise RuntimeError("Could not find the stage switch insertion point in source/PlayState.hx.")
         source = source.replace(marker, stage_code, 1)
 
-    step_marker = "\\t\\tsetOnLuas('curStep', curStep);"
+    step_marker = "\t\tsetOnLuas('curStep', curStep);"
     step_addition = """		setOnLuas('curStep', curStep);
 		if (curStage == 'south')
 		{
