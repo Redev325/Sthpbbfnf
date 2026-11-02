@@ -87,21 +87,188 @@ def patch_note_types(engine: Path) -> None:
 def patch_south_stage(engine: Path) -> None:
     play_file = engine / "source" / "PlayState.hx"
     source = play_file.read_text(encoding="utf-8")
-    marker = "\t\t\tcase 'stage': //Week 1"
-    addition = """\t\t\tcase 'south':
-\t\t\t\t// Static browser-port of the first South Park Bloodbath stage layer.
-\t\t\t\t// The desktop stage.lua is LuaJIT-based and is not run by Psych 0.6.3 HTML5.
-\t\t\t\tvar southBackground:BGSprite = new BGSprite('bg', -1670, -1540, 1, 1, ['bg a'], true);
-\t\t\t\tsouthBackground.scale.set(2.7, 2.7);
-\t\t\t\tsouthBackground.updateHitbox();
-\t\t\t\tadd(southBackground);
 
-\t\t\tcase 'stage': //Week 1"""
-    if "Static browser-port of the first South Park Bloodbath stage layer." not in source:
+    # Keep references to the original stage's animated light overlays so the
+    # stage.lua step changes can be reproduced natively in the HTML5 build.
+    class_marker = "class PlayState extends MusicBeatState\\n{"
+    fields = """class PlayState extends MusicBeatState
+{
+	var southLightOverlay:BGSprite;
+	var southLightOverlay2:BGSprite;
+	var southLightOverlay3:BGSprite;
+	var southLightOverlay4:BGSprite;
+	var southLightOverlay42:BGSprite;
+"""
+    if "var southLightOverlay:BGSprite;" not in source:
+        if class_marker not in source:
+            raise RuntimeError("Could not locate the PlayState class declaration.")
+        source = source.replace(class_marker, fields, 1)
+
+    marker = "\\t\\t\\tcase 'stage': //Week 1"
+    stage_code = """			case 'south':
+				// Native HTML5 recreation of the South Park Bloodbath stage.lua
+				// scene layers. Every texture/atlas is copied from the supplied mod.
+				var southSun:BGSprite = new BGSprite('sun', -1870, -1240);
+				southSun.scale.set(1.4, 1.2);
+				southSun.alpha = 0;
+				add(southSun);
+
+				var southFogBack:BGSprite = new BGSprite('fog bg2', -1670, -1240);
+				southFogBack.scale.set(3, 3);
+				southFogBack.alpha = 0;
+				add(southFogBack);
+
+				var southVignette:BGSprite = new BGSprite('Vignette', -20, 0);
+				southVignette.cameras = [camOther];
+				southVignette.alpha = 0;
+				add(southVignette);
+
+				var southWhite:BGSprite = new BGSprite('white', -1700, -500);
+				southWhite.cameras = [camHUD];
+				southWhite.alpha = 0;
+				add(southWhite);
+
+				var southFog:BGSprite = new BGSprite('fog', -2000, -1000);
+				southFog.scale.set(1.4, 1.4);
+				southFog.alpha = 0;
+				add(southFog);
+
+				var southBlack:BGSprite = new BGSprite('black', 0, 0);
+				southBlack.cameras = [camHUD];
+				southBlack.alpha = 0;
+				add(southBlack);
+
+				var southAnim:BGSprite = new BGSprite('anim', 0, 0, 1, 1, ['anim a'], false);
+				southAnim.cameras = [camHUD];
+				southAnim.alpha = 0;
+				add(southAnim);
+
+				var southBackground:BGSprite = new BGSprite('bg', -1670, -1540, 1, 1, ['bg a'], true);
+				southBackground.scale.set(2.7, 2.7);
+				southBackground.updateHitbox();
+				add(southBackground);
+
+				southLightOverlay = new BGSprite('luzbg', -1670, -1540);
+				southLightOverlay.scale.set(2.7, 2.7);
+				southLightOverlay.alpha = 0;
+				add(southLightOverlay);
+
+				var southBackground3:BGSprite = new BGSprite('bg3', -1770, -940, 1, 1, ['idle'], true);
+				southBackground3.scale.set(2.3, 2.3);
+				southBackground3.alpha = 0;
+				add(southBackground3);
+
+				var southLight3:BGSprite = new BGSprite('bg3luz', -1770, -940);
+				southLight3.scale.set(2.3, 2.3);
+				southLight3.alpha = 0;
+				add(southLight3);
+
+				var southBackground4:BGSprite = new BGSprite('bg4', -540, -740, 1, 1, ['bg4 a'], true);
+				southBackground4.scale.set(1.7, 1.7);
+				southBackground4.alpha = 0;
+				add(southBackground4);
+
+				var southLight4:BGSprite = new BGSprite('bg4luz', -540, -740);
+				southLight4.scale.set(1.7, 1.7);
+				southLight4.alpha = 0;
+				add(southLight4);
+
+				southLightOverlay42 = new BGSprite('bg4luz2', -540, -740);
+				southLightOverlay42.scale.set(1.7, 1.7);
+				southLightOverlay42.alpha = 0;
+				add(southLightOverlay42);
+
+				var southBackground2:BGSprite = new BGSprite('bg2 s', -1970, -1040);
+				southBackground2.scale.set(2.7, 2.7);
+				southBackground2.alpha = 0;
+				add(southBackground2);
+
+				var southBackground2Animated:BGSprite = new BGSprite('bg2', -1970, -1040, 1, 1, ['idle'], true);
+				southBackground2Animated.scale.set(2.7, 2.7);
+				southBackground2Animated.alpha = 0;
+				add(southBackground2Animated);
+
+				southLightOverlay2 = new BGSprite('bg2luz', -1970, -1040);
+				southLightOverlay2.scale.set(2.7, 2.7);
+				southLightOverlay2.flipX = true;
+				southLightOverlay2.alpha = 0;
+				add(southLightOverlay2);
+
+				var southSnow:BGSprite = new BGSprite('nieve', -1970, -1040);
+				southSnow.scale.set(2.7, 2.7);
+				southSnow.alpha = 0;
+				add(southSnow);
+
+				var southKyle:BGSprite = new BGSprite('kyle s', 608, 164, 1, 1, ['idle'], true);
+				southKyle.alpha = 0;
+				add(southKyle);
+
+				var southOh:BGSprite = new BGSprite('oh', 608, 164, 1, 1, ['oh'], true);
+				southOh.scale.set(1.9, 1.9);
+				southOh.alpha = 0;
+				add(southOh);
+
+				var southCraig:BGSprite = new BGSprite('characters/craig', 1700, 490, 1, 1, ['oh'], true);
+				southCraig.scale.set(0.9, 0.9);
+				southCraig.alpha = 0;
+				add(southCraig);
+
+				var southBlackbar:BGSprite = new BGSprite('blackbar', 0, 0);
+				southBlackbar.cameras = [camHUD];
+				southBlackbar.alpha = 0;
+				add(southBlackbar);
+
+				var southAnim2:BGSprite = new BGSprite('anim2', 0, 0, 1, 1, ['anim2 a'], false);
+				southAnim2.cameras = [camHUD];
+				southAnim2.alpha = 0;
+				add(southAnim2);
+
+				var southAnim2C:BGSprite = new BGSprite('anim2 c', 0, 0, 1, 1, ['anim2 c a'], false);
+				southAnim2C.cameras = [camHUD];
+				southAnim2C.alpha = 0;
+				add(southAnim2C);
+
+				var southAnim3:BGSprite = new BGSprite('anim3', 0, 0, 1, 1, ['anim3 idle'], false);
+				southAnim3.cameras = [camHUD];
+				southAnim3.alpha = 0;
+				add(southAnim3);
+
+			case 'stage': //Week 1"""
+    if "Native HTML5 recreation of the South Park Bloodbath stage.lua" not in source:
         if marker not in source:
             raise RuntimeError("Could not find the stage switch insertion point in source/PlayState.hx.")
-        source = source.replace(marker, addition, 1)
-        play_file.write_text(source, encoding="utf-8")
+        source = source.replace(marker, stage_code, 1)
+
+    step_marker = "\\t\\tsetOnLuas('curStep', curStep);"
+    step_addition = """		setOnLuas('curStep', curStep);
+		if (curStage == 'south')
+		{
+			switch (curStep)
+			{
+				case 128:
+					southLightOverlay.alpha = 0.5;
+				case 1202:
+					southLightOverlay.alpha = 0;
+				case 1285:
+					southLightOverlay2.alpha = 1;
+				case 2325:
+					southLightOverlay2.alpha = 0;
+				case 2433:
+					// The third background becomes visible beneath its lighting layer.
+					southLightOverlay3.alpha = 0.75;
+				case 3713:
+					southLightOverlay3.alpha = 0;
+					southLightOverlay42.alpha = 1;
+					southLightOverlay4.alpha = 0.75;
+			}
+		}
+"""
+    if "southLightOverlay.alpha = 0.5;" not in source:
+        if step_marker not in source:
+            raise RuntimeError("Could not find the PlayState stepHit insertion point.")
+        source = source.replace(step_marker, step_addition, 1)
+
+    play_file.write_text(source, encoding="utf-8")
 
 
 def keep_only_bloodbath(engine: Path) -> dict[str, int]:
