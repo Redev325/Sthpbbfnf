@@ -750,7 +750,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\t}
 \t\t\t\t}
 
-\t\t\tcase 'Flash Black' | 'aCameraFlashBlack' | 'Camera Flash':
+ \t\t\tcase 'Flash Black' | 'aCameraFlashBlack':
 \t\t\t\tif (curStage == 'south')
 \t\t\t\t{
 \t\t\t\t\tvar blackFlashDuration:Float = Std.parseFloat(value1);
@@ -758,7 +758,17 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\tflashSouthScreenBlack(blackFlashDuration);
 \t\t\t\t}
 
-\t\t\tcase 'badapplelol':
+\t\t\tcase 'Camera Flash':
+\t\t\t\tif (curStage == 'south')
+\t\t\t\t{
+\t\t\t\t\t// Ordinary camera flash: white, not a persistent black overlay.
+\t\t\t\t\tvar cameraFlashDuration:Float = Std.parseFloat(value1);
+\t\t\t\t\tif (Math.isNaN(cameraFlashDuration) || cameraFlashDuration <= 0) cameraFlashDuration = 0.5;
+\t\t\t\t\tif (cameraFlashDuration > 2.5) cameraFlashDuration = 2.5;
+\t\t\t\t\tcamGame.flash(FlxColor.WHITE, cameraFlashDuration, null, true);
+\t\t\t\t}
+
+case 'badapplelol':
 \t\t\t\tif (curStage == 'south')
 \t\t\t\t{
 \t\t\t\t\tvar badAppleDuration:Float = Std.parseFloat(value2);
