@@ -707,8 +707,13 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\t\t// Bad Apple silhouette intro: white backdrop, dark characters.
 \t\t\t\t\t\tif (badAppleWhiteBg == null)
 \t\t\t\t\t\t{
-\t\t\t\t\t\t\tbadAppleWhiteBg = new FlxSprite(-100, -100);
+\t\t\t\t\t\t\tbadAppleWhiteBg = new FlxSprite();
 \t\t\t\t\t\t\tbadAppleWhiteBg.makeGraphic(FlxG.width * 2, FlxG.height * 2, FlxColor.WHITE);
+\t\t\t\t\t\t\t// Match the original Lua screenCenter('whitebg', 'xy') call.
+\t\t\t\t\t\t\tbadAppleWhiteBg.setPosition(
+\t\t\t\t\t\t\t\t(FlxG.width - badAppleWhiteBg.width) * 0.5,
+\t\t\t\t\t\t\t\t(FlxG.height - badAppleWhiteBg.height) * 0.5
+\t\t\t\t\t\t\t);
 \t\t\t\t\t\t\tbadAppleWhiteBg.scrollFactor.set(0, 0);
 \t\t\t\t\t\t\tbadAppleWhiteBg.cameras = [camGame];
 \t\t\t\t\t\t\tbadAppleWhiteBg.alpha = 0;
