@@ -611,57 +611,92 @@ def patch_south_stage_fades(engine: Path) -> None:
     play_file = engine / "source" / "PlayState.hx"
     source = play_file.read_text(encoding="utf-8")
 
-    # The desktop stage.lua starts these layers hidden and reveals them with
-    # afadein/afadeout chart events. Register the native replacements under
-    # the exact object names used by the chart.
-    registration_marker = """				var southBlackbar:BGSprite = new BGSprite('blackbar', 0, 0);
-				southBlackbar.cameras = [camHUD];
-				southBlackbar.alpha = 0;
-				add(southBlackbar);
+    # Register the stage sprites that the chart addresses by their Lua names.
+    registration_marker = """
+\t\t\t\tvar southBlackbar:BGSprite = new BGSprite('blackbar', 0, 0);
+\t\t\t\tsouthBlackbar.cameras = [camHUD];
+\t\t\t\tsouthBlackbar.alpha = 0;
+\t\t\t\tadd(southBlackbar);
 """
     registration_code = registration_marker + """
-				// Stage sprite lookup for the mod's afadein/afadeout events.
-				southAnimatedObjects.set('sun', southSun);
-				southAnimatedObjects.set('wow1', southFogBack);
-				southAnimatedObjects.set('Vignette', southVignette);
-				southAnimatedObjects.set('white', southWhite);
-				southAnimatedObjects.set('fog', southFog);
-				southAnimatedObjects.set('black', southBlack);
-				southAnimatedObjects.set('bg', southBackground);
-				southAnimatedObjects.set('bgluz', southLightOverlay);
-				southAnimatedObjects.set('bg3', southBackground3);
-				southAnimatedObjects.set('bgluz3', southLightOverlay3);
-				southAnimatedObjects.set('bg4', southBackground4);
-				southAnimatedObjects.set('bgluz4', southLightOverlay4);
-				southAnimatedObjects.set('bgluz42', southLightOverlay42);
-				southAnimatedObjects.set('bg2', southBackground2);
-				southAnimatedObjects.set('bg2 n', southBackground2Animated);
-				southAnimatedObjects.set('bgluz2', southLightOverlay2);
-				southAnimatedObjects.set('nieve', southSnow);
-				southAnimatedObjects.set('blackbar', southBlackbar);
-				southAnimatedObjects.set('craig', southCraig);
+\t\t\t\t// Stage sprite lookup for the mod's afadein/afadeout events.
+\t\t\t\tsouthAnimatedObjects.set('sun', southSun);
+\t\t\t\tsouthAnimatedObjects.set('wow1', southFogBack);
+\t\t\t\tsouthAnimatedObjects.set('Vignette', southVignette);
+\t\t\t\tsouthAnimatedObjects.set('white', southWhite);
+\t\t\t\tsouthAnimatedObjects.set('fog', southFog);
+\t\t\t\tsouthAnimatedObjects.set('black', southBlack);
+\t\t\t\tsouthAnimatedObjects.set('bg', southBackground);
+\t\t\t\tsouthAnimatedObjects.set('bgluz', southLightOverlay);
+\t\t\t\tsouthAnimatedObjects.set('bg3', southBackground3);
+\t\t\t\tsouthAnimatedObjects.set('bgluz3', southLightOverlay3);
+\t\t\t\tsouthAnimatedObjects.set('bg4', southBackground4);
+\t\t\t\tsouthAnimatedObjects.set('bgluz4', southLightOverlay4);
+\t\t\t\tsouthAnimatedObjects.set('bgluz42', southLightOverlay42);
+\t\t\t\tsouthAnimatedObjects.set('bg2', southBackground2);
+\t\t\t\tsouthAnimatedObjects.set('bg2 n', southBackground2Animated);
+\t\t\t\tsouthAnimatedObjects.set('bgluz2', southLightOverlay2);
+\t\t\t\tsouthAnimatedObjects.set('nieve', southSnow);
+\t\t\t\tsouthAnimatedObjects.set('blackbar', southBlackbar);
+\t\t\t\tsouthAnimatedObjects.set('craig', southCraig);
 """
+    if "Stage sprite lookup for the mod's afadein/afadeout events." not in source:
+        if registration_marker not in source:
+            raise RuntimeError("Could not find the end of the South stage sprite setup.")
+        source = source.replace(registration_marker, registration_code, 1)
+
+    # The chart's South-stage fades and flash use custom event names. These
+    # are handled natively because the HTML5 build does not execute stage.lua.
+    event_marker = "case 'Camera Follow Pos':"
+    event_code = """\t\t\tcase 'afadein' | 'afadeout':
+\t\t\t\tif (curStage == 'south')
+\t\t\t\t{
+\t\t\t\t\tvar fadeSprite:BGSprite = southAnimatedObjects.get(value1);
+\t\t\t\t\tif (fadeSprite != null)
+\t\t\t\t\t{
+\t\t\t\t\t\tvar fadeDuration:Float = Std.parseFloat(value2);
+\t\t\t\t\t\tif (Math.isNaN(fadeDuration) || fadeDuration < 0) fadeDuration = 0;
+\t\t\t\t\t\tvar fadeTarget:Float = eventName == 'afadein' ? 1 : 0;
+\t\t\t\t\t\tFlxTween.cancelTweensOf(fadeSprite);
+\t\t\t\t\t\tif (fadeDuration <= 0) fadeSprite.alpha = fadeTarget;
+\t\t\t\t\t\telse FlxTween.tween(fadeSprite, {alpha: fadeTarget}, fadeDuration, {ease: FlxEase.linear});
+\t\t\t\t\t}
+\t\t\t\t}
+
+\t\t\tcase 'Flash Black' | 'aCameraFlashBlack':
+\t\t\t\tif (curStage == 'south')
+\t\t\t\t{
+\t\t\t\t\t// Use Flixel's camera flash rather than a persistent full-screen
+\t\t\t\t\t// sprite. Its built-in fade-out prevents a stranded black overlay.
+\t\t\t\t\tvar flashBlackSprite:BGSprite = southAnimatedObjects.get('black');
+\t\t\t\t\tif (flashBlackSprite != null)
+\t\t\t\t\t{
+\t\t\t\t\t\tFlxTween.cancelTweensOf(flashBlackSprite);
+\t\t\t\t\t\tflashBlackSprite.alpha = 0;
+\t\t\t\t\t}
+\t\t\t\t\tif (camHUD != null)
+\t\t\t\t\t\tcamHUD.flash(FlxColor.BLACK, 0.25, null, true);
+\t\t\t\t}
+
+\t\t\tcase 'Camera Follow Pos':"""
     fade_case_marker = "case 'afadein' | 'afadeout':"
-    if fade_case_marker not in source:
+    flash_case_marker = "case 'Flash Black' | 'aCameraFlashBlack':"
+    if fade_case_marker not in source or flash_case_marker not in source:
         if event_marker not in source:
             raise RuntimeError("Could not find the PlayState custom-event insertion point.")
         source = source.replace(event_marker, event_code, 1)
 
-    # Validate the exact combined-case labels emitted above. Haxe accepts
-    # multiple alternatives in one case; the former exact-label check
-    # rejected this correct combined Flash Black branch before writing PlayState.
     required_fragments = (
         "Stage sprite lookup for the mod's afadein/afadeout events.",
         "southAnimatedObjects.set('black', southBlack);",
-        "case 'afadein' | 'afadeout':",
-        "case 'Flash Black' | 'aCameraFlashBlack':",
+        fade_case_marker,
+        flash_case_marker,
     )
     missing = [fragment for fragment in required_fragments if fragment not in source]
     if missing:
         raise RuntimeError("South stage fade/flash handling is incomplete: " + repr(missing))
 
     play_file.write_text(source, encoding="utf-8")
-
 
 def patch_botplay_pause_menu(engine: Path) -> None:
     """Expose the built-in Botplay toggle in every gameplay pause menu."""
