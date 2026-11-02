@@ -38,7 +38,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          index_file="$(find extracted -type f \\( -iname 'index.html' -o -iname 'index.htm' \\) -print -quit)"
+          index_file="$(find extracted -type f -iname 'index.html' -print -quit)"
+          if [ -z "$index_file" ]; then
+            index_file="$(find extracted -type f -iname 'index.htm' -print -quit)"
+          fi
           if [ -z "$index_file" ]; then
             echo "The release ZIP does not contain index.html or index.htm." >&2
             echo "This release may not be an HTML5 web export." >&2
