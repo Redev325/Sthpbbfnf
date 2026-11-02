@@ -807,7 +807,8 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tvar gameFlash:Float = blackDiagnosticCameraValue(camGame, '_fxFlashAlpha');
 \t\tvar hudFade:Float = blackDiagnosticCameraValue(camHUD, '_fxFadeAlpha');
 \t\tvar otherFade:Float = blackDiagnosticCameraValue(camOther, '_fxFadeAlpha');
-\t\tvar filters:Int = (camGame == null || camGame.filters == null) ? 0 : camGame.filters.length;
+\t\tvar rawFilters:Dynamic = camGame == null ? null : Reflect.field(camGame, '_filters');
+\t\tvar filters:Int = rawFilters == null ? 0 : rawFilters.length;
 
 \t\tvar cause:String = "No tracked overlay is opaque; possible unregistered sprite, shader, or camera filter.";
 \t\tif (gameFade >= 0.90)
