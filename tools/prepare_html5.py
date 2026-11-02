@@ -362,11 +362,24 @@ def patch_south_stage(
 				southKyleCCharacter = new Character(600, 100, 'kyle c');
 				southKyleCCharacter.singDuration = 6;
 				southKyleCCharacter.alpha = 1;
+				// kyle c.lua uses 15 FPS for its animations.
+				southKyleCCharacter.animation.getByName('idle').frameRate = 15;
+				southKyleCCharacter.animation.getByName('singLEFT').frameRate = 15;
+				southKyleCCharacter.animation.getByName('singDOWN').frameRate = 15;
+				southKyleCCharacter.animation.getByName('singUP').frameRate = 15;
+				southKyleCCharacter.animation.getByName('singRIGHT').frameRate = 15;
 				add(southKyleCCharacter);
 
 				southKyleCharacter = new Character(600, 100, 'kyle');
 				southKyleCharacter.singDuration = 6;
-				southKyleCharacter.alpha = 0;
+				southKyleCharacter.alpha = 1;
+				southKyleCharacter.addOffset('singLEFT', 70, -48);
+				// kyle.lua uses 20 FPS for all five animations.
+				southKyleCharacter.animation.getByName('idle').frameRate = 20;
+				southKyleCharacter.animation.getByName('singLEFT').frameRate = 20;
+				southKyleCharacter.animation.getByName('singDOWN').frameRate = 20;
+				southKyleCharacter.animation.getByName('singUP').frameRate = 20;
+				southKyleCharacter.animation.getByName('singRIGHT').frameRate = 20;
 				add(southKyleCharacter);
 
 				var southBlackbar:BGSprite = new BGSprite('blackbar', 0, 0);
@@ -515,17 +528,17 @@ def patch_south_stage(
     note_marker = "if(note.noteType == 'Hey!' && dad.animOffsets.exists('hey')) {"
     note_code = """        if (curStage == 'south' && note.noteType == 'kyle')
         {
-            var kyleTarget:Character = null;
+            var kyleAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
+            // Both Lua character scripts receive the same custom note type.
             if (southKyleCharacter != null && southKyleCharacter.alpha > 0.01)
-                kyleTarget = southKyleCharacter;
-            else if (southKyleCCharacter != null && southKyleCCharacter.alpha > 0.01)
-                kyleTarget = southKyleCCharacter;
-
-            if (kyleTarget != null)
             {
-                var kyleAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
-                kyleTarget.playAnim(kyleAnim, true);
-                kyleTarget.holdTimer = 0;
+                southKyleCharacter.playAnim(kyleAnim, true);
+                southKyleCharacter.holdTimer = 0;
+            }
+            if (southKyleCCharacter != null && southKyleCCharacter.alpha > 0.01)
+            {
+                southKyleCCharacter.playAnim(kyleAnim, true);
+                southKyleCCharacter.holdTimer = 0;
             }
         }
 
