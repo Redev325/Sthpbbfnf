@@ -98,6 +98,7 @@ def patch_south_stage(engine: Path) -> None:
 	var southLightOverlay3:BGSprite;
 	var southLightOverlay4:BGSprite;
 	var southLightOverlay42:BGSprite;
+	var southAnimatedObjects:Map<String, BGSprite> = new Map();
 """
     if "var southLightOverlay:BGSprite;" not in source:
         if class_marker not in source:
@@ -139,9 +140,11 @@ def patch_south_stage(engine: Path) -> None:
 				add(southBlack);
 
 				var southAnim:BGSprite = new BGSprite('anim', 0, 0, 1, 1, ['anim a'], false);
+				southAnim.animation.addByPrefix('anim', 'anim a', 24, false);
 				southAnim.cameras = [camHUD];
 				southAnim.alpha = 0;
 				add(southAnim);
+				southAnimatedObjects.set('anim', southAnim);
 
 				var southBackground:BGSprite = new BGSprite('bg', -1670, -1540, 1, 1, ['bg a'], true);
 				southBackground.scale.set(2.7, 2.7);
@@ -200,18 +203,25 @@ def patch_south_stage(engine: Path) -> None:
 				add(southSnow);
 
 				var southKyle:BGSprite = new BGSprite('kyle s', 608, 164, 1, 1, ['idle'], true);
+				southKyle.animation.addByPrefix('anim', 'idle', 24, true);
+				southKyle.animation.addByPrefix('anim1', 'anim', 22, false);
 				southKyle.alpha = 0;
 				add(southKyle);
+				southAnimatedObjects.set('kyle s', southKyle);
 
 				var southOh:BGSprite = new BGSprite('oh', 608, 164, 1, 1, ['oh'], true);
+				southOh.animation.addByPrefix('anim', 'oh', 16, true);
 				southOh.scale.set(1.9, 1.9);
 				southOh.alpha = 0;
 				add(southOh);
+				southAnimatedObjects.set('oh', southOh);
 
 				var southCraig:BGSprite = new BGSprite('characters/craig', 1700, 490, 1, 1, ['oh'], true);
+				southCraig.animation.addByPrefix('anim', 'oh', 16, true);
 				southCraig.scale.set(0.9, 0.9);
 				southCraig.alpha = 0;
 				add(southCraig);
+				southAnimatedObjects.set('craig s', southCraig);
 
 				var southBlackbar:BGSprite = new BGSprite('blackbar', 0, 0);
 				southBlackbar.cameras = [camHUD];
@@ -219,19 +229,25 @@ def patch_south_stage(engine: Path) -> None:
 				add(southBlackbar);
 
 				var southAnim2:BGSprite = new BGSprite('anim2', 0, 0, 1, 1, ['anim2 a'], false);
+				southAnim2.animation.addByPrefix('anim', 'anim2 a', 24, false);
 				southAnim2.cameras = [camHUD];
 				southAnim2.alpha = 0;
 				add(southAnim2);
+				southAnimatedObjects.set('anim2', southAnim2);
 
 				var southAnim2C:BGSprite = new BGSprite('anim2 c', 0, 0, 1, 1, ['anim2 c a'], false);
+				southAnim2C.animation.addByPrefix('anim', 'anim2 c a', 24, false);
 				southAnim2C.cameras = [camHUD];
 				southAnim2C.alpha = 0;
 				add(southAnim2C);
+				southAnimatedObjects.set('anim2 c', southAnim2C);
 
 				var southAnim3:BGSprite = new BGSprite('anim3', 0, 0, 1, 1, ['anim3 idle'], false);
+				southAnim3.animation.addByPrefix('anim', 'anim3 idle', 24, false);
 				southAnim3.cameras = [camHUD];
 				southAnim3.alpha = 0;
 				add(southAnim3);
+				southAnimatedObjects.set('anim3', southAnim3);
 
 			case 'stage': //Week 1"""
     if "Native HTML5 recreation of the South Park Bloodbath stage.lua" not in source:
@@ -267,6 +283,25 @@ def patch_south_stage(engine: Path) -> None:
         if step_marker not in source:
             raise RuntimeError("Could not find the PlayState stepHit insertion point.")
         source = source.replace(step_marker, step_addition, 1)
+
+    event_marker = "\\t\\t\\tcase 'Camera Follow Pos':"
+    event_code = """\\t\\t\\tcase 'aObject Play Animation':
+\\t\\t\\t\\tif (curStage == 'south')
+\\t\\t\\t\\t{
+\\t\\t\\t\\t\\tvar stageSprite:BGSprite = southAnimatedObjects.get(value1);
+\\t\\t\\t\\t\\tif (stageSprite != null)
+\\t\\t\\t\\t\\t{
+\\t\\t\\t\\t\\t\\tstageSprite.visible = true;
+\\t\\t\\t\\t\\t\\tstageSprite.alpha = 1;
+\\t\\t\\t\\t\\t\\tstageSprite.animation.play(value2, true);
+\\t\\t\\t\\t\\t}
+\\t\\t\\t\\t}
+
+\\t\\t\\tcase 'Camera Follow Pos':"""
+    if "case 'aObject Play Animation':" not in source:
+        if event_marker not in source:
+            raise RuntimeError("Could not find the PlayState custom-event insertion point.")
+        source = source.replace(event_marker, event_code, 1)
 
     play_file.write_text(source, encoding="utf-8")
 
@@ -402,10 +437,20 @@ def main() -> int:
         raise FileNotFoundError(f"Fallback week menu background is missing: {story_bg}")
     week_file.write_text(json.dumps(week, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
-    for character in ("stan", "kenny", "cartman"):
+    character_names = {"stan", "kenny", "cartman"}
+    for event_group in song.get("events", []):
+        if not isinstance(event_group, list) or len(event_group) < 2:
+            continue
+        entries = event_group[1] if isinstance(event_group[1], list) else []
+        for event in entries:
+            if isinstance(event, list) and len(event) >= 3 and event[0] == "Change Character":
+                character_names.add(str(event[2]).strip())
+
+    icon_dir = engine / "assets" / "preload" / "images" / "icons"
+    for character in sorted(character_names):
         character_file = engine / "assets" / "preload" / "characters" / f"{character}.json"
         if not character_file.is_file():
-            raise FileNotFoundError(f"Missing character definition: {character_file}")
+            raise FileNotFoundError(f"Missing chart character definition: {character_file}")
         character_data = json.loads(character_file.read_text(encoding="utf-8"))
         image_name = character_data.get("image", f"characters/{character}")
         image_file = engine / "assets" / "preload" / "images" / f"{image_name}.png"
@@ -414,21 +459,34 @@ def main() -> int:
             raise FileNotFoundError(
                 f"Incomplete {character} sprite atlas: expected {image_file} and {atlas_file}"
             )
-        # The package includes matching unprefixed portraits for all three
-        # chart characters. Prefer those over placeholder or stale icon names.
-        icon_dir = engine / "assets" / "preload" / "images" / "icons"
-        preferred_icon = icon_dir / f"{character}.png"
-        icon_name = character_data.get("healthicon", "blank")
-        icon_file = icon_dir / f"{icon_name}.png"
-        legacy_icon_file = icon_dir / f"icon-{icon_name}.png"
-        if preferred_icon.is_file():
-            character_data["healthicon"] = character
+
+        # Some alternate forms ship with a stale "faker-tails" icon value.
+        # Prefer their own icon, then the base form's icon, then the stock blank icon.
+        candidates = [
+            str(character_data.get("healthicon", "")).strip(),
+            character,
+        ]
+        parts = character.rsplit(" ", 1)
+        if len(parts) == 2 and parts[1].lower() in {"c", "s", "w", "f", "a"}:
+            candidates.append(parts[0])
+        selected_icon = None
+        for candidate in candidates:
+            if not candidate:
+                continue
+            if (icon_dir / f"{candidate}.png").is_file() or (icon_dir / f"icon-{candidate}.png").is_file():
+                selected_icon = candidate
+                break
+        if selected_icon is None:
+            if not (icon_dir / "icon-blank.png").is_file():
+                raise FileNotFoundError(f"Missing fallback health icon for {character}.")
+            selected_icon = "blank"
+
+        if character_data.get("healthicon") != selected_icon:
+            character_data["healthicon"] = selected_icon
             character_file.write_text(
                 json.dumps(character_data, ensure_ascii=False, separators=(",", ":")),
                 encoding="utf-8",
             )
-        elif not icon_file.is_file() and not legacy_icon_file.is_file():
-            raise FileNotFoundError(f"Missing health icon for {character}: {icon_name}")
 
     patch_project(engine)
     patch_note_types(engine)
