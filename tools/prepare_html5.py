@@ -606,6 +606,38 @@ def patch_south_stage(
     play_file.write_text(source, encoding="utf-8")
 
 
+def patch_botplay_pause_menu(engine: Path) -> None:
+    """Expose the built-in Botplay toggle in every gameplay pause menu."""
+    pause_file = engine / "source" / "PauseSubState.hx"
+    source = pause_file.read_text(encoding="utf-8")
+
+    # Psych Engine already implements CPU-controlled note hitting and the
+    # pause-menu toggle, but upstream only inserts that menu item in
+    # Charting Mode. Move the insertion to the shared pause-menu setup.
+    if "Bloodbath: expose Botplay during normal gameplay" not in source:
+        charting_only_line = "\t\t\tmenuItemsOG.insert(5 + num, 'Toggle Botplay');\n"
+        if charting_only_line not in source:
+            raise RuntimeError("Could not find the Charting Mode-only Botplay menu entry.")
+        source = source.replace(charting_only_line, "", 1)
+
+        menu_marker = "\t\tmenuItems = menuItemsOG;"
+        menu_addition = """\t\t// Bloodbath: expose Botplay during normal gameplay as well as Charting Mode.
+\t\tif (!menuItemsOG.contains('Toggle Botplay'))
+\t\t{
+\t\t\tvar botplayIndex:Int = menuItemsOG.indexOf('Exit to menu');
+\t\t\tif (botplayIndex < 0) botplayIndex = menuItemsOG.length;
+\t\t\tmenuItemsOG.insert(botplayIndex, 'Toggle Botplay');
+\t\t}
+\t\tmenuItems = menuItemsOG;"""
+        if menu_marker not in source:
+            raise RuntimeError("Could not find the shared PauseSubState menu setup.")
+        source = source.replace(menu_marker, menu_addition, 1)
+
+    if "case 'Toggle Botplay':" not in source or "PlayState.instance.cpuControlled = !PlayState.instance.cpuControlled;" not in source:
+        raise RuntimeError("Psych Engine's built-in Botplay toggle handler is missing.")
+    pause_file.write_text(source, encoding="utf-8")
+
+
 def keep_only_bloodbath(engine: Path) -> dict[str, int]:
     """Remove non-Bloodbath song audio, charts and week definitions."""
     songs_dir = engine / "assets" / "songs"
@@ -836,6 +868,7 @@ def main() -> int:
     icon_changes = read_icon_changes(mod / "data" / "bloodbath" / "IconManager.lua")
     patch_note_types(engine)
     patch_south_stage(engine, image_report, icon_changes)
+    patch_botplay_pause_menu(engine)
     converted = convert_ogg_files(engine)
     song_cleanup = keep_only_bloodbath(engine)
 
