@@ -1100,6 +1100,29 @@ def report_late_south_transition(mod: Path, chart_file: Path) -> None:
                 asset_matches += 1
                 if asset_matches >= 80:
                     break
+    print("=== CINEMATIC BAR EVENT REPORT ===")
+    custom_event_dir = mod / "custom_events"
+    if custom_event_dir.is_dir():
+        for lua_file in sorted(custom_event_dir.glob("*.lua")):
+            name = lua_file.name.lower()
+            if "cinematic" in name or "border" in name or "bar" in name:
+                print(f"CUSTOM_EVENT_FILE {lua_file.name}")
+                for line_no, line in enumerate(lua_file.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+                    print(f"  {line_no}: {line.rstrip()}")
+    for group in song.get("events", []):
+        if not isinstance(group, list) or len(group) < 2:
+            continue
+        try:
+            timestamp = float(group[0])
+        except (TypeError, ValueError):
+            continue
+        if not (195000 <= timestamp <= 210000 or 345000 <= timestamp <= 365000):
+            continue
+        for event in group[1] if isinstance(group[1], list) else []:
+            if isinstance(event, list) and len(event) >= 3 and (
+                "cinematic" in str(event[0]).lower() or "border" in str(event[0]).lower()
+            ):
+                print(f"CINEMATIC_CHART_EVENT {timestamp:.0f}ms {event[0]!r} value1={event[1]!r} value2={event[2]!r}")
     print("=== END SOUTH TRANSITION REPORT ===")
 
 
