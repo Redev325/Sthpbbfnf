@@ -228,7 +228,11 @@ def main() -> int:
     week_file = engine / "assets" / "preload" / "weeks" / "week-SPT.json"
     week = json.loads(week_file.read_text(encoding="utf-8"))
     week["weekBackground"] = "week1"
+    # StoryMenuState uses these as opponent, player, girlfriend portraits.
     week["weekCharacters"] = ["stan", "kenny", "cartman"]
+    story_bg = engine / "assets" / "preload" / "images" / "storymenu" / "week1.png"
+    if not story_bg.is_file():
+        raise FileNotFoundError(f"Fallback week menu background is missing: {story_bg}")
     week_file.write_text(json.dumps(week, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     for character in ("stan", "kenny", "cartman"):
@@ -243,20 +247,21 @@ def main() -> int:
             raise FileNotFoundError(
                 f"Incomplete {character} sprite atlas: expected {image_file} and {atlas_file}"
             )
-        # The included icons use the modern unprefixed icon filenames.
+        # The package includes matching unprefixed portraits for all three
+        # chart characters. Prefer those over placeholder or stale icon names.
+        icon_dir = engine / "assets" / "preload" / "images" / "icons"
+        preferred_icon = icon_dir / f"{character}.png"
         icon_name = character_data.get("healthicon", "blank")
-        icon_file = engine / "assets" / "preload" / "images" / "icons" / f"{icon_name}.png"
-        if not icon_file.is_file():
-            icon_file = engine / "assets" / "preload" / "images" / "icons" / f"icon-{icon_name}.png"
-        if not icon_file.is_file():
-            fallback = engine / "assets" / "preload" / "images" / "icons" / f"{character}.png"
-            if not fallback.is_file():
-                raise FileNotFoundError(f"Missing health icon for {character}: {icon_name}")
+        icon_file = icon_dir / f"{icon_name}.png"
+        legacy_icon_file = icon_dir / f"icon-{icon_name}.png"
+        if preferred_icon.is_file():
             character_data["healthicon"] = character
             character_file.write_text(
                 json.dumps(character_data, ensure_ascii=False, separators=(",", ":")),
                 encoding="utf-8",
             )
+        elif not icon_file.is_file() and not legacy_icon_file.is_file():
+            raise FileNotFoundError(f"Missing health icon for {character}: {icon_name}")
 
     patch_project(engine)
     patch_note_types(engine)
