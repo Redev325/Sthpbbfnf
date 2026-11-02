@@ -543,7 +543,7 @@ def main() -> int:
     # Psych Engine's stock week list; that made all base-game songs appear too.
     week_list = engine / "assets" / "preload" / "weeks" / "weekList.txt"
     week_list.parent.mkdir(parents=True, exist_ok=True)
-    week_list.write_text("week-SPT\\n", encoding="utf-8")
+    week_list.write_text("week-SPT\n", encoding="utf-8")
 
     # The release ZIP contains the instrumental but no Voices.ogg/Voices.mp3.
     chart_file = engine / "assets" / "preload" / "data" / "bloodbath" / "bloodbath-hard.json"
