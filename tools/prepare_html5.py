@@ -606,6 +606,83 @@ def patch_south_stage(
     play_file.write_text(source, encoding="utf-8")
 
 
+def patch_south_stage_fades(engine: Path) -> None:
+    """Port the South stage fade and temporary black-flash events to HTML5."""
+    play_file = engine / "source" / "PlayState.hx"
+    source = play_file.read_text(encoding="utf-8")
+
+    # The desktop stage.lua starts these layers hidden and reveals them with
+    # afadein/afadeout chart events. Register the native replacements under
+    # the exact object names used by the chart.
+    registration_marker = """				var southBlackbar:BGSprite = new BGSprite('blackbar', 0, 0);
+				southBlackbar.cameras = [camHUD];
+				southBlackbar.alpha = 0;
+				add(southBlackbar);
+"""
+    registration_code = registration_marker + """
+				// Stage sprite lookup for the mod's afadein/afadeout events.
+				southAnimatedObjects.set('sun', southSun);
+				southAnimatedObjects.set('wow1', southFogBack);
+				southAnimatedObjects.set('Vignette', southVignette);
+				southAnimatedObjects.set('white', southWhite);
+				southAnimatedObjects.set('fog', southFog);
+				southAnimatedObjects.set('black', southBlack);
+				southAnimatedObjects.set('bg', southBackground);
+				southAnimatedObjects.set('bgluz', southLightOverlay);
+				southAnimatedObjects.set('bg3', southBackground3);
+				southAnimatedObjects.set('bgluz3', southLightOverlay3);
+				southAnimatedObjects.set('bg4', southBackground4);
+				southAnimatedObjects.set('bgluz4', southLightOverlay4);
+				southAnimatedObjects.set('bgluz42', southLightOverlay42);
+				southAnimatedObjects.set('bg2', southBackground2);
+				southAnimatedObjects.set('bg2 n', southBackground2Animated);
+				southAnimatedObjects.set('bgluz2', southLightOverlay2);
+				southAnimatedObjects.set('nieve', southSnow);
+				southAnimatedObjects.set('blackbar', southBlackbar);
+				southAnimatedObjects.set('craig', southCraig);
+"""
+    if "Stage sprite lookup for the mod's afadein/afadeout events." not in source:
+        if registration_marker not in source:
+            raise RuntimeError("Could not find the end of the South stage sprite setup.")
+        source = source.replace(registration_marker, registration_code, 1)
+
+    event_marker = "case 'Camera Follow Pos':"
+    event_code = """			case 'afadein':
+			case 'afadeout':
+				if (curStage == 'south')
+				{
+					var fadeSprite:BGSprite = southAnimatedObjects.get(value1);
+					if (fadeSprite != null)
+					{
+						var fadeDuration:Float = Std.parseFloat(value2);
+						if (Math.isNaN(fadeDuration) || fadeDuration < 0) fadeDuration = 0;
+						var fadeTarget:Float = eventName == 'afadein' ? 1 : 0;
+						FlxTween.cancelTweensOf(fadeSprite);
+						if (fadeDuration <= 0) fadeSprite.alpha = fadeTarget;
+						else FlxTween.tween(fadeSprite, {alpha: fadeTarget}, fadeDuration, {ease: FlxEase.linear});
+					}
+				}
+
+			case 'Flash Black':
+				if (curStage == 'south' && southBlack != null)
+				{
+					// This is a flash, not a permanent black overlay.
+					FlxTween.cancelTweensOf(southBlack);
+					southBlack.alpha = 1;
+					FlxTween.tween(southBlack, {alpha: 0}, 0.25, {ease: FlxEase.quadOut});
+				}
+
+			case 'Camera Follow Pos':"""
+    if "case 'Stage sprite lookup for the mod's afadein/afadeout events':" not in source and "case 'afadein':" not in source:
+        if event_marker not in source:
+            raise RuntimeError("Could not find the PlayState custom-event insertion point.")
+        source = source.replace(event_marker, event_code, 1)
+
+    if "southAnimatedObjects.set('black', southBlack);" not in source or "case 'Flash Black':" not in source:
+        raise RuntimeError("South stage fade registration or Flash Black handling was not inserted.")
+    play_file.write_text(source, encoding="utf-8")
+
+
 def patch_botplay_pause_menu(engine: Path) -> None:
     """Expose the built-in Botplay toggle in every gameplay pause menu."""
     pause_file = engine / "source" / "PauseSubState.hx"
@@ -868,6 +945,7 @@ def main() -> int:
     icon_changes = read_icon_changes(mod / "data" / "bloodbath" / "IconManager.lua")
     patch_note_types(engine)
     patch_south_stage(engine, image_report, icon_changes)
+    patch_south_stage_fades(engine)
     patch_botplay_pause_menu(engine)
     converted = convert_ogg_files(engine)
     song_cleanup = keep_only_bloodbath(engine)
