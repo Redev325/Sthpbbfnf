@@ -897,8 +897,8 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tvar flashAlpha:Float = blackDiagnosticCameraValue(camera, "_fxFlashAlpha");
 \t\tvar fadeColor:Dynamic = Reflect.field(camera, "_fxFadeColor");
 \t\tvar flashColor:Dynamic = Reflect.field(camera, "_fxFlashColor");
-\t\treturn (fadeAlpha >= 0.92 && fadeColor == FlxColor.BLACK)
-\t\t\t|| (flashAlpha >= 0.92 && flashColor == FlxColor.BLACK);
+\t\treturn (fadeAlpha > 0.02 && fadeColor == FlxColor.BLACK)
+\t\t\t|| (flashAlpha > 0.02 && flashColor == FlxColor.BLACK);
 \t}
 
 \tfunction recoverLateBlackout():Void
@@ -913,11 +913,16 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tvar blackLayer:BGSprite = southAnimatedObjects.get('black');
 \t\tvar blackbarLayer:BGSprite = southAnimatedObjects.get('blackbar');
 \t\tvar whiteLayer:BGSprite = southAnimatedObjects.get('white');
-\t\tvar blackCover:Bool = (blackLayer != null && blackLayer.alpha >= 0.92)
-\t\t\t|| (blackbarLayer != null && blackbarLayer.alpha >= 0.92)
-\t\t\t|| (whiteLayer != null && whiteLayer.alpha >= 0.92)
-\t\t\t|| (badAppleWhiteBg != null && badAppleWhiteBg.alpha >= 0.92)
-\t\t\t|| (southBlackFlashOverlay != null && southBlackFlashOverlay.alpha >= 0.92);
+\t\t// At these timestamps every full-screen cover should have finished its
+\t\t// charted transition. Catch partially opaque leftovers as well as 100% covers.
+\t\t// The Bad Apple white backdrop is intentional until the chart's B event.
+\t\tvar badAppleBackdropStuck:Bool = !badAppleSilhouetteActive
+\t\t\t&& badAppleWhiteBg != null && badAppleWhiteBg.alpha > 0.02;
+\t\tvar blackCover:Bool = (blackLayer != null && blackLayer.alpha > 0.02)
+\t\t\t|| (blackbarLayer != null && blackbarLayer.alpha > 0.02)
+\t\t\t|| (whiteLayer != null && whiteLayer.alpha > 0.02)
+\t\t\t|| badAppleBackdropStuck
+\t\t\t|| (southBlackFlashOverlay != null && southBlackFlashOverlay.alpha > 0.02);
 
 \t\tvar cameraCover:Bool = blackDiagnosticHasBlackFx(camGame)
 \t\t\t|| blackDiagnosticHasBlackFx(camHUD)
@@ -944,31 +949,31 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tif (wallNow - lateBlackoutWatchSince < 1250) return;
 
 \t\tvar recovered:Array<String> = [];
-\t\tif (blackLayer != null && blackLayer.alpha >= 0.92)
+\t\tif (blackLayer != null && blackLayer.alpha > 0.02)
 \t\t{
 \t\t\tFlxTween.cancelTweensOf(blackLayer);
 \t\t\tblackLayer.alpha = 0;
 \t\t\trecovered.push("stage black");
 \t\t}
-\t\tif (blackbarLayer != null && blackbarLayer.alpha >= 0.92)
+\t\tif (blackbarLayer != null && blackbarLayer.alpha > 0.02)
 \t\t{
 \t\t\tFlxTween.cancelTweensOf(blackbarLayer);
 \t\t\tblackbarLayer.alpha = 0;
 \t\t\trecovered.push("stage blackbar");
 \t\t}
-\t\tif (whiteLayer != null && whiteLayer.alpha >= 0.92)
+\t\tif (whiteLayer != null && whiteLayer.alpha > 0.02)
 \t\t{
 \t\t\tFlxTween.cancelTweensOf(whiteLayer);
 \t\t\twhiteLayer.alpha = 0;
 \t\t\trecovered.push("stage white");
 \t\t}
-\t\tif (badAppleWhiteBg != null && badAppleWhiteBg.alpha >= 0.92)
+\t\tif (badAppleBackdropStuck)
 \t\t{
 \t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
 \t\t\tbadAppleWhiteBg.alpha = 0;
 \t\t\trecovered.push("Bad Apple backdrop");
 \t\t}
-\t\tif (southBlackFlashOverlay != null && southBlackFlashOverlay.alpha >= 0.92)
+\t\tif (southBlackFlashOverlay != null && southBlackFlashOverlay.alpha > 0.02)
 \t\t{
 \t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);
 \t\t\tsouthBlackFlashOverlay.alpha = 0;
