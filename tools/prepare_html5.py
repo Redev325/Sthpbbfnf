@@ -761,6 +761,156 @@ def patch_south_stage_fades(engine: Path) -> None:
 
     play_file.write_text(source, encoding="utf-8")
 
+
+def patch_black_screen_diagnostics(engine: Path) -> None:
+    """Add a corner overlay that records the cause of the South-stage blackout."""
+    play_file = engine / "source" / "PlayState.hx"
+    source = play_file.read_text(encoding="utf-8")
+
+    field_marker = "\tvar badAppleWhiteBg:FlxSprite;"
+    fields = field_marker + """
+\tvar blackDiagnosticBg:FlxSprite;
+\tvar blackDiagnosticText:FlxText;
+\tvar blackDiagnosticLastEvent:String = "none";
+\tvar blackDiagnosticLastEventTime:Float = 0;
+\tvar blackDiagnosticEventHistory:Array<String> = [];
+
+\tfunction blackDiagnosticPercent(value:Float):String
+\t{
+\t\treturn Std.string(Std.int(value * 100)) + "%";
+\t}
+
+\tfunction blackDiagnosticCameraValue(camera:FlxCamera, fieldName:String):Float
+\t{
+\t\tif (camera == null) return 0;
+\t\tvar rawValue:Dynamic = Reflect.field(camera, fieldName);
+\t\tif (rawValue == null) return 0;
+\t\tvar parsed:Float = Std.parseFloat(Std.string(rawValue));
+\t\treturn Math.isNaN(parsed) ? 0 : parsed;
+\t}
+
+\tfunction refreshBlackScreenDiagnostics():Void
+\t{
+\t\tif (blackDiagnosticText == null || blackDiagnosticBg == null) return;
+
+\t\tvar songMs:Float = Conductor.songPosition;
+\t\tvar shouldShow:Bool = songMs >= 340000;
+\t\tvar blackLayer:BGSprite = southAnimatedObjects.get('black');
+\t\tvar blackbarLayer:BGSprite = southAnimatedObjects.get('blackbar');
+\t\tvar whiteLayer:BGSprite = southAnimatedObjects.get('white');
+\t\tvar blackAlpha:Float = blackLayer == null ? 0 : blackLayer.alpha;
+\t\tvar blackbarAlpha:Float = blackbarLayer == null ? 0 : blackbarLayer.alpha;
+\t\tvar whiteAlpha:Float = whiteLayer == null ? 0 : whiteLayer.alpha;
+\t\tvar badAppleAlpha:Float = badAppleWhiteBg == null ? 0 : badAppleWhiteBg.alpha;
+
+\t\tvar gameFade:Float = blackDiagnosticCameraValue(camGame, '_fxFadeAlpha');
+\t\tvar gameFlash:Float = blackDiagnosticCameraValue(camGame, '_fxFlashAlpha');
+\t\tvar hudFade:Float = blackDiagnosticCameraValue(camHUD, '_fxFadeAlpha');
+\t\tvar otherFade:Float = blackDiagnosticCameraValue(camOther, '_fxFadeAlpha');
+\t\tvar filters:Int = (camGame == null || camGame.filters == null) ? 0 : camGame.filters.length;
+
+\t\tvar cause:String = "No tracked overlay is opaque; possible unregistered sprite, shader, or camera filter.";
+\t\tif (gameFade >= 0.90)
+\t\t\tcause = "camGame has an active near-full-screen camera fade.";
+\t\telse if (hudFade >= 0.90)
+\t\t\tcause = "camHUD has an active near-full-screen camera fade.";
+\t\telse if (otherFade >= 0.90)
+\t\t\tcause = "camOther has an active near-full-screen camera fade.";
+\t\telse if (blackAlpha >= 0.90)
+\t\t\tcause = "South stage sprite 'black' is still covering the HUD.";
+\t\telse if (blackbarAlpha >= 0.90)
+\t\t\tcause = "South stage sprite 'blackbar' is still opaque.";
+\t\telse if (badAppleAlpha >= 0.90)
+\t\t\tcause = "Bad Apple backdrop is still opaque.";
+\t\telse if (whiteAlpha >= 0.90)
+\t\t\tcause = "South stage sprite 'white' is still covering the HUD.";
+\t\telse if (boyfriend != null && dad != null && boyfriend.color == FlxColor.BLACK && dad.color == FlxColor.BLACK)
+\t\t\tcause = "Boyfriend and opponent are still black-tinted; silhouette reset may not have run.";
+
+\t\tvar totalSeconds:Int = Std.int(Math.max(0, songMs) / 1000);
+\t\tvar minuteText:String = Std.string(Std.int(totalSeconds / 60));
+\t\tvar secondValue:Int = totalSeconds % 60;
+\t\tvar secondText:String = secondValue < 10 ? "0" + secondValue : Std.string(secondValue);
+\t\tvar eventTime:String = Std.string(Std.int(blackDiagnosticLastEventTime)) + "ms";
+
+\t\tblackDiagnosticText.text =
+\t\t\t"BLACKOUT DIAGNOSTICS  |  " + minuteText + ":" + secondText + "\\n" +
+\t\t\t"Last event: " + blackDiagnosticLastEvent + " @ " + eventTime + "\\n" +
+\t\t\t"Layers: black " + blackDiagnosticPercent(blackAlpha) +
+\t\t\t" | bar " + blackDiagnosticPercent(blackbarAlpha) +
+\t\t\t" | white " + blackDiagnosticPercent(whiteAlpha) +
+\t\t\t" | BadApple " + blackDiagnosticPercent(badAppleAlpha) + "\\n" +
+\t\t\t"Camera: game fade " + blackDiagnosticPercent(gameFade) +
+\t\t\t" / flash " + blackDiagnosticPercent(gameFlash) +
+\t\t\t" | HUD fade " + blackDiagnosticPercent(hudFade) +
+\t\t\t" | filters " + Std.string(filters) + "\\n" +
+\t\t\t"CAUSE: " + cause + "\\n" +
+\t\t\t"Recent events: " + blackDiagnosticEventHistory.join(" -> ");
+
+\t\tblackDiagnosticBg.visible = shouldShow;
+\t\tblackDiagnosticText.visible = shouldShow;
+\t}
+"""
+    if "var blackDiagnosticBg:FlxSprite;" not in source:
+        if field_marker not in source:
+            raise RuntimeError("Could not locate the Bad Apple fields for diagnostic insertion.")
+        source = source.replace(field_marker, fields, 1)
+
+    camera_marker = "\t\tFlxG.cameras.setDefaultDrawTarget(camGame, true);"
+    camera_code = camera_marker + """
+\n\t\t// camOther is drawn above the game/HUD cameras, keeping diagnostics visible.
+\t\tblackDiagnosticBg = new FlxSprite(FlxG.width - 424, 124);
+\t\tblackDiagnosticBg.makeGraphic(412, 126, 0xE0101010);
+\t\tblackDiagnosticBg.alpha = 0.94;
+\t\tblackDiagnosticBg.scrollFactor.set(0, 0);
+\t\tblackDiagnosticBg.cameras = [camOther];
+\t\tblackDiagnosticBg.visible = false;
+\t\tadd(blackDiagnosticBg);
+
+\t\tblackDiagnosticText = new FlxText(FlxG.width - 416, 130, 396, "BLACKOUT DIAGNOSTICS\\nWaiting for 5:40...", 12);
+\t\tblackDiagnosticText.setFormat(Paths.font("vcr.ttf"), 12, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+\t\tblackDiagnosticText.scrollFactor.set(0, 0);
+\t\tblackDiagnosticText.cameras = [camOther];
+\t\tblackDiagnosticText.visible = false;
+\t\tadd(blackDiagnosticText);
+"""
+    if "blackDiagnosticBg = new FlxSprite" not in source:
+        if camera_marker not in source:
+            raise RuntimeError("Could not locate PlayState camera setup for diagnostic overlay.")
+        source = source.replace(camera_marker, camera_code, 1)
+
+    update_marker = "\toverride public function update(elapsed:Float)\n\t{"
+    update_code = update_marker + "\n\t\trefreshBlackScreenDiagnostics();"
+    if "refreshBlackScreenDiagnostics();" not in source:
+        if update_marker not in source:
+            raise RuntimeError("Could not locate PlayState.update() for diagnostic refresh.")
+        source = source.replace(update_marker, update_code, 1)
+
+    event_marker = "public function triggerEventNote(eventName:String, value1:String, value2:String) {\n\t\tswitch(eventName) {"
+    event_code = """public function triggerEventNote(eventName:String, value1:String, value2:String) {
+\t\tblackDiagnosticLastEvent = eventName + " [" + value1 + " | " + value2 + "]";
+\t\tblackDiagnosticLastEventTime = Conductor.songPosition;
+\t\tblackDiagnosticEventHistory.push(blackDiagnosticLastEvent + " @ " + Std.string(Std.int(Conductor.songPosition)) + "ms");
+\t\tif (blackDiagnosticEventHistory.length > 4) blackDiagnosticEventHistory.shift();
+\t\tswitch(eventName) {"""
+    if "blackDiagnosticLastEvent = eventName" not in source:
+        if event_marker not in source:
+            raise RuntimeError("Could not locate triggerEventNote() for event-history capture.")
+        source = source.replace(event_marker, event_code, 1)
+
+    required = (
+        "var blackDiagnosticBg:FlxSprite;",
+        "refreshBlackScreenDiagnostics();",
+        "blackDiagnosticLastEvent = eventName",
+        "Recent events:",
+    )
+    missing = [item for item in required if item not in source]
+    if missing:
+        raise RuntimeError("Blackout diagnostics patch is incomplete: " + repr(missing))
+
+    play_file.write_text(source, encoding="utf-8")
+
+
 def patch_botplay_pause_menu(engine: Path) -> None:
     """Expose the built-in Botplay toggle in every gameplay pause menu."""
     pause_file = engine / "source" / "PauseSubState.hx"
@@ -1024,6 +1174,7 @@ def main() -> int:
     patch_note_types(engine)
     patch_south_stage(engine, image_report, icon_changes)
     patch_south_stage_fades(engine)
+    patch_black_screen_diagnostics(engine)
     patch_botplay_pause_menu(engine)
     converted = convert_ogg_files(engine)
     song_cleanup = keep_only_bloodbath(engine)
