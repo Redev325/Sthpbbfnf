@@ -481,54 +481,54 @@ def patch_south_stage(
     icon_case_lines = []
     for step, icon_name, left_hex, right_hex in icon_changes:
         icon_case_lines.extend([
-            f"\\t\\t\\t\\tcase {step}:",
-            f"\\t\\t\\t\\t\\tapplySouthHealthIcon({json.dumps(icon_name)}, {json.dumps(left_hex)}, {json.dumps(right_hex)});",
+            f"\t\t\t\tcase {step}:",
+            f"\t\t\t\t\tapplySouthHealthIcon({json.dumps(icon_name)}, {json.dumps(left_hex)}, {json.dumps(right_hex)});",
         ])
     if "__ICON_CASES__" in source:
-        source = source.replace("__ICON_CASES__", "\\n".join(icon_case_lines), 1)
+        source = source.replace("__ICON_CASES__", "\n".join(icon_case_lines), 1)
 
     # Native beat handling for the two Lua-created extra Kyle characters.
-    beat_marker = "\\t\\tlastBeatHit = curBeat;"
-    beat_code = """\\t\\tif (curStage == 'south')
-\\t\\t{
-\\t\\t\\tif (southKyleCharacter != null && southKyleCharacter.alpha > 0.01
-\\t\\t\\t\\t&& southKyleCharacter.animation.curAnim != null
-\\t\\t\\t\\t&& !southKyleCharacter.animation.curAnim.name.startsWith('sing')
-\\t\\t\\t\\t&& curBeat % southKyleCharacter.danceEveryNumBeats == 0)
-\\t\\t\\t\\tsouthKyleCharacter.dance();
+    beat_marker = "\t\tlastBeatHit = curBeat;"
+    beat_code = """\t\tif (curStage == 'south')
+\t\t{
+\t\t\tif (southKyleCharacter != null && southKyleCharacter.alpha > 0.01
+\t\t\t\t&& southKyleCharacter.animation.curAnim != null
+\t\t\t\t&& !southKyleCharacter.animation.curAnim.name.startsWith('sing')
+\t\t\t\t&& curBeat % southKyleCharacter.danceEveryNumBeats == 0)
+\t\t\t\tsouthKyleCharacter.dance();
 
-\\t\\t\\tif (southKyleCCharacter != null && southKyleCCharacter.alpha > 0.01
-\\t\\t\\t\\t&& southKyleCCharacter.animation.curAnim != null
-\\t\\t\\t\\t&& !southKyleCCharacter.animation.curAnim.name.startsWith('sing')
-\\t\\t\\t\\t&& curBeat % southKyleCCharacter.danceEveryNumBeats == 0)
-\\t\\t\\t\\tsouthKyleCCharacter.dance();
-\\t\\t}
+\t\t\tif (southKyleCCharacter != null && southKyleCCharacter.alpha > 0.01
+\t\t\\t\\t&& southKyleCCharacter.animation.curAnim != null
+\t\t\t\\t&& !southKyleCCharacter.animation.curAnim.name.startsWith('sing')
+\t\t\t\\t&& curBeat % southKyleCCharacter.danceEveryNumBeats == 0)
+\t\t\\t\\tsouthKyleCCharacter.dance();
+\t\t}
 
-\\t\\tlastBeatHit = curBeat;"""
+\t\tlastBeatHit = curBeat;"""
     if "southKyleCharacter.dance();" not in source:
         if beat_marker not in source:
             raise RuntimeError("Could not find the PlayState beatHit insertion point.")
         source = source.replace(beat_marker, beat_code, 1)
 
     # Route the custom kyle note type to the visible extra Kyle character.
-    note_marker = "\\t\\tif(note.noteType == 'Hey!' && dad.animOffsets.exists('hey')) {"
-    note_code = """\\t\\tif (curStage == 'south' && note.noteType == 'kyle')
-\\t\\t{
-\\t\\t\\tvar kyleTarget:Character = null;
-\\t\\t\\tif (southKyleCharacter != null && southKyleCharacter.alpha > 0.01)
-\\t\\t\\t\\tkyleTarget = southKyleCharacter;
-\\t\\t\\telse if (southKyleCCharacter != null && southKyleCCharacter.alpha > 0.01)
-\\t\\t\\t\\tkyleTarget = southKyleCCharacter;
+    note_marker = "\t\tif(note.noteType == 'Hey!' && dad.animOffsets.exists('hey')) {"
+    note_code = """\t\tif (curStage == 'south' && note.noteType == 'kyle')
+\t\t{
+\t\t\tvar kyleTarget:Character = null;
+\t\t\tif (southKyleCharacter != null && southKyleCharacter.alpha > 0.01)
+\t\t\t\tkyleTarget = southKyleCharacter;
+\t\t\telse if (southKyleCCharacter != null && southKyleCCharacter.alpha > 0.01)
+\t\t\t\tkyleTarget = southKyleCCharacter;
 
-\\t\\t\\tif (kyleTarget != null)
+\t\t\tif (kyleTarget != null)
 \\t\\t\\t{
-\\t\\t\\t\\tvar kyleAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
-\\t\\t\\t\\tkyleTarget.playAnim(kyleAnim, true);
-\\t\\t\\t\\tkyleTarget.holdTimer = 0;
-\\t\\t\\t}
-\\t\\t}
+\t\t\t\tvar kyleAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
+\t\t\t\tkyleTarget.playAnim(kyleAnim, true);
+\t\t\t\tkyleTarget.holdTimer = 0;
+\t\t\t}
+\t\t}
 
-\\t\\tif(note.noteType == 'Hey!' && dad.animOffsets.exists('hey')) {"""
+\t\tif(note.noteType == 'Hey!' && dad.animOffsets.exists('hey')) {"""
     if "var kyleTarget:Character" not in source:
         if note_marker not in source:
             raise RuntimeError("Could not find the PlayState opponentNoteHit insertion point.")
