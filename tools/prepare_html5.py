@@ -647,8 +647,7 @@ def patch_south_stage_fades(engine: Path) -> None:
         source = source.replace(registration_marker, registration_code, 1)
 
     event_marker = "case 'Camera Follow Pos':"
-    event_code = """			case 'afadein':
-			case 'afadeout':
+    event_code = """			case 'afadein' | 'afadeout':
 				if (curStage == 'south')
 				{
 					var fadeSprite:BGSprite = southAnimatedObjects.get(value1);
