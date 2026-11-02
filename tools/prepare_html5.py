@@ -769,6 +769,7 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 
     field_marker = "\tvar badAppleWhiteBg:FlxSprite;"
     fields = field_marker + """
+\tvar camDebug:FlxCamera;
 \tvar blackDiagnosticBg:FlxSprite;
 \tvar blackDiagnosticText:FlxText;
 \tvar blackDiagnosticLastEvent:String = "none";
@@ -857,10 +858,11 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
             raise RuntimeError("Could not locate the Bad Apple fields for diagnostic insertion.")
         source = source.replace(field_marker, fields, 1)
 
-    camera_stack_marker = "\\t\\tFlxG.cameras.add(camOther, false);"
-    camera_stack_code = camera_stack_marker + """\\n\\t\\tcamDebug = new FlxCamera();
-\\t\\tcamDebug.bgColor.alpha = 0;
-\\t\\tFlxG.cameras.add(camDebug, false);
+    camera_stack_marker = "\t\tFlxG.cameras.add(camOther, false);"
+    camera_stack_code = camera_stack_marker + """
+\n\t\tcamDebug = new FlxCamera();
+\t\tcamDebug.bgColor.alpha = 0;
+\t\tFlxG.cameras.add(camDebug, false);
 """
     if "camDebug = new FlxCamera();" not in source:
         if camera_stack_marker not in source:
