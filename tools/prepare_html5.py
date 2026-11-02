@@ -664,12 +664,16 @@ def patch_south_stage_fades(engine: Path) -> None:
 				}
 
 			case 'Flash Black':
-				if (curStage == 'south' && southBlack != null)
+				if (curStage == 'south')
 				{
-					// This is a flash, not a permanent black overlay.
-					FlxTween.cancelTweensOf(southBlack);
-					southBlack.alpha = 1;
-					FlxTween.tween(southBlack, {alpha: 0}, 0.25, {ease: FlxEase.quadOut});
+					var flashBlackSprite:BGSprite = southAnimatedObjects.get('black');
+					if (flashBlackSprite != null)
+					{
+						// This is a flash, not a permanent black overlay.
+						FlxTween.cancelTweensOf(flashBlackSprite);
+						flashBlackSprite.alpha = 1;
+						FlxTween.tween(flashBlackSprite, {alpha: 0}, 0.25, {ease: FlxEase.quadOut});
+					}
 				}
 
 			case 'Camera Follow Pos':"""
