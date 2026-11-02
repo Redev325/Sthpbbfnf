@@ -59,11 +59,12 @@ jobs:
 
       - name: Embed the Bloodbath mod and prepare HTML5 compatibility
         run: |
-          python3 -m py_compile tools/prepare_html5.py tools/sanitize_chart.py
+          python3 -m py_compile tools/prepare_html5.py tools/sanitize_chart.py tools/patch_flxgame.py
           python3 tools/prepare_html5.py \
             --engine engine \
             --package "$RUNNER_TEMP/game-package"
           python3 tools/sanitize_chart.py --engine engine
+          python3 tools/patch_flxgame.py --engine engine
 
       - name: Install Psych Engine 0.6.3 libraries
         run: |
