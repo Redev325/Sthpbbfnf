@@ -473,7 +473,7 @@ def keep_only_bloodbath(engine: Path) -> dict[str, int]:
             removed_week_files += 1
 
     week_list = weeks_dir / "weekList.txt"
-    week_list.write_text("week-SPT\\n", encoding="utf-8")
+    week_list.write_text("week-SPT\n", encoding="utf-8")
 
     audio_files = [p for p in bloodbath_dir.rglob("*") if p.is_file() and p.suffix.lower() in {".mp3", ".ogg"}]
     if not any(p.stem.lower() == "inst" for p in audio_files):
