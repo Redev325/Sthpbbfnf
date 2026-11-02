@@ -773,6 +773,8 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \tvar blackDiagnosticBg:FlxSprite;
 \tvar blackDiagnosticText:FlxText;
 \tvar blackDiagnosticArmed:Bool = false;
+\tvar lateBlackoutWatchSince:Float = -1;
+\tvar lateBlackoutRecoveries:Int = 0;
 \tvar blackDiagnosticLastEvent:String = "none";
 \tvar blackDiagnosticLastEventTime:Float = 0;
 \tvar blackDiagnosticEventHistory:Array<String> = [];
@@ -791,13 +793,96 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\treturn Math.isNaN(parsed) ? 0 : parsed;
 \t}
 
+	function blackDiagnosticHasBlackFx(camera:FlxCamera):Bool
+	{
+		if (camera == null) return false;
+		var fadeAlpha:Float = blackDiagnosticCameraValue(camera, "_fxFadeAlpha");
+		var flashAlpha:Float = blackDiagnosticCameraValue(camera, "_fxFlashAlpha");
+		var fadeColor:Dynamic = Reflect.field(camera, "_fxFadeColor");
+		var flashColor:Dynamic = Reflect.field(camera, "_fxFlashColor");
+		return (fadeAlpha >= 0.92 && fadeColor == FlxColor.BLACK)
+			|| (flashAlpha >= 0.92 && flashColor == FlxColor.BLACK);
+	}
+
+	function recoverLateBlackout():Void
+	{
+		var songMs:Float = Conductor.songPosition;
+		// Restrict recovery to the reported 5:40-6:02 interval.
+		if (songMs < 340000 || songMs > 362000)
+		{
+			lateBlackoutWatchSince = -1;
+			return;
+		}
+
+		var blackLayer:BGSprite = southAnimatedObjects.get('black');
+		var blackbarLayer:BGSprite = southAnimatedObjects.get('blackbar');
+		var stuckBlackLayer:Bool = (blackLayer != null && blackLayer.alpha >= 0.92)
+			|| (blackbarLayer != null && blackbarLayer.alpha >= 0.92);
+		var stuckBlackCamera:Bool = blackDiagnosticHasBlackFx(camGame)
+			|| blackDiagnosticHasBlackFx(camHUD)
+			|| blackDiagnosticHasBlackFx(camOther);
+
+		// Do not interfere with normal 0.25-second flashes or short transitions.
+		if (!stuckBlackLayer && !stuckBlackCamera)
+		{
+			lateBlackoutWatchSince = -1;
+			return;
+		}
+		if (lateBlackoutWatchSince < 0)
+		{
+			lateBlackoutWatchSince = songMs;
+			return;
+		}
+		if (songMs - lateBlackoutWatchSince < 900) return;
+
+		var recovered:Array<String> = [];
+		if (blackLayer != null && blackLayer.alpha >= 0.92)
+		{
+			FlxTween.cancelTweensOf(blackLayer);
+			blackLayer.alpha = 0;
+			recovered.push("stage black");
+		}
+		if (blackbarLayer != null && blackbarLayer.alpha >= 0.92)
+		{
+			FlxTween.cancelTweensOf(blackbarLayer);
+			blackbarLayer.alpha = 0;
+			recovered.push("stage blackbar");
+		}
+		if (blackDiagnosticHasBlackFx(camGame))
+		{
+			camGame.stopFX();
+			recovered.push("camGame black FX");
+		}
+		if (blackDiagnosticHasBlackFx(camHUD))
+		{
+			camHUD.stopFX();
+			recovered.push("camHUD black FX");
+		}
+		if (blackDiagnosticHasBlackFx(camOther))
+		{
+			camOther.stopFX();
+			recovered.push("camOther black FX");
+		}
+
+		if (recovered.length > 0)
+		{
+			lateBlackoutRecoveries++;
+			blackDiagnosticLastEvent = "AUTO-RECOVERED persistent black: " + recovered.join(", ");
+			blackDiagnosticLastEventTime = songMs;
+			blackDiagnosticEventHistory.push(blackDiagnosticLastEvent + " @ " + Std.string(Std.int(songMs)) + "ms");
+			if (blackDiagnosticEventHistory.length > 4) blackDiagnosticEventHistory.shift();
+		}
+		lateBlackoutWatchSince = -1;
+	}
+
 \tfunction refreshBlackScreenDiagnostics():Void
 \t{
 \t\tif (blackDiagnosticText == null || blackDiagnosticBg == null) return;
 
 \t\tvar songMs:Float = Conductor.songPosition;
-\t\t// Arm at 5:50 and keep the panel visible even if gameplay pauses afterward.
-\t\tif (songMs >= 350000) blackDiagnosticArmed = true;
+\t\trecoverLateBlackout();
+\t\t// Arm at 5:40 and keep the panel visible even if gameplay pauses afterward.
+\t\tif (songMs >= 340000) blackDiagnosticArmed = true;
 \t\tvar shouldShow:Bool = blackDiagnosticArmed;
 \t\tvar blackLayer:BGSprite = southAnimatedObjects.get('black');
 \t\tvar blackbarLayer:BGSprite = southAnimatedObjects.get('blackbar');
@@ -850,6 +935,7 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\t\t" | HUD fade " + blackDiagnosticPercent(hudFade) +
 \t\t\t" | filters " + Std.string(filters) + "\\n" +
 \t\t\t"CAUSE: " + cause + "\\n" +
+\t\t\t"Recovery count: " + Std.string(lateBlackoutRecoveries) + " | watch 5:40-6:02\\n" +
 \t\t\t"Recent events: " + blackDiagnosticEventHistory.join(" -> ");
 
 \t\tblackDiagnosticBg.visible = shouldShow;
@@ -883,7 +969,7 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tblackDiagnosticBg.visible = false;
 \t\tadd(blackDiagnosticBg);
 
-\t\tblackDiagnosticText = new FlxText(FlxG.width - 524, 114, 504, "BLACKOUT DIAGNOSTICS\\nWaiting for 5:50...", 11);
+\t\tblackDiagnosticText = new FlxText(FlxG.width - 524, 114, 504, "BLACKOUT DIAGNOSTICS\\nWaiting for 5:40...", 11);
 \t\tblackDiagnosticText.setFormat(Paths.font("vcr.ttf"), 11, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 \t\tblackDiagnosticText.scrollFactor.set(0, 0);
 \t\tblackDiagnosticText.cameras = [camDebug];
@@ -910,7 +996,7 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tif (blackDiagnosticEventHistory.length > 4) blackDiagnosticEventHistory.shift();
 \t\t// A second, event-driven trigger guarantees the panel appears at the
 \t\t// actual late Bad Apple transition even if the update-time check is missed.
-\t\tif (Conductor.songPosition >= 350000 && (eventName == 'badapplelol' || eventName == 'Flash Black' || eventName == 'aCameraFlashBlack'))
+\t\tif (Conductor.songPosition >= 340000 && (eventName == 'badapplelol' || eventName == 'Flash Black' || eventName == 'aCameraFlashBlack'))
 \t\t{
 \t\t\tblackDiagnosticArmed = true;
 \t\t\tif (blackDiagnosticBg != null) blackDiagnosticBg.visible = true;
@@ -927,6 +1013,8 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
         "refreshBlackScreenDiagnostics();",
         "blackDiagnosticLastEvent = eventName",
         "Recent events:",
+        "recoverLateBlackout();",
+        "lateBlackoutRecoveries",
     )
     missing = [item for item in required if item not in source]
     if missing:
