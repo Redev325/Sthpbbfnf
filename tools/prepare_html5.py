@@ -227,6 +227,8 @@ def patch_south_stage(
 	var southKyleCharacter:Character;
 	var southKyleCCharacter:Character;
 	var badAppleWhiteBg:FlxSprite;
+	var badAppleSilhouetteActive:Bool = false;
+	var badAppleLastCameraSection:Int = -1;
 
 	function tweenBadAppleSpriteColor(sprite:FlxSprite, targetColor:FlxColor, duration:Float):Void
 	{
@@ -242,9 +244,20 @@ def patch_south_stage(
 		tweenBadAppleSpriteColor(boyfriend, targetColor, duration);
 		tweenBadAppleSpriteColor(dad, targetColor, duration);
 		tweenBadAppleSpriteColor(gf, targetColor, duration);
-		tweenBadAppleSpriteColor(healthBar, targetColor, duration);
-		tweenBadAppleSpriteColor(iconP1, targetColor, duration);
-		tweenBadAppleSpriteColor(iconP2, targetColor, duration);
+	}
+
+	function updateBadAppleCameraFollow():Void
+	{
+		if (!badAppleSilhouetteActive || curStage != 'south' || !generatedMusic) return;
+		if (badAppleLastCameraSection == curSection) return;
+		badAppleLastCameraSection = curSection;
+		if (SONG == null || SONG.notes == null || SONG.notes[curSection] == null) return;
+
+		// A Camera Follow Pos event can leave the camera locked to the opponent.
+		// During Bad Apple, release that lock at every section boundary and use
+		// the chart's real GF/player/opponent section target.
+		isCameraOnForcedPos = false;
+		moveCameraSection();
 	}
 
 	function applySouthHealthIcon(iconName:String, leftHex:String, rightHex:String):Void
@@ -704,6 +717,8 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\tif (Math.isNaN(badAppleDuration) || badAppleDuration < 0) badAppleDuration = 0;
 \t\t\t\t\tif (value1.toLowerCase() == 'a')
 \t\t\t\t\t{
+\t\t\t\t\t\tbadAppleSilhouetteActive = true;
+\t\t\t\t\t\tbadAppleLastCameraSection = -1;
 \t\t\t\t\t\t// Bad Apple silhouette intro: white backdrop, dark characters.
 \t\t\t\t\t\tif (badAppleWhiteBg == null)
 \t\t\t\t\t\t{
@@ -728,6 +743,8 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\t}
 \t\t\t\t\telse if (value1.toLowerCase() == 'b')
 \t\t\t\t\t{
+\t\t\t\t\t\tbadAppleSilhouetteActive = false;
+\t\t\t\t\t\tbadAppleLastCameraSection = -1;
 \t\t\t\t\t\t// End the silhouette: remove its white field and restore colors.
 \t\t\t\t\t\tif (badAppleWhiteBg != null)
 \t\t\t\t\t\t{
@@ -982,7 +999,8 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
         source = source.replace(camera_marker, camera_code, 1)
 
     update_marker = "\toverride public function update(elapsed:Float)\n\t{"
-    update_code = update_marker + "\n\t\trefreshBlackScreenDiagnostics();"
+    update_code = update_marker + "\n\t\tupdateBadAppleCameraFollow();
+\t\trefreshBlackScreenDiagnostics();"
     if "refreshBlackScreenDiagnostics();" not in source:
         if update_marker not in source:
             raise RuntimeError("Could not locate PlayState.update() for diagnostic refresh.")
