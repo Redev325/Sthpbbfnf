@@ -355,7 +355,7 @@ def patch_south_stage(engine: Path, image_report: dict[str, object]) -> None:
             continue
         inverse = 1.0 / float(factor)
         scale_pattern = re.compile(
-            rf"{re.escape(sprite_name)}\\.scale\\.set\\(([^,]+),\\s*([^)]+)\\);"
+            rf"{re.escape(sprite_name)}\.scale\.set\(([^,]+),\s*([^)]+)\);"
         )
         scale_match = scale_pattern.search(stage_code)
         if scale_match:
@@ -370,13 +370,13 @@ def patch_south_stage(engine: Path, image_report: dict[str, object]) -> None:
             )
         else:
             declaration = re.compile(
-                rf"(^[\\t ]+var {re.escape(sprite_name)}:BGSprite = .*?;\\n)",
+                rf"(^[\t ]+var {re.escape(sprite_name)}:BGSprite = .*?;\n)",
                 re.MULTILINE,
             )
             if not declaration.search(stage_code):
                 raise RuntimeError(f"Could not find stage sprite declaration: {sprite_name}")
             stage_code = declaration.sub(
-                rf"\\1\\t\\t\\t\\t{sprite_name}.scale.set({inverse:.4f}, {inverse:.4f});\\n",
+                rf"\1\t\t\t\t{sprite_name}.scale.set({inverse:.4f}, {inverse:.4f});\n",
                 stage_code,
                 count=1,
             )
