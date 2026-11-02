@@ -1,6 +1,8 @@
 name: Build South Park Bloodbath HTML5
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       release_tag:
@@ -47,7 +49,7 @@ jobs:
       - name: Download the uploaded game release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG: ${{ inputs.release_tag || 'v1.0.0' }}
         run: |
           mkdir -p "$RUNNER_TEMP/release" "$RUNNER_TEMP/game-package"
           gh release download "$RELEASE_TAG" \
