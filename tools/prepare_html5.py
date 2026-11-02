@@ -86,7 +86,7 @@ def patch_project(engine: Path) -> None:
 
 def optimize_browser_images(
     image_dir: Path,
-    max_dimension: int = 4096,
+    max_dimension: int = 2048,
     character_max_dimension: int = 2048,
 ) -> dict[str, object]:
     """Downscale oversized PNGs and keep Sparrow XML coordinates in sync.
@@ -185,7 +185,7 @@ def patch_note_types(engine: Path) -> None:
         note_file.write_text(source, encoding="utf-8")
 
 
-def patch_south_stage(engine: Path) -> None:
+def patch_south_stage(engine: Path, image_report: dict[str, object]) -> None:
     play_file = engine / "source" / "PlayState.hx"
     source = play_file.read_text(encoding="utf-8")
 
@@ -323,6 +323,64 @@ def patch_south_stage(engine: Path) -> None:
 				add(southBlackbar);
 
 			case 'stage': //Week 1"""
+    # Increase each sprite's Haxe scale by the inverse of its PNG resize ratio.
+    # This keeps stage layout/character size while using much smaller GPU textures.
+    stage_sprite_assets = {
+        "southSun": "sun",
+        "southFogBack": "fog bg2",
+        "southVignette": "Vignette",
+        "southWhite": "white",
+        "southFog": "fog",
+        "southBlack": "black",
+        "southBackground": "bg",
+        "southLightOverlay": "luzbg",
+        "southBackground3": "bg3",
+        "southLightOverlay3": "bg3luz",
+        "southBackground4": "bg4",
+        "southLightOverlay4": "bg4luz",
+        "southLightOverlay42": "bg4luz2",
+        "southBackground2": "bg2 s",
+        "southBackground2Animated": "bg2",
+        "southLightOverlay2": "bg2luz",
+        "southSnow": "nieve",
+        "southKyle": "kyle s",
+        "southOh": "oh",
+        "southCraig": "characters/craig",
+        "southBlackbar": "blackbar",
+    }
+    resize_factors = image_report.get("scaleFactors", {})
+    for sprite_name, asset_name in stage_sprite_assets.items():
+        factor = resize_factors.get(f"{asset_name}.png", 1.0)
+        if not isinstance(factor, (int, float)) or factor >= 1.0:
+            continue
+        inverse = 1.0 / float(factor)
+        scale_pattern = re.compile(
+            rf"{re.escape(sprite_name)}\\.scale\\.set\\(([^,]+),\\s*([^)]+)\\);"
+        )
+        scale_match = scale_pattern.search(stage_code)
+        if scale_match:
+            old_x = float(scale_match.group(1).strip())
+            old_y = float(scale_match.group(2).strip())
+            new_x = old_x * inverse
+            new_y = old_y * inverse
+            stage_code = scale_pattern.sub(
+                f"{sprite_name}.scale.set({new_x:.4f}, {new_y:.4f});",
+                stage_code,
+                count=1,
+            )
+        else:
+            declaration = re.compile(
+                rf"(^[\\t ]+var {re.escape(sprite_name)}:BGSprite = .*?;\\n)",
+                re.MULTILINE,
+            )
+            if not declaration.search(stage_code):
+                raise RuntimeError(f"Could not find stage sprite declaration: {sprite_name}")
+            stage_code = declaration.sub(
+                rf"\\1\\t\\t\\t\\t{sprite_name}.scale.set({inverse:.4f}, {inverse:.4f});\\n",
+                stage_code,
+                count=1,
+            )
+
     if "Native HTML5 recreation of the South Park Bloodbath stage.lua" not in source:
         if marker not in source:
             raise RuntimeError("Could not find the stage switch insertion point in source/PlayState.hx.")
@@ -514,7 +572,7 @@ def main() -> int:
     patch_project(engine)
     image_report = optimize_browser_images(
         engine / "assets" / "preload" / "images",
-        max_dimension=4096,
+        max_dimension=2048,
         character_max_dimension=2048,
     )
 
@@ -579,7 +637,7 @@ def main() -> int:
             )
 
     patch_note_types(engine)
-    patch_south_stage(engine)
+    patch_south_stage(engine, image_report)
     converted = convert_ogg_files(engine)
     song_cleanup = keep_only_bloodbath(engine)
 
