@@ -1,0 +1,79 @@
+name: Deploy HTML5 game to GitHub Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag to deploy
+        required: true
+        default: v1.0.0
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download and extract the game release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.event.inputs.release_tag || 'v1.0.0' }}
+        run: |
+          mkdir -p release extracted _site
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "fnf.bloodbath.RTX.fix.zip" \
+            --dir release
+          unzip -q "release/fnf.bloodbath.RTX.fix.zip" -d extracted
+
+      - name: Prepare the HTML5 website
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          index_file="$(find extracted -type f \\( -iname 'index.html' -o -iname 'index.htm' \\) -print -quit)"
+          if [ -z "$index_file" ]; then
+            echo "The release ZIP does not contain index.html or index.htm." >&2
+            echo "This release may not be an HTML5 web export." >&2
+            exit 1
+          fi
+
+          game_dir="$(dirname "$index_file")"
+          cp -a "$game_dir/." _site/
+          touch _site/.nojekyll
+
+          site_bytes="$(du -sb _site | cut -f1)"
+          echo "Extracted website size: $site_bytes bytes"
+          if [ "$site_bytes" -gt 1073741824 ]; then
+            echo "The extracted website is over GitHub Pages' 1 GB published-site limit." >&2
+            exit 1
+          fi
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload the website
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish the website
+        id: deployment
+        uses: actions/deploy-pages@v4
