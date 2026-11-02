@@ -801,7 +801,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 
 
 def patch_black_screen_diagnostics(engine: Path) -> None:
-    """Recover stuck South-stage covers without adding any UI over gameplay."""
+    """Recover stuck South-stage covers without drawing diagnostics over gameplay."""
     play_file = engine / "source" / "PlayState.hx"
     source = play_file.read_text(encoding="utf-8")
 
@@ -854,7 +854,6 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tvar cameraCover:Bool = blackDiagnosticHasBlackFx(camGame)
 \t\t\t|| blackDiagnosticHasBlackFx(camHUD)
 \t\t\t|| blackDiagnosticHasBlackFx(camOther);
-
 \t\tvar upperBarStuck:Bool = southStillStrumUpperBar != null && southStillStrumUpperBar.y > -349;
 \t\tvar lowerBarStuck:Bool = southStillStrumLowerBar != null && southStillStrumLowerBar.y < 719;
 \t\tvar cinematicCover:Bool = upperBarStuck || lowerBarStuck;
@@ -865,17 +864,15 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\t\treturn;
 \t\t}
 
-\t\t// Use wall-clock milliseconds, not Conductor.songPosition. The song
-\t\t// clock can stop when audio/gameplay stalls, which made the old watchdog
-\t\t// wait forever during the very freeze it was meant to recover.
+\t\t// Use wall-clock time because Conductor.songPosition can stop advancing
+\t\t// during a stalled audio/gameplay section.
 \t\tvar wallNow:Float = Date.now().getTime();
 \t\tif (lateBlackoutWatchSince < 0)
 \t\t{
 \t\t\tlateBlackoutWatchSince = wallNow;
 \t\t\treturn;
 \t\t}
-\t\t// Preserve the chart's 1-second black flashes, but never keep an opaque
-\t\t// full-screen layer or camera effect over the song for multiple seconds.
+\t\t// Let the intended 1-second flashes finish before recovering a stuck layer.
 \t\tif (wallNow - lateBlackoutWatchSince < 1250) return;
 
 \t\tvar recovered:Array<String> = [];
@@ -944,15 +941,15 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\t\tblackDiagnosticLastEventTime = songMs;
 \t\t\tblackDiagnosticEventHistory.push(blackDiagnosticLastEvent + " @ " + Std.string(Std.int(songMs)) + "ms");
 \t\t\tif (blackDiagnosticEventHistory.length > 6) blackDiagnosticEventHistory.shift();
-\t\t\ttrace("[Bloodbath blackout recovery] " + blackDiagnosticLastEvent);
+\t\t\ttrace("[Bloodbath overlay recovery] " + blackDiagnosticLastEvent);
 \t\t}
 \t\tlateBlackoutWatchSince = -1;
 \t}
 
-\tfunction refreshBlackScreenDiagnostics():Void
+\tfunction updateSouthOverlayRecovery():Void
 \t{
-\t\t// Deliberately no visible diagnostic panel: diagnostics must not cover
-\t\t// the gameplay window. Recovery still runs every frame.
+\t\t// This remains an invisible recovery watchdog; no panel or camera is
+\t\t// added above gameplay.
 \t\trecoverLateBlackout();
 \t}
 """
@@ -961,28 +958,11 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
             raise RuntimeError("Could not locate the South stage fields for blackout recovery.")
         source = source.replace(field_marker, fields, 1)
 
-    # Do not allocate a diagnostic camera or a 520x174 dark panel above gameplay.
-    camera_stack_marker = "\t\tFlxG.cameras.add(camOther, false);"
-    camera_stack_code = camera_stack_marker + """
-
-\t\t// No diagnostic camera is added above the gameplay cameras.
-"""
-    if "camDebug = new FlxCamera();" in source:
-        source = source.replace(
-            "\n\t\tcamDebug = new FlxCamera();\n\t\tcamDebug.bgColor.alpha = 0;\n\t\tFlxG.cameras.add(camDebug, false);\n",
-            "\n",
-            1,
-        )
-    if "blackDiagnosticBg = new FlxSprite" in source:
-        a = source.index("\n\t\tblackDiagnosticBg = new FlxSprite")
-        b = source.index("\n\"\"\"", a)
-        source = source[:a] + source[b:]
-
     update_marker = "\toverride public function update(elapsed:Float)\n\t{"
-    update_code = update_marker + "\n\t\tupdateBadAppleCameraFollow();\n\t\trefreshBlackScreenDiagnostics();"
-    if "refreshBlackScreenDiagnostics();" not in source:
+    update_code = update_marker + "\n\t\tupdateBadAppleCameraFollow();\n\t\tupdateSouthOverlayRecovery();"
+    if "updateSouthOverlayRecovery();" not in source:
         if update_marker not in source:
-            raise RuntimeError("Could not locate PlayState.update() for blackout recovery.")
+            raise RuntimeError("Could not locate PlayState.update() for South overlay recovery.")
         source = source.replace(update_marker, update_code, 1)
 
     event_marker = "public function triggerEventNote(eventName:String, value1:String, value2:String) {\n\t\tswitch(eventName) {"
@@ -994,23 +974,21 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tswitch(eventName) {"""
     if "blackDiagnosticLastEvent = eventName" not in source:
         if event_marker not in source:
-            raise RuntimeError("Could not locate triggerEventNote() for blackout event logging.")
+            raise RuntimeError("Could not locate triggerEventNote() for overlay event logging.")
         source = source.replace(event_marker, event_code, 1)
 
     required = (
-        "var lateBlackoutWatchSince:Float = -1;",
         "function recoverLateBlackout():Void",
+        "function updateSouthOverlayRecovery():Void",
         "Date.now().getTime()",
-        "RECOVERED:",
-        "refreshBlackScreenDiagnostics();",
-        "blackDiagnosticLastEvent = eventName",
+        "southBlackFlashOverlay.alpha = 0;",
+        "southStillStrumUpperBar.y = -350;",
+        "southStillStrumLowerBar.y = 720;",
+        "updateSouthOverlayRecovery();",
     )
     missing = [item for item in required if item not in source]
     if missing:
-        raise RuntimeError("Blackout recovery patch is incomplete: " + repr(missing))
-    if "blackDiagnosticBg = new FlxSprite" in source or "camDebug = new FlxCamera();" in source:
-        raise RuntimeError("A diagnostic overlay is still being created above gameplay.")
-
+        raise RuntimeError("South overlay recovery patch is incomplete: " + repr(missing))
     play_file.write_text(source, encoding="utf-8")
 
 
