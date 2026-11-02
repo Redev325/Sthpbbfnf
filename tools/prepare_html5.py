@@ -662,17 +662,19 @@ def patch_south_stage_fades(engine: Path) -> None:
 					}
 				}
 
-			case 'Flash Black':
+			case 'Flash Black' | 'aCameraFlashBlack':
 				if (curStage == 'south')
 				{
+					// Use Flixel's camera flash rather than a persistent full-screen
+					// sprite. Its built-in fade-out prevents a stranded black overlay.
 					var flashBlackSprite:BGSprite = southAnimatedObjects.get('black');
 					if (flashBlackSprite != null)
 					{
-						// This is a flash, not a permanent black overlay.
 						FlxTween.cancelTweensOf(flashBlackSprite);
-						flashBlackSprite.alpha = 1;
-						FlxTween.tween(flashBlackSprite, {alpha: 0}, 0.25, {ease: FlxEase.quadOut});
+						flashBlackSprite.alpha = 0;
 					}
+					if (camHUD != null)
+						camHUD.flash(FlxColor.BLACK, 0.25, null, true);
 				}
 
 			case 'Camera Follow Pos':"""
