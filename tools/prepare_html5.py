@@ -832,9 +832,7 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 		}
 
 		var blackLayer:BGSprite = southAnimatedObjects.get('black');
-		var blackbarLayer:BGSprite = southAnimatedObjects.get('blackbar');
-		var stuckBlackLayer:Bool = (blackLayer != null && blackLayer.alpha >= 0.92)
-			|| (blackbarLayer != null && blackbarLayer.alpha >= 0.92);
+		var stuckBlackLayer:Bool = blackLayer != null && blackLayer.alpha >= 0.92;
 		var stuckBlackCamera:Bool = blackDiagnosticHasBlackFx(camGame)
 			|| blackDiagnosticHasBlackFx(camHUD)
 			|| blackDiagnosticHasBlackFx(camOther);
@@ -858,12 +856,6 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 			FlxTween.cancelTweensOf(blackLayer);
 			blackLayer.alpha = 0;
 			recovered.push("stage black");
-		}
-		if (blackbarLayer != null && blackbarLayer.alpha >= 0.92)
-		{
-			FlxTween.cancelTweensOf(blackbarLayer);
-			blackbarLayer.alpha = 0;
-			recovered.push("stage blackbar");
 		}
 		if (blackDiagnosticHasBlackFx(camGame))
 		{
@@ -1040,90 +1032,176 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
     play_file.write_text(source, encoding="utf-8")
 
 
-def report_late_south_transition(mod: Path, chart_file: Path) -> None:
-    """Temporary build-log inspection for the reference's 5:56 transition."""
-    chart = json.loads(chart_file.read_text(encoding="utf-8"))
-    song = chart.get("song", chart)
-    print("=== SOUTH TRANSITION EVENT REPORT (5:35-6:15) ===")
-    for group in song.get("events", []):
-        if not isinstance(group, list) or len(group) < 2:
-            continue
-        try:
-            timestamp = float(group[0])
-        except (TypeError, ValueError):
-            continue
-        if not 335000 <= timestamp <= 375000:
-            continue
-        for event in group[1] if isinstance(group[1], list) else []:
-            if isinstance(event, list) and len(event) >= 3:
-                print(f"CHART_EVENT {timestamp:.0f}ms {event[0]!r} value1={event[1]!r} value2={event[2]!r}")
+def patch_south_cinematic_bars(engine: Path) -> None:
+    """Port the mod's Still Strum / With HUD top-and-bottom cinematic bars."""
+    play_file = engine / "source" / "PlayState.hx"
+    source = play_file.read_text(encoding="utf-8")
 
-    needles = re.compile(
-        r"badapple|blackbar|black.?box|screen.?close|screen.?open|"
-        r"camera.?follow|camera.?pos|flash.?black|afadein|afadeout|"
-        r"doTween[XYAlpha]|makeLuaSprite|scaleObject|setProperty",
-        re.IGNORECASE,
-    )
-    print("=== MATCHING MOD LUA LINES ===")
-    reported = 0
-    for lua_file in sorted(mod.rglob("*.lua")):
-        try:
-            lines = lua_file.read_text(encoding="utf-8", errors="replace").splitlines()
-        except OSError:
-            continue
-        matches = [i for i, line in enumerate(lines) if needles.search(line)]
-        if not matches:
-            continue
-        print(f"LUA_FILE {lua_file.relative_to(mod).as_posix()}")
-        for i in matches[:45]:
-            print(f"  {i + 1}: {lines[i].strip()}")
-            reported += 1
-            if reported >= 140:
-                print("LUA_REPORT_LIMIT_REACHED")
-                break
-        if reported >= 140:
-            break
+    field_marker = "\tvar badAppleWhiteBg:FlxSprite;"
+    fields = field_marker + """
+\tvar southStillStrumUpperBar:FlxSprite;
+\tvar southStillStrumLowerBar:FlxSprite;
+\tvar southStillStrumHudOriginalAlpha:Array<Float> = [];
 
-    print("=== MATCHING SPRITE ASSETS ===")
-    image_root = mod / "images"
-    asset_matches = 0
-    if image_root.is_dir():
-        for image_path in sorted(image_root.rglob("*")):
-            if not image_path.is_file() or image_path.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
-                continue
-            if re.search(r"black|bar|apple|mask|white|close|open|eye", image_path.name, re.IGNORECASE):
-                try:
-                    with Image.open(image_path) as image:
-                        print(f"SPRITE {image_path.relative_to(mod).as_posix()} {image.width}x{image.height}")
-                except Exception:
-                    print(f"SPRITE {image_path.relative_to(mod).as_posix()} (dimensions unavailable)")
-                asset_matches += 1
-                if asset_matches >= 80:
-                    break
-    print("=== CINEMATIC BAR EVENT REPORT ===")
-    custom_event_dir = mod / "custom_events"
-    if custom_event_dir.is_dir():
-        for lua_file in sorted(custom_event_dir.glob("*.lua")):
-            name = lua_file.name.lower()
-            if "cinematic" in name or "border" in name or "bar" in name:
-                print(f"CUSTOM_EVENT_FILE {lua_file.name}")
-                for line_no, line in enumerate(lua_file.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
-                    print(f"  {line_no}: {line.rstrip()}")
-    for group in song.get("events", []):
-        if not isinstance(group, list) or len(group) < 2:
-            continue
-        try:
-            timestamp = float(group[0])
-        except (TypeError, ValueError):
-            continue
-        if not (195000 <= timestamp <= 210000 or 345000 <= timestamp <= 365000):
-            continue
-        for event in group[1] if isinstance(group[1], list) else []:
-            if isinstance(event, list) and len(event) >= 3 and (
-                "cinematic" in str(event[0]).lower() or "border" in str(event[0]).lower()
-            ):
-                print(f"CINEMATIC_CHART_EVENT {timestamp:.0f}ms {event[0]!r} value1={event[1]!r} value2={event[2]!r}")
-    print("=== END SOUTH TRANSITION REPORT ===")
+\tfunction tweenSouthCinematicHudAlpha(sprite:FlxSprite, targetAlpha:Float, duration:Float):Void
+\t{
+\t\tif (sprite == null) return;
+\t\tFlxTween.cancelTweensOf(sprite);
+\t\tif (duration <= 0) sprite.alpha = targetAlpha;
+\t\telse FlxTween.tween(sprite, {alpha: targetAlpha}, duration, {ease: FlxEase.linear});
+\t}
+
+\tfunction southStillStrumHudAlphaAt(index:Int):Float
+\t{
+\t\tif (southStillStrumHudOriginalAlpha != null && index >= 0 && index < southStillStrumHudOriginalAlpha.length)
+\t\t\treturn southStillStrumHudOriginalAlpha[index];
+\t\treturn 1;
+\t}
+
+\tfunction playSouthStillStrumCinematics(speed:Float, distance:Float, hideHud:Bool):Void
+\t{
+\t\tif (curStage != 'south' || southStillStrumUpperBar == null || southStillStrumLowerBar == null) return;
+
+\t\tvar entering:Bool = distance > 0;
+\t\tvar upperTarget:Float = entering ? -350 + distance : -350;
+\t\tvar lowerTarget:Float = entering ? 720 - distance : 720;
+
+\t\tFlxTween.cancelTweensOf(southStillStrumUpperBar);
+\t\tFlxTween.cancelTweensOf(southStillStrumLowerBar);
+\t\tif (speed <= 0)
+\t\t{
+\t\t\tsouthStillStrumUpperBar.y = upperTarget;
+\t\t\tsouthStillStrumLowerBar.y = lowerTarget;
+\t\t}
+\t\telse if (entering)
+\t\t{
+\t\t\tFlxTween.tween(southStillStrumUpperBar, {y: upperTarget}, speed, {ease: FlxEase.quadOut});
+\t\t\tFlxTween.tween(southStillStrumLowerBar, {y: lowerTarget}, speed, {ease: FlxEase.quadOut});
+\t\t}
+\t\telse
+\t\t{
+\t\t\tFlxTween.tween(southStillStrumUpperBar, {y: upperTarget}, speed, {ease: FlxEase.quadIn});
+\t\t\tFlxTween.tween(southStillStrumLowerBar, {y: lowerTarget}, speed, {ease: FlxEase.quadIn});
+\t\t}
+
+\t\tif (!hideHud) return;
+\t\tvar hudDuration:Float = entering ? Math.max(0, speed - 0.1) : speed + 0.1;
+\t\ttweenSouthCinematicHudAlpha(healthBarBG, entering ? 0 : southStillStrumHudAlphaAt(0), hudDuration);
+\t\ttweenSouthCinematicHudAlpha(healthBar, entering ? 0 : southStillStrumHudAlphaAt(1), hudDuration);
+\t\ttweenSouthCinematicHudAlpha(scoreTxt, entering ? 0 : southStillStrumHudAlphaAt(2), hudDuration);
+\t\ttweenSouthCinematicHudAlpha(iconP1, entering ? 0 : southStillStrumHudAlphaAt(3), hudDuration);
+\t\ttweenSouthCinematicHudAlpha(iconP2, entering ? 0 : southStillStrumHudAlphaAt(4), hudDuration);
+\t\ttweenSouthCinematicHudAlpha(timeBar, entering ? 0 : southStillStrumHudAlphaAt(5), hudDuration);
+\t\ttweenSouthCinematicHudAlpha(timeBarBG, entering ? 0 : southStillStrumHudAlphaAt(6), hudDuration);
+\t\ttweenSouthCinematicHudAlpha(timeTxt, entering ? 0 : southStillStrumHudAlphaAt(7), hudDuration);
+\t}
+
+\tfunction playSouthBorderBop(speed:Float, distance:Float):Void
+\t{
+\t\tif (curStage != 'south' || southStillStrumUpperBar == null || southStillStrumLowerBar == null || distance <= 0) return;
+
+\t\tFlxTween.cancelTweensOf(southStillStrumUpperBar);
+\t\tFlxTween.cancelTweensOf(southStillStrumLowerBar);
+\t\tsouthStillStrumUpperBar.y = -350 + distance;
+\t\tsouthStillStrumLowerBar.y = 720 - distance;
+\t\tif (speed <= 0)
+\t\t{
+\t\t\tsouthStillStrumUpperBar.y = -350;
+\t\t\tsouthStillStrumLowerBar.y = 720;
+\t\t}
+\t\telse
+\t\t{
+\t\t\tFlxTween.tween(southStillStrumUpperBar, {y: -350}, speed, {ease: FlxEase.expoOut});
+\t\t\tFlxTween.tween(southStillStrumLowerBar, {y: 720}, speed, {ease: FlxEase.expoOut});
+\t\t}
+\t}
+"""
+    if "var southStillStrumUpperBar:FlxSprite;" not in source:
+        if field_marker not in source:
+            raise RuntimeError("Could not find the Bad Apple field insertion point for cinematic bars.")
+        source = source.replace(field_marker, fields, 1)
+
+    create_marker = "\t\tcallOnLuas('onCreatePost', []);"
+    create_code = """\t\t// Native HTML5 version of the mod's onCreatePost cinematic bars.
+\t\t// Match the original 1500x350 bars and their off-screen starting positions.
+\t\tsouthStillStrumUpperBar = new FlxSprite(-110, -350);
+\t\tsouthStillStrumUpperBar.makeGraphic(1500, 350, FlxColor.BLACK);
+\t\tsouthStillStrumUpperBar.scrollFactor.set(0, 0);
+\t\tsouthStillStrumUpperBar.cameras = [camHUD];
+\t\tadd(southStillStrumUpperBar);
+
+\t\tsouthStillStrumLowerBar = new FlxSprite(-110, 720);
+\t\tsouthStillStrumLowerBar.makeGraphic(1500, 350, FlxColor.BLACK);
+\t\tsouthStillStrumLowerBar.scrollFactor.set(0, 0);
+\t\tsouthStillStrumLowerBar.cameras = [camHUD];
+\t\tadd(southStillStrumLowerBar);
+
+\t\t// Save the user's actual HUD alpha settings so the exit event restores them.
+\t\tsouthStillStrumHudOriginalAlpha = [
+\t\t\thealthBarBG == null ? 1 : healthBarBG.alpha,
+\t\t\thealthBar == null ? 1 : healthBar.alpha,
+\t\t\tscoreTxt == null ? 1 : scoreTxt.alpha,
+\t\t\ticonP1 == null ? 1 : iconP1.alpha,
+\t\t\ticonP2 == null ? 1 : iconP2.alpha,
+\t\t\ttimeBar == null ? 1 : timeBar.alpha,
+\t\t\ttimeBarBG == null ? 1 : timeBarBG.alpha,
+\t\t\ttimeTxt == null ? 1 : timeTxt.alpha
+\t\t];
+
+\t\tcallOnLuas('onCreatePost', []);"""
+    if "southStillStrumUpperBar = new FlxSprite(-110, -350);" not in source:
+        if create_marker not in source:
+            raise RuntimeError("Could not find PlayState.onCreatePost() for cinematic bar creation.")
+        source = source.replace(create_marker, create_code, 1)
+
+    event_marker = "case 'Camera Follow Pos':"
+    event_code = """\t\t\tcase 'aCinematics (Still Strum)' | 'Cinematics (Still Strum)':
+\t\t\t\tif (curStage == 'south')
+\t\t\t\t{
+\t\t\t\t\tvar stillStrumSpeed:Float = Std.parseFloat(value1);
+\t\t\t\t\tvar stillStrumDistance:Float = Std.parseFloat(value2);
+\t\t\t\t\tif (Math.isNaN(stillStrumSpeed) || stillStrumSpeed < 0) stillStrumSpeed = 0;
+\t\t\t\t\tif (Math.isNaN(stillStrumDistance)) stillStrumDistance = 0;
+\t\t\t\t\tplaySouthStillStrumCinematics(stillStrumSpeed, stillStrumDistance, true);
+\t\t\t\t}
+
+\t\t\tcase 'Cinematics (With HUD)':
+\t\t\t\tif (curStage == 'south')
+\t\t\t\t{
+\t\t\t\t\tvar withHudSpeed:Float = Std.parseFloat(value1);
+\t\t\t\t\tvar withHudDistance:Float = Std.parseFloat(value2);
+\t\t\t\t\tif (Math.isNaN(withHudSpeed) || withHudSpeed < 0) withHudSpeed = 0;
+\t\t\t\t\tif (Math.isNaN(withHudDistance)) withHudDistance = 0;
+\t\t\t\t\tplaySouthStillStrumCinematics(withHudSpeed, withHudDistance, false);
+\t\t\t\t}
+
+\t\t\tcase 'Border Bop':
+\t\t\t\tif (curStage == 'south')
+\t\t\t\t{
+\t\t\t\t\tvar borderBopSpeed:Float = Std.parseFloat(value1);
+\t\t\t\t\tvar borderBopDistance:Float = Std.parseFloat(value2);
+\t\t\t\t\tif (Math.isNaN(borderBopSpeed) || borderBopSpeed < 0) borderBopSpeed = 0;
+\t\t\t\t\tif (Math.isNaN(borderBopDistance)) borderBopDistance = 0;
+\t\t\t\t\tplaySouthBorderBop(borderBopSpeed, borderBopDistance);
+\t\t\t\t}
+
+\t\t\tcase 'Camera Follow Pos':"""
+    if "case 'aCinematics (Still Strum)' | 'Cinematics (Still Strum)':" not in source:
+        if source.split(event_marker).length - 1 != 1:
+            raise RuntimeError("Expected one Camera Follow Pos event marker in PlayState.hx.")
+        source = source.replace(event_marker, event_code, 1)
+
+    required = [
+        "var southStillStrumUpperBar:FlxSprite;",
+        "southStillStrumUpperBar = new FlxSprite(-110, -350);",
+        "function playSouthStillStrumCinematics(",
+        "case 'aCinematics (Still Strum)' | 'Cinematics (Still Strum)':",
+        "playSouthBorderBop(borderBopSpeed, borderBopDistance);"
+    ]
+    missing = [item for item in required if item not in source]
+    if missing:
+        raise RuntimeError("Cinematic bars patch incomplete: " + repr(missing))
+    play_file.write_text(source, encoding="utf-8")
 
 
 def patch_botplay_pause_menu(engine: Path) -> None:
@@ -1386,10 +1464,10 @@ def main() -> int:
             )
 
     icon_changes = read_icon_changes(mod / "data" / "bloodbath" / "IconManager.lua")
-    report_late_south_transition(mod, chart_file)
     patch_note_types(engine)
     patch_south_stage(engine, image_report, icon_changes)
     patch_south_stage_fades(engine)
+    patch_south_cinematic_bars(engine)
     patch_black_screen_diagnostics(engine)
     patch_botplay_pause_menu(engine)
     converted = convert_ogg_files(engine)
