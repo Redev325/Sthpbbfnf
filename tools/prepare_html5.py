@@ -284,20 +284,20 @@ def patch_south_stage(engine: Path) -> None:
             raise RuntimeError("Could not find the PlayState stepHit insertion point.")
         source = source.replace(step_marker, step_addition, 1)
 
-    event_marker = "\\t\\t\\tcase 'Camera Follow Pos':"
-    event_code = """\\t\\t\\tcase 'aObject Play Animation':
-\\t\\t\\t\\tif (curStage == 'south')
-\\t\\t\\t\\t{
-\\t\\t\\t\\t\\tvar stageSprite:BGSprite = southAnimatedObjects.get(value1);
-\\t\\t\\t\\t\\tif (stageSprite != null)
-\\t\\t\\t\\t\\t{
-\\t\\t\\t\\t\\t\\tstageSprite.visible = true;
-\\t\\t\\t\\t\\t\\tstageSprite.alpha = 1;
-\\t\\t\\t\\t\\t\\tstageSprite.animation.play(value2, true);
-\\t\\t\\t\\t\\t}
-\\t\\t\\t\\t}
+    event_marker = "\t\t\tcase 'Camera Follow Pos':"
+    event_code = """\t\t\tcase 'aObject Play Animation':
+\t\t\t\tif (curStage == 'south')
+\t\t\t\t{
+\t\t\t\t\tvar stageSprite:BGSprite = southAnimatedObjects.get(value1);
+\t\t\t\t\tif (stageSprite != null)
+\t\t\t\t\t{
+\t\t\t\t\t\tstageSprite.visible = true;
+\t\t\t\t\t\tstageSprite.alpha = 1;
+\t\t\t\t\t\tstageSprite.animation.play(value2, true);
+\t\t\t\t\t}
+\t\t\t\t}
 
-\\t\\t\\tcase 'Camera Follow Pos':"""
+\t\t\tcase 'Camera Follow Pos':"""
     if "case 'aObject Play Animation':" not in source:
         if event_marker not in source:
             raise RuntimeError("Could not find the PlayState custom-event insertion point.")
