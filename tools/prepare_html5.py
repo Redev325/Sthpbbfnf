@@ -489,7 +489,7 @@ def patch_south_stage(
         source = source.replace("__ICON_CASES__", "\n".join(icon_case_lines), 1)
 
     # Native beat handling for the two Lua-created extra Kyle characters.
-    beat_marker = "\\t\\tlastBeatHit = curBeat;"
+    beat_marker = "lastBeatHit = curBeat;"
     beat_code = """        if (curStage == 'south')
         {
             if (southKyleCharacter != null && southKyleCharacter.alpha > 0.01
@@ -512,7 +512,7 @@ def patch_south_stage(
         source = source.replace(beat_marker, beat_code, 1)
 
     # Route the custom kyle note type to the visible extra Kyle character.
-    note_marker = "\\t\\tif(note.noteType == 'Hey!' && dad.animOffsets.exists('hey')) {"
+    note_marker = "if(note.noteType == 'Hey!' && dad.animOffsets.exists('hey')) {"
     note_code = """        if (curStage == 'south' && note.noteType == 'kyle')
         {
             var kyleTarget:Character = null;
