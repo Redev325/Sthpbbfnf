@@ -299,7 +299,9 @@ def patch_south_stage(engine: Path, image_report: dict[str, object]) -> None:
 				var southKyle:BGSprite = new BGSprite('kyle s', 608, 164, 1, 1, ['idle'], true);
 				southKyle.animation.addByPrefix('anim', 'idle', 24, true);
 				southKyle.animation.addByPrefix('anim1', 'anim', 22, false);
-				southKyle.alpha = 0;
+				// Lua stage events are unavailable in this HTML5 target. Keep Kyle
+				// visible in his idle pose instead of leaving him permanently hidden.
+				southKyle.alpha = 1;
 				add(southKyle);
 				southAnimatedObjects.set('kyle s', southKyle);
 
@@ -619,7 +621,18 @@ def main() -> int:
         for candidate in candidates:
             if not candidate:
                 continue
-            if (icon_dir / f"{candidate}.png").is_file() or (icon_dir / f"icon-{candidate}.png").is_file():
+            # Psych Engine loads health icons using the icon-<name>.png
+            # convention. Some mod packages store the same image without the
+            # prefix, so normalize it here rather than setting a name the engine
+            # cannot resolve.
+            prefixed_icon = icon_dir / f"icon-{candidate}.png"
+            plain_icon = icon_dir / f"{candidate}.png"
+            if prefixed_icon.is_file():
+                selected_icon = candidate
+                break
+            if plain_icon.is_file():
+                icon_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(plain_icon, prefixed_icon)
                 selected_icon = candidate
                 break
         if selected_icon is None:
