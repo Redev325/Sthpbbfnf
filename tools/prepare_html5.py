@@ -1187,7 +1187,7 @@ def patch_south_cinematic_bars(engine: Path) -> None:
 
 \t\t\tcase 'Camera Follow Pos':"""
     if "case 'aCinematics (Still Strum)' | 'Cinematics (Still Strum)':" not in source:
-        if source.split(event_marker).length - 1 != 1:
+        if len(source.split(event_marker)) - 1 != 1:
             raise RuntimeError("Expected one Camera Follow Pos event marker in PlayState.hx.")
         source = source.replace(event_marker, event_code, 1)
 
