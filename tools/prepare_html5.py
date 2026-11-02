@@ -84,23 +84,34 @@ def patch_project(engine: Path) -> None:
             shutil.rmtree(unused_week)
 
 
-def optimize_browser_images(image_dir: Path, max_dimension: int = 2048) -> dict[str, int]:
-    """Downscale oversized PNGs and keep Sparrow XML frame coordinates in sync."""
+def optimize_browser_images(
+    image_dir: Path,
+    max_dimension: int = 4096,
+    character_max_dimension: int = 2048,
+) -> dict[str, object]:
+    """Downscale oversized PNGs and keep Sparrow XML coordinates in sync.
+
+    Character atlases get a smaller 2048px cap to reduce cumulative GPU memory
+    during the song's many character swaps. Stage/menu art can remain up to 4096px.
+    """
     optimized = 0
     xml_updated = 0
     bytes_before = 0
     bytes_after = 0
+    scale_factors: dict[str, float] = {}
 
     if not image_dir.is_dir():
         raise FileNotFoundError(f"Image directory is missing: {image_dir}")
 
     for image_path in image_dir.rglob("*.png"):
         try:
+            relative = image_path.relative_to(image_dir)
+            limit = character_max_dimension if relative.parts and relative.parts[0] == "characters" else max_dimension
             with Image.open(image_path) as source:
                 width, height = source.size
-                if max(width, height) <= max_dimension:
+                if max(width, height) <= limit:
                     continue
-                factor = max_dimension / float(max(width, height))
+                factor = limit / float(max(width, height))
                 new_size = (
                     max(1, int(round(width * factor))),
                     max(1, int(round(height * factor))),
@@ -137,6 +148,7 @@ def optimize_browser_images(image_dir: Path, max_dimension: int = 2048) -> dict[
                 os.replace(temporary, image_path)
                 optimized += 1
                 bytes_after += image_path.stat().st_size
+                scale_factors[relative.as_posix()] = factor
         except Exception as error:
             raise RuntimeError(f"Could not optimize browser image {image_path}: {error}") from error
 
@@ -146,6 +158,8 @@ def optimize_browser_images(image_dir: Path, max_dimension: int = 2048) -> dict[
         "bytesBefore": bytes_before,
         "bytesAfter": bytes_after,
         "maxDimension": max_dimension,
+        "characterMaxDimension": character_max_dimension,
+        "scaleFactors": scale_factors,
     }
 
 
@@ -512,6 +526,11 @@ def main() -> int:
             raise FileNotFoundError(f"Missing chart character definition: {character_file}")
         character_data = json.loads(character_file.read_text(encoding="utf-8"))
         image_name = character_data.get("image", f"characters/{character}")
+        relative_image = f"{image_name}.png"
+        image_factor = image_report.get("scaleFactors", {}).get(relative_image, 1.0)
+        if image_factor < 1.0:
+            original_scale = float(character_data.get("scale", 1.0))
+            character_data["scale"] = round(original_scale / image_factor, 4)
         image_file = engine / "assets" / "preload" / "images" / f"{image_name}.png"
         atlas_file = engine / "assets" / "preload" / "images" / f"{image_name}.xml"
         if not image_file.is_file() or not atlas_file.is_file():
@@ -549,7 +568,11 @@ def main() -> int:
 
     # Remove unrelated base-game weeks and resize oversized browser textures.
     patch_project(engine)
-    image_report = optimize_browser_images(engine / "assets" / "preload" / "images", max_dimension=2048)
+    image_report = optimize_browser_images(
+        engine / "assets" / "preload" / "images",
+        max_dimension=4096,
+        character_max_dimension=2048,
+    )
     patch_note_types(engine)
     patch_south_stage(engine)
     converted = convert_ogg_files(engine)
