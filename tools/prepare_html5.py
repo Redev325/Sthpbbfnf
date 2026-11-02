@@ -510,6 +510,14 @@ def main() -> int:
         raise FileNotFoundError(f"Fallback week menu background is missing: {story_bg}")
     week_file.write_text(json.dumps(week, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
+    # Remove unrelated stock-week libraries and resize oversized browser textures.
+    patch_project(engine)
+    image_report = optimize_browser_images(
+        engine / "assets" / "preload" / "images",
+        max_dimension=4096,
+        character_max_dimension=2048,
+    )
+
     character_names = {"stan", "kenny", "cartman"}
     for event_group in song.get("events", []):
         if not isinstance(event_group, list) or len(event_group) < 2:
@@ -528,9 +536,11 @@ def main() -> int:
         image_name = character_data.get("image", f"characters/{character}")
         relative_image = f"{image_name}.png"
         image_factor = image_report.get("scaleFactors", {}).get(relative_image, 1.0)
+        scale_adjusted = False
         if image_factor < 1.0:
             original_scale = float(character_data.get("scale", 1.0))
             character_data["scale"] = round(original_scale / image_factor, 4)
+            scale_adjusted = True
         image_file = engine / "assets" / "preload" / "images" / f"{image_name}.png"
         atlas_file = engine / "assets" / "preload" / "images" / f"{image_name}.xml"
         if not image_file.is_file() or not atlas_file.is_file():
@@ -561,18 +571,13 @@ def main() -> int:
 
         if character_data.get("healthicon") != selected_icon:
             character_data["healthicon"] = selected_icon
+            scale_adjusted = True
+        if scale_adjusted:
             character_file.write_text(
                 json.dumps(character_data, ensure_ascii=False, separators=(",", ":")),
                 encoding="utf-8",
             )
 
-    # Remove unrelated base-game weeks and resize oversized browser textures.
-    patch_project(engine)
-    image_report = optimize_browser_images(
-        engine / "assets" / "preload" / "images",
-        max_dimension=4096,
-        character_max_dimension=2048,
-    )
     patch_note_types(engine)
     patch_south_stage(engine)
     converted = convert_ogg_files(engine)
