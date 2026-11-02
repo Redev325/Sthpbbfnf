@@ -226,6 +226,26 @@ def patch_south_stage(
 	var southAnimatedObjects:Map<String, BGSprite> = new Map();
 	var southKyleCharacter:Character;
 	var southKyleCCharacter:Character;
+	var badAppleWhiteBg:FlxSprite;
+
+	function tweenBadAppleSpriteColor(sprite:FlxSprite, targetColor:FlxColor, duration:Float):Void
+	{
+		if (sprite == null) return;
+		FlxTween.cancelTweensOf(sprite);
+		if (duration <= 0) sprite.color = targetColor;
+		else FlxTween.color(sprite, duration, sprite.color, targetColor, {ease: FlxEase.linear});
+	}
+
+	function setBadAppleSilhouette(enabled:Bool, duration:Float):Void
+	{
+		var targetColor:FlxColor = enabled ? FlxColor.BLACK : FlxColor.WHITE;
+		tweenBadAppleSpriteColor(boyfriend, targetColor, duration);
+		tweenBadAppleSpriteColor(dad, targetColor, duration);
+		tweenBadAppleSpriteColor(gf, targetColor, duration);
+		tweenBadAppleSpriteColor(healthBar, targetColor, duration);
+		tweenBadAppleSpriteColor(iconP1, targetColor, duration);
+		tweenBadAppleSpriteColor(iconP2, targetColor, duration);
+	}
 
 	function applySouthHealthIcon(iconName:String, leftHex:String, rightHex:String):Void
 	{
@@ -666,8 +686,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\tcase 'Flash Black' | 'aCameraFlashBlack':
 \t\t\t\tif (curStage == 'south')
 \t\t\t\t{
-\t\t\t\t\t// Use Flixel's camera flash rather than a persistent full-screen
-\t\t\t\t\t// sprite. Its built-in fade-out prevents a stranded black overlay.
+\t\t\t\t\t// The chart's flash is transient; do not leave the stage black.
 \t\t\t\t\tvar flashBlackSprite:BGSprite = southAnimatedObjects.get('black');
 \t\t\t\t\tif (flashBlackSprite != null)
 \t\t\t\t\t{
@@ -676,6 +695,43 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\t}
 \t\t\t\t\tif (camHUD != null)
 \t\t\t\t\t\tcamHUD.flash(FlxColor.BLACK, 0.25, null, true);
+\t\t\t\t}
+
+\t\t\tcase 'badapplelol':
+\t\t\t\tif (curStage == 'south')
+\t\t\t\t{
+\t\t\t\t\tvar badAppleDuration:Float = Std.parseFloat(value2);
+\t\t\t\t\tif (Math.isNaN(badAppleDuration) || badAppleDuration < 0) badAppleDuration = 0;
+\t\t\t\t\tif (value1.toLowerCase() == 'a')
+\t\t\t\t\t{
+\t\t\t\t\t\t// Bad Apple silhouette intro: white backdrop, dark characters.
+\t\t\t\t\t\tif (badAppleWhiteBg == null)
+\t\t\t\t\t\t{
+\t\t\t\t\t\t\tbadAppleWhiteBg = new FlxSprite(-100, -100);
+\t\t\t\t\t\t\tbadAppleWhiteBg.makeGraphic(FlxG.width * 2, FlxG.height * 2, FlxColor.WHITE);
+\t\t\t\t\t\t\tbadAppleWhiteBg.scrollFactor.set(0, 0);
+\t\t\t\t\t\t\tbadAppleWhiteBg.cameras = [camGame];
+\t\t\t\t\t\t\tbadAppleWhiteBg.alpha = 0;
+\t\t\t\t\t\t\tvar backgroundIndex:Int = members.indexOf(gfGroup);
+\t\t\t\t\t\t\tif (backgroundIndex >= 0) insert(backgroundIndex, badAppleWhiteBg);
+\t\t\t\t\t\t\telse add(badAppleWhiteBg);
+\t\t\t\t\t\t}
+\t\t\t\t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
+\t\t\t\t\t\tif (badAppleDuration <= 0) badAppleWhiteBg.alpha = 1;
+\t\t\t\t\t\telse FlxTween.tween(badAppleWhiteBg, {alpha: 1}, badAppleDuration, {ease: FlxEase.linear});
+\t\t\t\t\t\tsetBadAppleSilhouette(true, badAppleDuration);
+\t\t\t\t\t}
+\t\t\t\t\telse if (value1.toLowerCase() == 'b')
+\t\t\t\t\t{
+\t\t\t\t\t\t// End the silhouette: remove its white field and restore colors.
+\t\t\t\t\t\tif (badAppleWhiteBg != null)
+\t\t\t\t\t\t{
+\t\t\t\t\t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
+\t\t\t\t\t\t\tif (badAppleDuration <= 0) badAppleWhiteBg.alpha = 0;
+\t\t\t\t\t\t\telse FlxTween.tween(badAppleWhiteBg, {alpha: 0}, badAppleDuration, {ease: FlxEase.linear});
+\t\t\t\t\t\t}
+\t\t\t\t\t\tsetBadAppleSilhouette(false, badAppleDuration);
+\t\t\t\t\t}
 \t\t\t\t}
 
 \t\t\tcase 'Camera Follow Pos':"""
@@ -691,6 +747,8 @@ def patch_south_stage_fades(engine: Path) -> None:
         "southAnimatedObjects.set('black', southBlack);",
         fade_case_marker,
         flash_case_marker,
+        "case 'badapplelol':",
+        "setBadAppleSilhouette(false, badAppleDuration);",
     )
     missing = [fragment for fragment in required_fragments if fragment not in source]
     if missing:
