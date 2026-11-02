@@ -185,7 +185,31 @@ def patch_note_types(engine: Path) -> None:
         note_file.write_text(source, encoding="utf-8")
 
 
-def patch_south_stage(engine: Path, image_report: dict[str, object]) -> None:
+def read_icon_changes(icon_manager_file: Path) -> list[tuple[int, str, str, str]]:
+    """Read IconManager.lua's icon/color timeline for the native HTML5 build."""
+    if not icon_manager_file.is_file():
+        raise FileNotFoundError(f"Bloodbath icon manager is missing: {icon_manager_file}")
+    source = icon_manager_file.read_text(encoding="utf-8")
+    pattern = re.compile(
+        r"curStep\s*==\s*(\d+)\s+then\s*"
+        r"runHaxeCode\(\[\[game\.iconP1\.changeIcon\('([^']+)'\)\]\]\)\s*"
+        r"setHealthBarColors\('([0-9a-fA-F]+)'\s*,\s*'([0-9a-fA-F]+)'\)",
+        re.MULTILINE,
+    )
+    changes = [
+        (int(step), icon, left.lower(), right.lower())
+        for step, icon, left, right in pattern.findall(source)
+    ]
+    if not changes:
+        raise RuntimeError("Could not read icon changes from IconManager.lua.")
+    return changes
+
+
+def patch_south_stage(
+    engine: Path,
+    image_report: dict[str, object],
+    icon_changes: list[tuple[int, str, str, str]],
+) -> None:
     play_file = engine / "source" / "PlayState.hx"
     source = play_file.read_text(encoding="utf-8")
 
@@ -200,6 +224,20 @@ def patch_south_stage(engine: Path, image_report: dict[str, object]) -> None:
 	var southLightOverlay4:BGSprite;
 	var southLightOverlay42:BGSprite;
 	var southAnimatedObjects:Map<String, BGSprite> = new Map();
+	var southKyleCharacter:Character;
+	var southKyleCCharacter:Character;
+
+	function applySouthHealthIcon(iconName:String, leftHex:String, rightHex:String):Void
+	{
+		if (iconP1 != null) iconP1.changeIcon(iconName);
+		if (healthBar != null)
+		{
+			var left:FlxColor = Std.parseInt('0xff' + leftHex);
+			var right:FlxColor = Std.parseInt('0xff' + rightHex);
+			healthBar.createFilledBar(left, right);
+			healthBar.updateBar();
+		}
+	}
 """
     if "var southLightOverlay:BGSprite;" not in source:
         if class_marker not in source:
@@ -296,12 +334,11 @@ def patch_south_stage(engine: Path, image_report: dict[str, object]) -> None:
 				southSnow.alpha = 0;
 				add(southSnow);
 
-				var southKyle:BGSprite = new BGSprite('kyle s', 608, 164, 1, 1, ['idle'], true);
-				southKyle.animation.addByPrefix('anim', 'idle', 24, true);
+				var southKyle:BGSprite = new BGSprite('kyle s', 608, 164, 1, 1, ['anim'], true);
+				// The atlas contains "anim0000..." frames; there is no "idle" prefix.
 				southKyle.animation.addByPrefix('anim1', 'anim', 22, false);
-				// Lua stage events are unavailable in this HTML5 target. Keep Kyle
-				// visible in his idle pose instead of leaving him permanently hidden.
-				southKyle.alpha = 1;
+				// The original stage reveals this sprite only through chart events.
+				southKyle.alpha = 0;
 				add(southKyle);
 				southAnimatedObjects.set('kyle s', southKyle);
 
@@ -318,6 +355,18 @@ def patch_south_stage(engine: Path, image_report: dict[str, object]) -> None:
 				southCraig.alpha = 0;
 				add(southCraig);
 				southAnimatedObjects.set('craig s', southCraig);
+
+				// Native replacements for the extra Kyle characters created by
+				// kyle.lua and kyle c.lua in the desktop mod.
+				southKyleCCharacter = new Character(600, 100, 'kyle c');
+				southKyleCCharacter.singDuration = 6;
+				southKyleCCharacter.alpha = 1;
+				add(southKyleCCharacter);
+
+				southKyleCharacter = new Character(600, 100, 'kyle');
+				southKyleCharacter.singDuration = 6;
+				southKyleCharacter.alpha = 0;
+				add(southKyleCharacter);
 
 				var southBlackbar:BGSprite = new BGSprite('blackbar', 0, 0);
 				southBlackbar.cameras = [camHUD];
@@ -411,13 +460,81 @@ def patch_south_stage(engine: Path, image_report: dict[str, object]) -> None:
 					southLightOverlay4.alpha = 0.75;
 			}
 		}
+
+		if (curStage == 'south')
+		{
+			switch (curStep)
+			{
+				case 11:
+					if (southKyleCCharacter != null) southKyleCCharacter.alpha = 0;
+				case 472:
+					if (southKyleCharacter != null) southKyleCharacter.alpha = 1;
+				__ICON_CASES__
+			}
+		}
 """
     if "southLightOverlay.alpha = 0.5;" not in source:
         if step_marker not in source:
             raise RuntimeError("Could not find the PlayState stepHit insertion point.")
         source = source.replace(step_marker, step_addition, 1)
 
-    event_marker = "\t\t\tcase 'Camera Follow Pos':"
+    icon_case_lines = []
+    for step, icon_name, left_hex, right_hex in icon_changes:
+        icon_case_lines.extend([
+            f"\\t\\t\\t\\tcase {step}:",
+            f"\\t\\t\\t\\t\\tapplySouthHealthIcon({json.dumps(icon_name)}, {json.dumps(left_hex)}, {json.dumps(right_hex)});",
+        ])
+    if "__ICON_CASES__" in source:
+        source = source.replace("__ICON_CASES__", "\\n".join(icon_case_lines), 1)
+
+    # Native beat handling for the two Lua-created extra Kyle characters.
+    beat_marker = "\\t\\tlastBeatHit = curBeat;"
+    beat_code = """\\t\\tif (curStage == 'south')
+\\t\\t{
+\\t\\t\\tif (southKyleCharacter != null && southKyleCharacter.alpha > 0.01
+\\t\\t\\t\\t&& southKyleCharacter.animation.curAnim != null
+\\t\\t\\t\\t&& !southKyleCharacter.animation.curAnim.name.startsWith('sing')
+\\t\\t\\t\\t&& curBeat % southKyleCharacter.danceEveryNumBeats == 0)
+\\t\\t\\t\\tsouthKyleCharacter.dance();
+
+\\t\\t\\tif (southKyleCCharacter != null && southKyleCCharacter.alpha > 0.01
+\\t\\t\\t\\t&& southKyleCCharacter.animation.curAnim != null
+\\t\\t\\t\\t&& !southKyleCCharacter.animation.curAnim.name.startsWith('sing')
+\\t\\t\\t\\t&& curBeat % southKyleCCharacter.danceEveryNumBeats == 0)
+\\t\\t\\t\\tsouthKyleCCharacter.dance();
+\\t\\t}
+
+\\t\\tlastBeatHit = curBeat;"""
+    if "southKyleCharacter.dance();" not in source:
+        if beat_marker not in source:
+            raise RuntimeError("Could not find the PlayState beatHit insertion point.")
+        source = source.replace(beat_marker, beat_code, 1)
+
+    # Route the custom kyle note type to the visible extra Kyle character.
+    note_marker = "\\t\\tif(note.noteType == 'Hey!' && dad.animOffsets.exists('hey')) {"
+    note_code = """\\t\\tif (curStage == 'south' && note.noteType == 'kyle')
+\\t\\t{
+\\t\\t\\tvar kyleTarget:Character = null;
+\\t\\t\\tif (southKyleCharacter != null && southKyleCharacter.alpha > 0.01)
+\\t\\t\\t\\tkyleTarget = southKyleCharacter;
+\\t\\t\\telse if (southKyleCCharacter != null && southKyleCCharacter.alpha > 0.01)
+\\t\\t\\t\\tkyleTarget = southKyleCCharacter;
+
+\\t\\t\\tif (kyleTarget != null)
+\\t\\t\\t{
+\\t\\t\\t\\tvar kyleAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
+\\t\\t\\t\\tkyleTarget.playAnim(kyleAnim, true);
+\\t\\t\\t\\tkyleTarget.holdTimer = 0;
+\\t\\t\\t}
+\\t\\t}
+
+\\t\\tif(note.noteType == 'Hey!' && dad.animOffsets.exists('hey')) {"""
+    if "var kyleTarget:Character" not in source:
+        if note_marker not in source:
+            raise RuntimeError("Could not find the PlayState opponentNoteHit insertion point.")
+        source = source.replace(note_marker, note_code, 1)
+
+    event_marker = "\\t\\t\\tcase 'Camera Follow Pos':"
     event_code = """\t\t\tcase 'aObject Play Animation':
 \t\t\t\tif (curStage == 'south')
 \t\t\t\t{
@@ -579,6 +696,17 @@ def main() -> int:
     )
 
     character_names = {"stan", "kenny", "cartman"}
+    for role in ("player1", "player2", "gfVersion"):
+        role_name = str(song.get(role, "")).strip()
+        if role_name:
+            character_names.add(role_name)
+
+    # Lua-created characters are not listed in Change Character events.
+    for lua_file in (mod / "data" / "bloodbath").glob("*.lua"):
+        lua_source = lua_file.read_text(encoding="utf-8", errors="replace")
+        for match in re.findall(r'''characterPath\s*=\s*['"]characters/([^'"]+)''', lua_source):
+            character_names.add(match.strip())
+
     for event_group in song.get("events", []):
         if not isinstance(event_group, list) or len(event_group) < 2:
             continue
@@ -610,10 +738,12 @@ def main() -> int:
 
         # Some alternate forms ship with a stale "faker-tails" icon value.
         # Prefer their own icon, then the base form's icon, then the stock blank icon.
-        candidates = [
-            str(character_data.get("healthicon", "")).strip(),
-            character,
-        ]
+        current_icon = str(character_data.get("healthicon", "")).strip()
+        placeholder_icons = {"", "blank", "icon-blank", "face", "icon-face", "faker-tails", "icon-faker-tails"}
+        candidates = []
+        if current_icon.lower() not in placeholder_icons:
+            candidates.append(current_icon)
+        candidates.append(character)
         parts = character.rsplit(" ", 1)
         if len(parts) == 2 and parts[1].lower() in {"c", "s", "w", "f", "a"}:
             candidates.append(parts[0])
@@ -649,8 +779,9 @@ def main() -> int:
                 encoding="utf-8",
             )
 
+    icon_changes = read_icon_changes(mod / "data" / "bloodbath" / "IconManager.lua")
     patch_note_types(engine)
-    patch_south_stage(engine, image_report)
+    patch_south_stage(engine, image_report, icon_changes)
     converted = convert_ogg_files(engine)
     song_cleanup = keep_only_bloodbath(engine)
 
