@@ -640,46 +640,56 @@ def patch_south_stage(
 
 
 def patch_south_stage_fades(engine: Path) -> None:
-    """Port the South stage fade and temporary black-flash events to HTML5."""
+    """Port South stage fades and black flashes without leaving cover sprites behind."""
     play_file = engine / "source" / "PlayState.hx"
     source = play_file.read_text(encoding="utf-8")
 
-    # Register the stage sprites that the chart addresses by their Lua names.
-    registration_marker = """
-\t\t\t\tvar southBlackbar:BGSprite = new BGSprite('blackbar', 0, 0);
-\t\t\t\tsouthBlackbar.cameras = [camHUD];
-\t\t\t\tsouthBlackbar.alpha = 0;
-\t\t\t\tadd(southBlackbar);
-"""
-    registration_code = registration_marker + """
-\t\t\t\t// Stage sprite lookup for the mod's afadein/afadeout events.
-\t\t\t\tsouthAnimatedObjects.set('sun', southSun);
-\t\t\t\tsouthAnimatedObjects.set('wow1', southFogBack);
-\t\t\t\tsouthAnimatedObjects.set('Vignette', southVignette);
-\t\t\t\tsouthAnimatedObjects.set('white', southWhite);
-\t\t\t\tsouthAnimatedObjects.set('fog', southFog);
-\t\t\t\tsouthAnimatedObjects.set('black', southBlack);
-\t\t\t\tsouthAnimatedObjects.set('bg', southBackground);
-\t\t\t\tsouthAnimatedObjects.set('bgluz', southLightOverlay);
-\t\t\t\tsouthAnimatedObjects.set('bg3', southBackground3);
-\t\t\t\tsouthAnimatedObjects.set('bgluz3', southLightOverlay3);
-\t\t\t\tsouthAnimatedObjects.set('bg4', southBackground4);
-\t\t\t\tsouthAnimatedObjects.set('bgluz4', southLightOverlay4);
-\t\t\t\tsouthAnimatedObjects.set('bgluz42', southLightOverlay42);
-\t\t\t\tsouthAnimatedObjects.set('bg2', southBackground2);
-\t\t\t\tsouthAnimatedObjects.set('bg2 n', southBackground2Animated);
-\t\t\t\tsouthAnimatedObjects.set('bgluz2', southLightOverlay2);
-\t\t\t\tsouthAnimatedObjects.set('nieve', southSnow);
-\t\t\t\tsouthAnimatedObjects.set('blackbar', southBlackbar);
-\t\t\t\tsouthAnimatedObjects.set('craig', southCraig);
-"""
-    if "Stage sprite lookup for the mod's afadein/afadeout events." not in source:
-        if registration_marker not in source:
-            raise RuntimeError("Could not find the end of the South stage sprite setup.")
-        source = source.replace(registration_marker, registration_code, 1)
+    field_marker = "\tvar badAppleWhiteBg:FlxSprite;"
+    if "var southBlackFlashOverlay:FlxSprite;" not in source:
+        if field_marker not in source:
+            raise RuntimeError("Could not locate the South stage fields for the black flash overlay.")
+        source = source.replace(
+            field_marker,
+            field_marker + "\n\tvar southBlackFlashOverlay:FlxSprite;",
+            1,
+        )
 
-    # The chart's South-stage fades and flash use custom event names. These
-    # are handled natively because the HTML5 build does not execute stage.lua.
+    function_marker = "\tfunction applySouthHealthIcon(iconName:String, leftHex:String, rightHex:String):Void"
+    flash_function = """\tfunction flashSouthScreenBlack(duration:Float):Void
+\t{
+\t\tif (curStage != 'south' || southBlackFlashOverlay == null) return;
+\t\tif (Math.isNaN(duration) || duration <= 0) duration = 1;
+\t\t// The original Black effect Lua uses value1 as the fade-out duration.
+\t\t// Clamp malformed chart values so a bad event cannot hold a black screen.
+\t\tif (duration > 2.5) duration = 2.5;
+\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);
+\t\tsouthBlackFlashOverlay.alpha = 1;
+\t\tFlxTween.tween(southBlackFlashOverlay, {alpha: 0}, duration, {ease: FlxEase.linear});
+\t}
+
+"""
+    if "function flashSouthScreenBlack(duration:Float):Void" not in source:
+        if function_marker not in source:
+            raise RuntimeError("Could not find the South stage helper insertion point.")
+        source = source.replace(function_marker, flash_function + function_marker, 1)
+
+    create_marker = "\t\tcallOnLuas('onCreatePost', []);"
+    create_code = """\t\t// The mod's Black effect Lua creates a black sprite on the GAME camera,
+\t\t// then fades it back out over value1 seconds. Keep it separate from the
+\t\t// stage's persistent black layer and keep the HUD camera unobscured.
+\t\tsouthBlackFlashOverlay = new FlxSprite(0, 0);
+\t\tsouthBlackFlashOverlay.makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
+\t\tsouthBlackFlashOverlay.scrollFactor.set(0, 0);
+\t\tsouthBlackFlashOverlay.cameras = [camGame];
+\t\tsouthBlackFlashOverlay.alpha = 0;
+\t\tadd(southBlackFlashOverlay);
+
+\t\tcallOnLuas('onCreatePost', []);"""
+    if "southBlackFlashOverlay = new FlxSprite(0, 0);" not in source:
+        if create_marker not in source:
+            raise RuntimeError("Could not find PlayState.onCreatePost() for black flash overlay creation.")
+        source = source.replace(create_marker, create_code, 1)
+
     event_marker = "case 'Camera Follow Pos':"
     event_code = """\t\t\tcase 'afadein' | 'afadeout':
 \t\t\t\tif (curStage == 'south')
@@ -696,18 +706,12 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\t}
 \t\t\t\t}
 
-\t\t\tcase 'Flash Black' | 'aCameraFlashBlack':
+\t\t\tcase 'Flash Black' | 'aCameraFlashBlack' | 'Camera Flash':
 \t\t\t\tif (curStage == 'south')
 \t\t\t\t{
-\t\t\t\t\t// The chart's flash is transient; do not leave the stage black.
-\t\t\t\t\tvar flashBlackSprite:BGSprite = southAnimatedObjects.get('black');
-\t\t\t\t\tif (flashBlackSprite != null)
-\t\t\t\t\t{
-\t\t\t\t\t\tFlxTween.cancelTweensOf(flashBlackSprite);
-\t\t\t\t\t\tflashBlackSprite.alpha = 0;
-\t\t\t\t\t}
-\t\t\t\t\tif (camHUD != null)
-\t\t\t\t\t\tcamHUD.flash(FlxColor.BLACK, 0.25, null, true);
+\t\t\t\t\tvar blackFlashDuration:Float = Std.parseFloat(value1);
+\t\t\t\t\tif (Math.isNaN(blackFlashDuration) || blackFlashDuration <= 0) blackFlashDuration = 1;
+\t\t\t\t\tflashSouthScreenBlack(blackFlashDuration);
 \t\t\t\t}
 
 \t\t\tcase 'badapplelol':
@@ -719,12 +723,10 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\t{
 \t\t\t\t\t\tbadAppleSilhouetteActive = true;
 \t\t\t\t\t\tbadAppleLastCameraSection = -1;
-\t\t\t\t\t\t// Bad Apple silhouette intro: white backdrop, dark characters.
 \t\t\t\t\t\tif (badAppleWhiteBg == null)
 \t\t\t\t\t\t{
 \t\t\t\t\t\t\tbadAppleWhiteBg = new FlxSprite();
 \t\t\t\t\t\t\tbadAppleWhiteBg.makeGraphic(FlxG.width * 2, FlxG.height * 2, FlxColor.WHITE);
-\t\t\t\t\t\t\t// Match the original Lua screenCenter('whitebg', 'xy') call.
 \t\t\t\t\t\t\tbadAppleWhiteBg.setPosition(
 \t\t\t\t\t\t\t\t(FlxG.width - badAppleWhiteBg.width) * 0.5,
 \t\t\t\t\t\t\t\t(FlxG.height - badAppleWhiteBg.height) * 0.5
@@ -745,7 +747,6 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\t{
 \t\t\t\t\t\tbadAppleSilhouetteActive = false;
 \t\t\t\t\t\tbadAppleLastCameraSection = -1;
-\t\t\t\t\t\t// End the silhouette: remove its white field and restore colors.
 \t\t\t\t\t\tif (badAppleWhiteBg != null)
 \t\t\t\t\t\t{
 \t\t\t\t\t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
@@ -753,53 +754,64 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\t\t\telse FlxTween.tween(badAppleWhiteBg, {alpha: 0}, badAppleDuration, {ease: FlxEase.linear});
 \t\t\t\t\t\t}
 \t\t\t\t\t\tsetBadAppleSilhouette(false, badAppleDuration);
+\t\t\t\t\t\t// Drop only stale previous-event covers; the next charted flash
+\t\t\t\t\t\t// is handled independently a few milliseconds later.
+\t\t\t\t\t\tvar stageBlack:BGSprite = southAnimatedObjects.get('black');
+\t\t\t\t\t\tif (stageBlack != null)
+\t\t\t\t\t\t{
+\t\t\t\t\t\t\tFlxTween.cancelTweensOf(stageBlack);
+\t\t\t\t\t\t\tstageBlack.alpha = 0;
+\t\t\t\t\t\t}
+\t\t\t\t\t}
+\t\t\t\t}
+
+\t\t\tcase 'aCamaraZoom' | 'aCamaraZoom1':
+\t\t\t\tif (curStage == 'south')
+\t\t\t\t{
+\t\t\t\t\tvar targetCameraZoom:Float = Std.parseFloat(value1);
+\t\t\t\t\tvar cameraZoomDuration:Float = Std.parseFloat(value2);
+\t\t\t\t\tif (!Math.isNaN(targetCameraZoom) && targetCameraZoom > 0)
+\t\t\t\t\t{
+\t\t\t\t\t\tFlxTween.cancelTweensOf(FlxG.camera);
+\t\t\t\t\t\tif (Math.isNaN(cameraZoomDuration) || cameraZoomDuration <= 0)
+\t\t\t\t\t\t\tFlxG.camera.zoom = targetCameraZoom;
+\t\t\t\t\t\telse
+\t\t\t\t\t\t\tFlxTween.tween(FlxG.camera, {zoom: targetCameraZoom}, cameraZoomDuration, {ease: FlxEase.quadInOut});
 \t\t\t\t\t}
 \t\t\t\t}
 
 \t\t\tcase 'Camera Follow Pos':"""
-    fade_case_marker = "case 'afadein' | 'afadeout':"
-    flash_case_marker = "case 'Flash Black' | 'aCameraFlashBlack':"
-    if fade_case_marker not in source or flash_case_marker not in source:
-        if event_marker not in source:
-            raise RuntimeError("Could not find the PlayState custom-event insertion point.")
+    if "case 'Flash Black' | 'aCameraFlashBlack' | 'Camera Flash':" not in source:
+        if len(source.split(event_marker)) - 1 != 1:
+            raise RuntimeError("Expected one Camera Follow Pos event marker for South overlay event handling.")
         source = source.replace(event_marker, event_code, 1)
 
-    required_fragments = (
-        "Stage sprite lookup for the mod's afadein/afadeout events.",
-        "southAnimatedObjects.set('black', southBlack);",
-        fade_case_marker,
-        flash_case_marker,
+    required = (
+        "function flashSouthScreenBlack(duration:Float):Void",
+        "southBlackFlashOverlay = new FlxSprite(0, 0);",
+        "case 'Flash Black' | 'aCameraFlashBlack' | 'Camera Flash':",
         "case 'badapplelol':",
-        "setBadAppleSilhouette(false, badAppleDuration);",
+        "case 'aCamaraZoom' | 'aCamaraZoom1':",
     )
-    missing = [fragment for fragment in required_fragments if fragment not in source]
+    missing = [item for item in required if item not in source]
     if missing:
-        raise RuntimeError("South stage fade/flash handling is incomplete: " + repr(missing))
-
+        raise RuntimeError("South overlay/flash event patch is incomplete: " + repr(missing))
     play_file.write_text(source, encoding="utf-8")
 
 
+
 def patch_black_screen_diagnostics(engine: Path) -> None:
-    """Add a corner overlay that records the cause of the South-stage blackout."""
+    """Recover stuck South-stage covers without adding any UI over gameplay."""
     play_file = engine / "source" / "PlayState.hx"
     source = play_file.read_text(encoding="utf-8")
 
     field_marker = "\tvar badAppleWhiteBg:FlxSprite;"
     fields = field_marker + """
-\tvar camDebug:FlxCamera;
-\tvar blackDiagnosticBg:FlxSprite;
-\tvar blackDiagnosticText:FlxText;
-\tvar blackDiagnosticArmed:Bool = false;
 \tvar lateBlackoutWatchSince:Float = -1;
 \tvar lateBlackoutRecoveries:Int = 0;
 \tvar blackDiagnosticLastEvent:String = "none";
 \tvar blackDiagnosticLastEventTime:Float = 0;
 \tvar blackDiagnosticEventHistory:Array<String> = [];
-
-\tfunction blackDiagnosticPercent(value:Float):String
-\t{
-\t\treturn Std.string(Std.int(value * 100)) + "%";
-\t}
 
 \tfunction blackDiagnosticCameraValue(camera:FlxCamera, fieldName:String):Float
 \t{
@@ -810,191 +822,167 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\treturn Math.isNaN(parsed) ? 0 : parsed;
 \t}
 
-	function blackDiagnosticHasBlackFx(camera:FlxCamera):Bool
-	{
-		if (camera == null) return false;
-		var fadeAlpha:Float = blackDiagnosticCameraValue(camera, "_fxFadeAlpha");
-		var flashAlpha:Float = blackDiagnosticCameraValue(camera, "_fxFlashAlpha");
-		var fadeColor:Dynamic = Reflect.field(camera, "_fxFadeColor");
-		var flashColor:Dynamic = Reflect.field(camera, "_fxFlashColor");
-		return (fadeAlpha >= 0.92 && fadeColor == FlxColor.BLACK)
-			|| (flashAlpha >= 0.92 && flashColor == FlxColor.BLACK);
-	}
-
-	function recoverLateBlackout():Void
-	{
-		var songMs:Float = Conductor.songPosition;
-		// Restrict recovery to the reported 5:40-6:02 interval.
-		if (songMs < 340000 || songMs > 362000)
-		{
-			lateBlackoutWatchSince = -1;
-			return;
-		}
-
-		var blackLayer:BGSprite = southAnimatedObjects.get('black');
-		var stuckBlackLayer:Bool = blackLayer != null && blackLayer.alpha >= 0.92;
-		var stuckBlackCamera:Bool = blackDiagnosticHasBlackFx(camGame)
-			|| blackDiagnosticHasBlackFx(camHUD)
-			|| blackDiagnosticHasBlackFx(camOther);
-
-		// Do not interfere with normal 0.25-second flashes or short transitions.
-		if (!stuckBlackLayer && !stuckBlackCamera)
-		{
-			lateBlackoutWatchSince = -1;
-			return;
-		}
-		if (lateBlackoutWatchSince < 0)
-		{
-			lateBlackoutWatchSince = songMs;
-			return;
-		}
-		if (songMs - lateBlackoutWatchSince < 900) return;
-
-		var recovered:Array<String> = [];
-		if (blackLayer != null && blackLayer.alpha >= 0.92)
-		{
-			FlxTween.cancelTweensOf(blackLayer);
-			blackLayer.alpha = 0;
-			recovered.push("stage black");
-		}
-		if (blackDiagnosticHasBlackFx(camGame))
-		{
-			camGame.stopFX();
-			recovered.push("camGame black FX");
-		}
-		if (blackDiagnosticHasBlackFx(camHUD))
-		{
-			camHUD.stopFX();
-			recovered.push("camHUD black FX");
-		}
-		if (blackDiagnosticHasBlackFx(camOther))
-		{
-			camOther.stopFX();
-			recovered.push("camOther black FX");
-		}
-
-		if (recovered.length > 0)
-		{
-			lateBlackoutRecoveries++;
-			blackDiagnosticLastEvent = "AUTO-RECOVERED persistent black: " + recovered.join(", ");
-			blackDiagnosticLastEventTime = songMs;
-			blackDiagnosticEventHistory.push(blackDiagnosticLastEvent + " @ " + Std.string(Std.int(songMs)) + "ms");
-			if (blackDiagnosticEventHistory.length > 4) blackDiagnosticEventHistory.shift();
-		}
-		lateBlackoutWatchSince = -1;
-	}
-
-\tfunction refreshBlackScreenDiagnostics():Void
+\tfunction blackDiagnosticHasBlackFx(camera:FlxCamera):Bool
 \t{
-\t\tif (blackDiagnosticText == null || blackDiagnosticBg == null) return;
+\t\tif (camera == null) return false;
+\t\tvar fadeAlpha:Float = blackDiagnosticCameraValue(camera, "_fxFadeAlpha");
+\t\tvar flashAlpha:Float = blackDiagnosticCameraValue(camera, "_fxFlashAlpha");
+\t\tvar fadeColor:Dynamic = Reflect.field(camera, "_fxFadeColor");
+\t\tvar flashColor:Dynamic = Reflect.field(camera, "_fxFlashColor");
+\t\treturn (fadeAlpha >= 0.92 && fadeColor == FlxColor.BLACK)
+\t\t\t|| (flashAlpha >= 0.92 && flashColor == FlxColor.BLACK);
+\t}
 
+\tfunction recoverLateBlackout():Void
+\t{
 \t\tvar songMs:Float = Conductor.songPosition;
-\t\trecoverLateBlackout();
-\t\t// Arm at 5:40 and keep the panel visible even if gameplay pauses afterward.
-\t\tif (songMs >= 340000) blackDiagnosticArmed = true;
-\t\tvar shouldShow:Bool = blackDiagnosticArmed;
+\t\tif (songMs < 340000 || songMs > 362000)
+\t\t{
+\t\t\tlateBlackoutWatchSince = -1;
+\t\t\treturn;
+\t\t}
+
 \t\tvar blackLayer:BGSprite = southAnimatedObjects.get('black');
 \t\tvar blackbarLayer:BGSprite = southAnimatedObjects.get('blackbar');
 \t\tvar whiteLayer:BGSprite = southAnimatedObjects.get('white');
-\t\tvar blackAlpha:Float = blackLayer == null ? 0 : blackLayer.alpha;
-\t\tvar blackbarAlpha:Float = blackbarLayer == null ? 0 : blackbarLayer.alpha;
-\t\tvar whiteAlpha:Float = whiteLayer == null ? 0 : whiteLayer.alpha;
-\t\tvar badAppleAlpha:Float = badAppleWhiteBg == null ? 0 : badAppleWhiteBg.alpha;
+\t\tvar blackCover:Bool = (blackLayer != null && blackLayer.alpha >= 0.92)
+\t\t\t|| (blackbarLayer != null && blackbarLayer.alpha >= 0.92)
+\t\t\t|| (whiteLayer != null && whiteLayer.alpha >= 0.92)
+\t\t\t|| (badAppleWhiteBg != null && badAppleWhiteBg.alpha >= 0.92)
+\t\t\t|| (southBlackFlashOverlay != null && southBlackFlashOverlay.alpha >= 0.92);
 
-\t\tvar gameFade:Float = blackDiagnosticCameraValue(camGame, '_fxFadeAlpha');
-\t\tvar gameFlash:Float = blackDiagnosticCameraValue(camGame, '_fxFlashAlpha');
-\t\tvar hudFade:Float = blackDiagnosticCameraValue(camHUD, '_fxFadeAlpha');
-\t\tvar otherFade:Float = blackDiagnosticCameraValue(camOther, '_fxFadeAlpha');
-\t\tvar rawFilters:Dynamic = camGame == null ? null : Reflect.field(camGame, '_filters');
-\t\tvar filters:Int = rawFilters == null ? 0 : rawFilters.length;
+\t\tvar cameraCover:Bool = blackDiagnosticHasBlackFx(camGame)
+\t\t\t|| blackDiagnosticHasBlackFx(camHUD)
+\t\t\t|| blackDiagnosticHasBlackFx(camOther);
 
-\t\tvar cause:String = "No tracked overlay is opaque; possible unregistered sprite, shader, or camera filter.";
-\t\tif (gameFade >= 0.90)
-\t\t\tcause = "camGame has an active near-full-screen camera fade.";
-\t\telse if (hudFade >= 0.90)
-\t\t\tcause = "camHUD has an active near-full-screen camera fade.";
-\t\telse if (otherFade >= 0.90)
-\t\t\tcause = "camOther has an active near-full-screen camera fade.";
-\t\telse if (blackAlpha >= 0.90)
-\t\t\tcause = "South stage sprite 'black' is still covering the HUD.";
-\t\telse if (blackbarAlpha >= 0.90)
-\t\t\tcause = "South stage sprite 'blackbar' is still opaque.";
-\t\telse if (badAppleAlpha >= 0.90)
-\t\t\tcause = "Bad Apple backdrop is still opaque.";
-\t\telse if (whiteAlpha >= 0.90)
-\t\t\tcause = "South stage sprite 'white' is still covering the HUD.";
-\t\telse if (boyfriend != null && dad != null && boyfriend.color == FlxColor.BLACK && dad.color == FlxColor.BLACK)
-\t\t\tcause = "Boyfriend and opponent are still black-tinted; silhouette reset may not have run.";
+\t\tvar upperBarStuck:Bool = southStillStrumUpperBar != null && southStillStrumUpperBar.y > -349;
+\t\tvar lowerBarStuck:Bool = southStillStrumLowerBar != null && southStillStrumLowerBar.y < 719;
+\t\tvar cinematicCover:Bool = upperBarStuck || lowerBarStuck;
 
-\t\tvar totalSeconds:Int = Std.int(Math.max(0, songMs) / 1000);
-\t\tvar minuteText:String = Std.string(Std.int(totalSeconds / 60));
-\t\tvar secondValue:Int = totalSeconds % 60;
-\t\tvar secondText:String = secondValue < 10 ? "0" + secondValue : Std.string(secondValue);
-\t\tvar eventTime:String = Std.string(Std.int(blackDiagnosticLastEventTime)) + "ms";
+\t\tif (!blackCover && !cameraCover && !cinematicCover)
+\t\t{
+\t\t\tlateBlackoutWatchSince = -1;
+\t\t\treturn;
+\t\t}
 
-\t\tblackDiagnosticText.text =
-\t\t\t"BLACKOUT DIAGNOSTICS  |  " + minuteText + ":" + secondText + "\\n" +
-\t\t\t"Last event: " + blackDiagnosticLastEvent + " @ " + eventTime + "\\n" +
-\t\t\t"Layers: black " + blackDiagnosticPercent(blackAlpha) +
-\t\t\t" | bar " + blackDiagnosticPercent(blackbarAlpha) +
-\t\t\t" | white " + blackDiagnosticPercent(whiteAlpha) +
-\t\t\t" | BadApple " + blackDiagnosticPercent(badAppleAlpha) + "\\n" +
-\t\t\t"Camera: game fade " + blackDiagnosticPercent(gameFade) +
-\t\t\t" / flash " + blackDiagnosticPercent(gameFlash) +
-\t\t\t" | HUD fade " + blackDiagnosticPercent(hudFade) +
-\t\t\t" | filters " + Std.string(filters) + "\\n" +
-\t\t\t"CAUSE: " + cause + "\\n" +
-\t\t\t"Recovery count: " + Std.string(lateBlackoutRecoveries) + " | watch 5:40-6:02\\n" +
-\t\t\t"Recent events: " + blackDiagnosticEventHistory.join(" -> ");
+\t\t// Use wall-clock milliseconds, not Conductor.songPosition. The song
+\t\t// clock can stop when audio/gameplay stalls, which made the old watchdog
+\t\t// wait forever during the very freeze it was meant to recover.
+\t\tvar wallNow:Float = Date.now().getTime();
+\t\tif (lateBlackoutWatchSince < 0)
+\t\t{
+\t\t\tlateBlackoutWatchSince = wallNow;
+\t\t\treturn;
+\t\t}
+\t\t// Preserve the chart's 1-second black flashes, but never keep an opaque
+\t\t// full-screen layer or camera effect over the song for multiple seconds.
+\t\tif (wallNow - lateBlackoutWatchSince < 1250) return;
 
-\t\tblackDiagnosticBg.visible = shouldShow;
-\t\tblackDiagnosticText.visible = shouldShow;
+\t\tvar recovered:Array<String> = [];
+\t\tif (blackLayer != null && blackLayer.alpha >= 0.92)
+\t\t{
+\t\t\tFlxTween.cancelTweensOf(blackLayer);
+\t\t\tblackLayer.alpha = 0;
+\t\t\trecovered.push("stage black");
+\t\t}
+\t\tif (blackbarLayer != null && blackbarLayer.alpha >= 0.92)
+\t\t{
+\t\t\tFlxTween.cancelTweensOf(blackbarLayer);
+\t\t\tblackbarLayer.alpha = 0;
+\t\t\trecovered.push("stage blackbar");
+\t\t}
+\t\tif (whiteLayer != null && whiteLayer.alpha >= 0.92)
+\t\t{
+\t\t\tFlxTween.cancelTweensOf(whiteLayer);
+\t\t\twhiteLayer.alpha = 0;
+\t\t\trecovered.push("stage white");
+\t\t}
+\t\tif (badAppleWhiteBg != null && badAppleWhiteBg.alpha >= 0.92)
+\t\t{
+\t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
+\t\t\tbadAppleWhiteBg.alpha = 0;
+\t\t\trecovered.push("Bad Apple backdrop");
+\t\t}
+\t\tif (southBlackFlashOverlay != null && southBlackFlashOverlay.alpha >= 0.92)
+\t\t{
+\t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);
+\t\t\tsouthBlackFlashOverlay.alpha = 0;
+\t\t\trecovered.push("black flash overlay");
+\t\t}
+\t\tif (upperBarStuck)
+\t\t{
+\t\t\tFlxTween.cancelTweensOf(southStillStrumUpperBar);
+\t\t\tsouthStillStrumUpperBar.y = -350;
+\t\t\trecovered.push("upper cinematic bar");
+\t\t}
+\t\tif (lowerBarStuck)
+\t\t{
+\t\t\tFlxTween.cancelTweensOf(southStillStrumLowerBar);
+\t\t\tsouthStillStrumLowerBar.y = 720;
+\t\t\trecovered.push("lower cinematic bar");
+\t\t}
+\t\tif (blackDiagnosticHasBlackFx(camGame))
+\t\t{
+\t\t\tcamGame.stopFX();
+\t\t\trecovered.push("camGame FX");
+\t\t}
+\t\tif (blackDiagnosticHasBlackFx(camHUD))
+\t\t{
+\t\t\tcamHUD.stopFX();
+\t\t\trecovered.push("camHUD FX");
+\t\t}
+\t\tif (blackDiagnosticHasBlackFx(camOther))
+\t\t{
+\t\t\tcamOther.stopFX();
+\t\t\trecovered.push("camOther FX");
+\t\t}
+
+\t\tif (recovered.length > 0)
+\t\t{
+\t\t\tlateBlackoutRecoveries++;
+\t\t\tblackDiagnosticLastEvent = "RECOVERED: " + recovered.join(", ");
+\t\t\tblackDiagnosticLastEventTime = songMs;
+\t\t\tblackDiagnosticEventHistory.push(blackDiagnosticLastEvent + " @ " + Std.string(Std.int(songMs)) + "ms");
+\t\t\tif (blackDiagnosticEventHistory.length > 6) blackDiagnosticEventHistory.shift();
+\t\t\ttrace("[Bloodbath blackout recovery] " + blackDiagnosticLastEvent);
+\t\t}
+\t\tlateBlackoutWatchSince = -1;
+\t}
+
+\tfunction refreshBlackScreenDiagnostics():Void
+\t{
+\t\t// Deliberately no visible diagnostic panel: diagnostics must not cover
+\t\t// the gameplay window. Recovery still runs every frame.
+\t\trecoverLateBlackout();
 \t}
 """
-    if "var blackDiagnosticBg:FlxSprite;" not in source:
+    if "var lateBlackoutWatchSince:Float = -1;" not in source:
         if field_marker not in source:
-            raise RuntimeError("Could not locate the Bad Apple fields for diagnostic insertion.")
+            raise RuntimeError("Could not locate the South stage fields for blackout recovery.")
         source = source.replace(field_marker, fields, 1)
 
+    # Do not allocate a diagnostic camera or a 520x174 dark panel above gameplay.
     camera_stack_marker = "\t\tFlxG.cameras.add(camOther, false);"
     camera_stack_code = camera_stack_marker + """
-\n\t\tcamDebug = new FlxCamera();
-\t\tcamDebug.bgColor.alpha = 0;
-\t\tFlxG.cameras.add(camDebug, false);
-"""
-    if "camDebug = new FlxCamera();" not in source:
-        if camera_stack_marker not in source:
-            raise RuntimeError("Could not locate the camera stack for the diagnostic camera.")
-        source = source.replace(camera_stack_marker, camera_stack_code, 1)
 
-    camera_marker = "\t\tFlxG.cameras.setDefaultDrawTarget(camGame, true);"
-    camera_code = camera_marker + """
-\n\t\t// camOther is drawn above the game/HUD cameras, keeping diagnostics visible.
-\t\tblackDiagnosticBg = new FlxSprite(FlxG.width - 532, 108);
-\t\tblackDiagnosticBg.makeGraphic(520, 174, 0xE0101010);
-\t\tblackDiagnosticBg.alpha = 0.94;
-\t\tblackDiagnosticBg.scrollFactor.set(0, 0);
-\t\tblackDiagnosticBg.cameras = [camDebug];
-\t\tblackDiagnosticBg.visible = false;
-\t\tadd(blackDiagnosticBg);
-
-\t\tblackDiagnosticText = new FlxText(FlxG.width - 524, 114, 504, "BLACKOUT DIAGNOSTICS\\nWaiting for 5:40...", 11);
-\t\tblackDiagnosticText.setFormat(Paths.font("vcr.ttf"), 11, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-\t\tblackDiagnosticText.scrollFactor.set(0, 0);
-\t\tblackDiagnosticText.cameras = [camDebug];
-\t\tblackDiagnosticText.visible = false;
-\t\tadd(blackDiagnosticText);
+\t\t// No diagnostic camera is added above the gameplay cameras.
 """
-    if "blackDiagnosticBg = new FlxSprite" not in source:
-        if camera_marker not in source:
-            raise RuntimeError("Could not locate PlayState camera setup for diagnostic overlay.")
-        source = source.replace(camera_marker, camera_code, 1)
+    if "camDebug = new FlxCamera();" in source:
+        source = source.replace(
+            "\n\t\tcamDebug = new FlxCamera();\n\t\tcamDebug.bgColor.alpha = 0;\n\t\tFlxG.cameras.add(camDebug, false);\n",
+            "\n",
+            1,
+        )
+    if "blackDiagnosticBg = new FlxSprite" in source:
+        a = source.index("\n\t\tblackDiagnosticBg = new FlxSprite")
+        b = source.index("\n\"\"\"", a)
+        source = source[:a] + source[b:]
 
     update_marker = "\toverride public function update(elapsed:Float)\n\t{"
     update_code = update_marker + "\n\t\tupdateBadAppleCameraFollow();\n\t\trefreshBlackScreenDiagnostics();"
     if "refreshBlackScreenDiagnostics();" not in source:
         if update_marker not in source:
-            raise RuntimeError("Could not locate PlayState.update() for diagnostic refresh.")
+            raise RuntimeError("Could not locate PlayState.update() for blackout recovery.")
         source = source.replace(update_marker, update_code, 1)
 
     event_marker = "public function triggerEventNote(eventName:String, value1:String, value2:String) {\n\t\tswitch(eventName) {"
@@ -1002,34 +990,29 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tblackDiagnosticLastEvent = eventName + " [" + value1 + " | " + value2 + "]";
 \t\tblackDiagnosticLastEventTime = Conductor.songPosition;
 \t\tblackDiagnosticEventHistory.push(blackDiagnosticLastEvent + " @ " + Std.string(Std.int(Conductor.songPosition)) + "ms");
-\t\tif (blackDiagnosticEventHistory.length > 4) blackDiagnosticEventHistory.shift();
-\t\t// A second, event-driven trigger guarantees the panel appears at the
-\t\t// actual late Bad Apple transition even if the update-time check is missed.
-\t\tif (Conductor.songPosition >= 340000 && (eventName == 'badapplelol' || eventName == 'Flash Black' || eventName == 'aCameraFlashBlack'))
-\t\t{
-\t\t\tblackDiagnosticArmed = true;
-\t\t\tif (blackDiagnosticBg != null) blackDiagnosticBg.visible = true;
-\t\t\tif (blackDiagnosticText != null) blackDiagnosticText.visible = true;
-\t\t}
+\t\tif (blackDiagnosticEventHistory.length > 6) blackDiagnosticEventHistory.shift();
 \t\tswitch(eventName) {"""
     if "blackDiagnosticLastEvent = eventName" not in source:
         if event_marker not in source:
-            raise RuntimeError("Could not locate triggerEventNote() for event-history capture.")
+            raise RuntimeError("Could not locate triggerEventNote() for blackout event logging.")
         source = source.replace(event_marker, event_code, 1)
 
     required = (
-        "var blackDiagnosticBg:FlxSprite;",
+        "var lateBlackoutWatchSince:Float = -1;",
+        "function recoverLateBlackout():Void",
+        "Date.now().getTime()",
+        "RECOVERED:",
         "refreshBlackScreenDiagnostics();",
         "blackDiagnosticLastEvent = eventName",
-        "Recent events:",
-        "recoverLateBlackout();",
-        "lateBlackoutRecoveries",
     )
     missing = [item for item in required if item not in source]
     if missing:
-        raise RuntimeError("Blackout diagnostics patch is incomplete: " + repr(missing))
+        raise RuntimeError("Blackout recovery patch is incomplete: " + repr(missing))
+    if "blackDiagnosticBg = new FlxSprite" in source or "camDebug = new FlxCamera();" in source:
+        raise RuntimeError("A diagnostic overlay is still being created above gameplay.")
 
     play_file.write_text(source, encoding="utf-8")
+
 
 
 def patch_south_cinematic_bars(engine: Path) -> None:
