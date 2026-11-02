@@ -13,7 +13,11 @@ import re
 import shutil
 import subprocess
 import sys
+import os
+import xml.etree.ElementTree as ET
 from pathlib import Path
+
+from PIL import Image
 
 
 def copy_tree(source: Path, destination: Path) -> None:
@@ -48,8 +52,8 @@ def find_game_root(package_dir: Path) -> Path:
 def patch_project(engine: Path) -> None:
     project_file = engine / "Project.xml"
     project = project_file.read_text(encoding="utf-8")
-    # hxCodec is a native/video dependency; this release does not include a
-    # browser-compatible video cutscene, so keep the HTML5 build independent of it.
+    # This release contains one custom Bloodbath week. Drop video support and
+    # unrelated stock-week asset libraries from the browser build.
     project, removed = re.subn(
         r"^\s*<define\s+name=[\"']VIDEOS_ALLOWED[\"'][^>]*/>\s*\n",
         "",
@@ -59,7 +63,90 @@ def patch_project(engine: Path) -> None:
     )
     if removed == 0 and 'name="VIDEOS_ALLOWED"' in project:
         raise RuntimeError("Could not safely disable VIDEOS_ALLOWED in Project.xml.")
+
+    project = re.sub(
+        r"^\s*<library\s+name=[\"']week[2-7][\"'][^>]*/>\s*\n",
+        "",
+        project,
+        flags=re.MULTILINE,
+    )
+    project = re.sub(
+        r"^\s*<assets\s+path=[\"']assets/week[2-7][\"'][^>]*/>\s*\n",
+        "",
+        project,
+        flags=re.MULTILINE,
+    )
     project_file.write_text(project, encoding="utf-8")
+
+    for week_number in range(2, 8):
+        unused_week = engine / "assets" / f"week{week_number}"
+        if unused_week.is_dir():
+            shutil.rmtree(unused_week)
+
+
+def optimize_browser_images(image_dir: Path, max_dimension: int = 2048) -> dict[str, int]:
+    """Downscale oversized PNGs and keep Sparrow XML frame coordinates in sync."""
+    optimized = 0
+    xml_updated = 0
+    bytes_before = 0
+    bytes_after = 0
+
+    if not image_dir.is_dir():
+        raise FileNotFoundError(f"Image directory is missing: {image_dir}")
+
+    for image_path in image_dir.rglob("*.png"):
+        try:
+            with Image.open(image_path) as source:
+                width, height = source.size
+                if max(width, height) <= max_dimension:
+                    continue
+                factor = max_dimension / float(max(width, height))
+                new_size = (
+                    max(1, int(round(width * factor))),
+                    max(1, int(round(height * factor))),
+                )
+                bytes_before += image_path.stat().st_size
+
+                atlas_path = image_path.with_suffix(".xml")
+                if atlas_path.is_file():
+                    try:
+                        tree = ET.parse(atlas_path)
+                        root = tree.getroot()
+                        for subtexture in root.findall(".//SubTexture"):
+                            for key in (
+                                "x", "y", "width", "height",
+                                "frameX", "frameY", "frameWidth", "frameHeight",
+                            ):
+                                value = subtexture.get(key)
+                                if value is None:
+                                    continue
+                                try:
+                                    scaled_value = float(value) * factor
+                                except ValueError:
+                                    continue
+                                subtexture.set(key, str(int(round(scaled_value))))
+                        tree.write(atlas_path, encoding="utf-8", xml_declaration=True)
+                        xml_updated += 1
+                    except ET.ParseError as error:
+                        raise RuntimeError(f"Invalid Sparrow atlas XML: {atlas_path}") from error
+
+                resampling = getattr(Image, "Resampling", Image)
+                resized = source.convert("RGBA").resize(new_size, resample=resampling.LANCZOS)
+                temporary = image_path.with_name(image_path.stem + ".webopt.png")
+                resized.save(temporary, format="PNG", optimize=True)
+                os.replace(temporary, image_path)
+                optimized += 1
+                bytes_after += image_path.stat().st_size
+        except Exception as error:
+            raise RuntimeError(f"Could not optimize browser image {image_path}: {error}") from error
+
+    return {
+        "optimizedPngs": optimized,
+        "updatedAtlases": xml_updated,
+        "bytesBefore": bytes_before,
+        "bytesAfter": bytes_after,
+        "maxDimension": max_dimension,
+    }
 
 
 def patch_note_types(engine: Path) -> None:
@@ -138,13 +225,6 @@ def patch_south_stage(engine: Path) -> None:
 				southBlack.cameras = [camHUD];
 				southBlack.alpha = 0;
 				add(southBlack);
-
-				var southAnim:BGSprite = new BGSprite('anim', 0, 0, 1, 1, ['anim a'], false);
-				southAnim.animation.addByPrefix('anim', 'anim a', 24, false);
-				southAnim.cameras = [camHUD];
-				southAnim.alpha = 0;
-				add(southAnim);
-				southAnimatedObjects.set('anim', southAnim);
 
 				var southBackground:BGSprite = new BGSprite('bg', -1670, -1540, 1, 1, ['bg a'], true);
 				southBackground.scale.set(2.7, 2.7);
@@ -227,27 +307,6 @@ def patch_south_stage(engine: Path) -> None:
 				southBlackbar.cameras = [camHUD];
 				southBlackbar.alpha = 0;
 				add(southBlackbar);
-
-				var southAnim2:BGSprite = new BGSprite('anim2', 0, 0, 1, 1, ['anim2 a'], false);
-				southAnim2.animation.addByPrefix('anim', 'anim2 a', 24, false);
-				southAnim2.cameras = [camHUD];
-				southAnim2.alpha = 0;
-				add(southAnim2);
-				southAnimatedObjects.set('anim2', southAnim2);
-
-				var southAnim2C:BGSprite = new BGSprite('anim2 c', 0, 0, 1, 1, ['anim2 c a'], false);
-				southAnim2C.animation.addByPrefix('anim', 'anim2 c a', 24, false);
-				southAnim2C.cameras = [camHUD];
-				southAnim2C.alpha = 0;
-				add(southAnim2C);
-				southAnimatedObjects.set('anim2 c', southAnim2C);
-
-				var southAnim3:BGSprite = new BGSprite('anim3', 0, 0, 1, 1, ['anim3 idle'], false);
-				southAnim3.animation.addByPrefix('anim', 'anim3 idle', 24, false);
-				southAnim3.cameras = [camHUD];
-				southAnim3.alpha = 0;
-				add(southAnim3);
-				southAnimatedObjects.set('anim3', southAnim3);
 
 			case 'stage': //Week 1"""
     if "Native HTML5 recreation of the South Park Bloodbath stage.lua" not in source:
@@ -488,7 +547,9 @@ def main() -> int:
                 encoding="utf-8",
             )
 
+    # Remove unrelated base-game weeks and resize oversized browser textures.
     patch_project(engine)
+    image_report = optimize_browser_images(engine / "assets" / "preload" / "images", max_dimension=2048)
     patch_note_types(engine)
     patch_south_stage(engine)
     converted = convert_ogg_files(engine)
@@ -498,6 +559,7 @@ def main() -> int:
     print(f"Prepared game root: {game}")
     print(f"Converted OGG files to MP3: {converted}")
     print("Bloodbath-only cleanup: " + json.dumps(song_cleanup, sort_keys=True))
+    print("Browser image optimization: " + json.dumps(image_report, sort_keys=True))
     print(f"Embedded engine assets: {asset_bytes:,} bytes")
     print("HTML5 limitations: desktop Lua scripts/custom events are not executed by this first browser build.")
     print("Audio limitation: this package has no vocal track; the chart is set to instrumental-only playback.")
