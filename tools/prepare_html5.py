@@ -643,50 +643,6 @@ def patch_south_stage(
     play_file.write_text(source, encoding="utf-8")
 
 
-def report_south_transition_scripts(mod: Path, chart_file: Path) -> None:
-    """Print exact original scripts for every custom event in the late sequence."""
-    terms = (
-        "greyscale", "grayscale", "bloom", "acameraflashblack",
-        "acam arazoom", "acamara zoom", "aofisetibf", "black effect",
-        "blackbg", "camera flash", "bnw bg", "fade ui", "fade notes",
-    )
-    print("=== FULL SOUTH TRANSITION SCRIPT SOURCES ===")
-    found = 0
-    for lua_file in sorted(mod.rglob("*.lua")):
-        try:
-            body = lua_file.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        name = lua_file.name.lower()
-        lowered = body.lower()
-        if not (any(term.replace(" ", "") in name.replace(" ", "") for term in terms)
-                or any(term in lowered for term in terms)):
-            continue
-        print(f"FULL_LUA_FILE {lua_file.relative_to(mod).as_posix()}")
-        for line_no, line in enumerate(body.splitlines(), 1):
-            print(f"  {line_no}: {line}")
-        found += 1
-    print(f"FULL_LUA_FILES_FOUND {found}")
-
-    chart = json.loads(chart_file.read_text(encoding="utf-8"))
-    song = chart.get("song", chart)
-    print("=== EXACT LATE TRANSITION EVENTS ===")
-    for group in song.get("events", []):
-        if not isinstance(group, list) or len(group) < 2:
-            continue
-        try:
-            timestamp = float(group[0])
-        except (TypeError, ValueError):
-            continue
-        if not 339000 <= timestamp <= 362000:
-            continue
-        payload = group[1] if isinstance(group[1], list) else []
-        for event in payload:
-            if isinstance(event, list) and len(event) >= 3:
-                print(f"LATE_EVENT {timestamp:.0f}ms {event[0]!r} value1={event[1]!r} value2={event[2]!r}")
-    print("=== END SOUTH TRANSITION SCRIPT SOURCES ===")
-
-
 def patch_south_stage_fades(engine: Path) -> None:
     """Port South stage fades and black flashes without leaving cover sprites behind."""
     play_file = engine / "source" / "PlayState.hx"
@@ -755,7 +711,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\t}
 \t\t\t\t}
 
- \t\t\tcase 'Flash Black' | 'aCameraFlashBlack':
+ \t\t\tcase 'Flash Black' | 'aCameraFlashBlack' | 'CameraFlashBlack':
 \t\t\t\tif (curStage == 'south')
 \t\t\t\t{
 \t\t\t\t\tvar blackFlashDuration:Float = Std.parseFloat(value1);
@@ -1533,7 +1489,6 @@ def main() -> int:
             )
 
     icon_changes = read_icon_changes(mod / "data" / "bloodbath" / "IconManager.lua")
-    report_south_transition_scripts(mod, chart_file)
     patch_note_types(engine)
     patch_south_stage(engine, image_report, icon_changes)
     patch_south_stage_fades(engine)
