@@ -1040,6 +1040,69 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
     play_file.write_text(source, encoding="utf-8")
 
 
+def report_late_south_transition(mod: Path, chart_file: Path) -> None:
+    """Temporary build-log inspection for the reference's 5:56 transition."""
+    chart = json.loads(chart_file.read_text(encoding="utf-8"))
+    song = chart.get("song", chart)
+    print("=== SOUTH TRANSITION EVENT REPORT (5:35-6:15) ===")
+    for group in song.get("events", []):
+        if not isinstance(group, list) or len(group) < 2:
+            continue
+        try:
+            timestamp = float(group[0])
+        except (TypeError, ValueError):
+            continue
+        if not 335000 <= timestamp <= 375000:
+            continue
+        for event in group[1] if isinstance(group[1], list) else []:
+            if isinstance(event, list) and len(event) >= 3:
+                print(f"CHART_EVENT {timestamp:.0f}ms {event[0]!r} value1={event[1]!r} value2={event[2]!r}")
+
+    needles = re.compile(
+        r"badapple|blackbar|black.?box|screen.?close|screen.?open|"
+        r"camera.?follow|camera.?pos|flash.?black|afadein|afadeout|"
+        r"doTween[XYAlpha]|makeLuaSprite|scaleObject|setProperty",
+        re.IGNORECASE,
+    )
+    print("=== MATCHING MOD LUA LINES ===")
+    reported = 0
+    for lua_file in sorted(mod.rglob("*.lua")):
+        try:
+            lines = lua_file.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        matches = [i for i, line in enumerate(lines) if needles.search(line)]
+        if not matches:
+            continue
+        print(f"LUA_FILE {lua_file.relative_to(mod).as_posix()}")
+        for i in matches[:45]:
+            print(f"  {i + 1}: {lines[i].strip()}")
+            reported += 1
+            if reported >= 140:
+                print("LUA_REPORT_LIMIT_REACHED")
+                break
+        if reported >= 140:
+            break
+
+    print("=== MATCHING SPRITE ASSETS ===")
+    image_root = mod / "images"
+    asset_matches = 0
+    if image_root.is_dir():
+        for image_path in sorted(image_root.rglob("*")):
+            if not image_path.is_file() or image_path.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
+                continue
+            if re.search(r"black|bar|apple|mask|white|close|open|eye", image_path.name, re.IGNORECASE):
+                try:
+                    with Image.open(image_path) as image:
+                        print(f"SPRITE {image_path.relative_to(mod).as_posix()} {image.width}x{image.height}")
+                except Exception:
+                    print(f"SPRITE {image_path.relative_to(mod).as_posix()} (dimensions unavailable)")
+                asset_matches += 1
+                if asset_matches >= 80:
+                    break
+    print("=== END SOUTH TRANSITION REPORT ===")
+
+
 def patch_botplay_pause_menu(engine: Path) -> None:
     """Expose the built-in Botplay toggle in every gameplay pause menu."""
     pause_file = engine / "source" / "PauseSubState.hx"
@@ -1300,6 +1363,7 @@ def main() -> int:
             )
 
     icon_changes = read_icon_changes(mod / "data" / "bloodbath" / "IconManager.lua")
+    report_late_south_transition(mod, chart_file)
     patch_note_types(engine)
     patch_south_stage(engine, image_report, icon_changes)
     patch_south_stage_fades(engine)
