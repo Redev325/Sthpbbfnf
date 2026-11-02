@@ -1,0 +1,117 @@
+name: Build South Park Bloodbath HTML5
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: GitHub Release tag containing the game ZIP
+        required: true
+        default: v1.0.0
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bloodbath-html5-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Check out matching Psych Engine source
+        uses: actions/checkout@v4
+        with:
+          repository: ShadowMario/FNF-PsychEngine
+          ref: 0.6.3
+          path: engine
+          persist-credentials: false
+
+      - name: Install Haxe
+        uses: krdlab/setup-haxe@v2
+        with:
+          haxe-version: 4.2.5
+
+      - name: Install audio conversion tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Download the uploaded game release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/release" "$RUNNER_TEMP/game-package"
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "fnf.bloodbath.RTX.fix.zip" \
+            --dir "$RUNNER_TEMP/release"
+          unzip -q "$RUNNER_TEMP/release/fnf.bloodbath.RTX.fix.zip" \
+            -d "$RUNNER_TEMP/game-package"
+
+      - name: Embed the Bloodbath mod and prepare HTML5 compatibility
+        run: |
+          python3 tools/prepare_html5.py \
+            --engine engine \
+            --package "$RUNNER_TEMP/game-package"
+
+      - name: Install Psych Engine 0.6.3 libraries
+        run: |
+          mkdir -p "$HOME/haxelib"
+          haxelib setup "$HOME/haxelib"
+          haxelib install lime 8.0.1 --always
+          haxelib install openfl 9.2.1 --always
+          haxelib install flixel 5.2.2 --always
+          haxelib install flixel-addons 3.0.2 --always
+          haxelib install flixel-ui 2.5.0 --always
+          haxelib install hscript 2.5.0 --always
+
+      - name: Compile the HTML5 game
+        working-directory: engine
+        run: haxelib run lime build html5 -release
+
+      - name: Prepare the Pages website
+        run: |
+          set -euo pipefail
+          WEB_DIR="$(find engine/export/release -type f -name index.html -printf '%h\n' -quit)"
+          if [ -z "$WEB_DIR" ]; then
+            echo "HTML5 compilation finished without producing index.html." >&2
+            find engine/export/release -maxdepth 5 -type f | head -100
+            exit 1
+          fi
+          mkdir -p _site
+          cp -a "$WEB_DIR/." _site/
+          touch _site/.nojekyll
+          SITE_BYTES="$(du -sb _site | cut -f1)"
+          echo "Published site size: $SITE_BYTES bytes"
+          if [ "$SITE_BYTES" -gt 1073741824 ]; then
+            echo "The HTML5 site exceeds GitHub Pages' 1 GB published-site limit." >&2
+            exit 1
+          fi
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload HTML5 build
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish the HTML5 game
+        id: deployment
+        uses: actions/deploy-pages@v4
