@@ -158,20 +158,20 @@ def patch_south_stage(engine: Path) -> None:
 				southBackground3.alpha = 0;
 				add(southBackground3);
 
-				var southLight3:BGSprite = new BGSprite('bg3luz', -1770, -940);
-				southLight3.scale.set(2.3, 2.3);
-				southLight3.alpha = 0;
-				add(southLight3);
+				southLightOverlay3 = new BGSprite('bg3luz', -1770, -940);
+				southLightOverlay3.scale.set(2.3, 2.3);
+				southLightOverlay3.alpha = 0;
+				add(southLightOverlay3);
 
 				var southBackground4:BGSprite = new BGSprite('bg4', -540, -740, 1, 1, ['bg4 a'], true);
 				southBackground4.scale.set(1.7, 1.7);
 				southBackground4.alpha = 0;
 				add(southBackground4);
 
-				var southLight4:BGSprite = new BGSprite('bg4luz', -540, -740);
-				southLight4.scale.set(1.7, 1.7);
-				southLight4.alpha = 0;
-				add(southLight4);
+				southLightOverlay4 = new BGSprite('bg4luz', -540, -740);
+				southLightOverlay4.scale.set(1.7, 1.7);
+				southLightOverlay4.alpha = 0;
+				add(southLightOverlay4);
 
 				southLightOverlay42 = new BGSprite('bg4luz2', -540, -740);
 				southLightOverlay42.scale.set(1.7, 1.7);
