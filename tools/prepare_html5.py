@@ -641,50 +641,25 @@ def patch_south_stage_fades(engine: Path) -> None:
 				southAnimatedObjects.set('blackbar', southBlackbar);
 				southAnimatedObjects.set('craig', southCraig);
 """
-    if "Stage sprite lookup for the mod's afadein/afadeout events." not in source:
-        if registration_marker not in source:
-            raise RuntimeError("Could not find the end of the South stage sprite setup.")
-        source = source.replace(registration_marker, registration_code, 1)
-
-    event_marker = "case 'Camera Follow Pos':"
-    event_code = """			case 'afadein' | 'afadeout':
-				if (curStage == 'south')
-				{
-					var fadeSprite:BGSprite = southAnimatedObjects.get(value1);
-					if (fadeSprite != null)
-					{
-						var fadeDuration:Float = Std.parseFloat(value2);
-						if (Math.isNaN(fadeDuration) || fadeDuration < 0) fadeDuration = 0;
-						var fadeTarget:Float = eventName == 'afadein' ? 1 : 0;
-						FlxTween.cancelTweensOf(fadeSprite);
-						if (fadeDuration <= 0) fadeSprite.alpha = fadeTarget;
-						else FlxTween.tween(fadeSprite, {alpha: fadeTarget}, fadeDuration, {ease: FlxEase.linear});
-					}
-				}
-
-			case 'Flash Black' | 'aCameraFlashBlack':
-				if (curStage == 'south')
-				{
-					// Use Flixel's camera flash rather than a persistent full-screen
-					// sprite. Its built-in fade-out prevents a stranded black overlay.
-					var flashBlackSprite:BGSprite = southAnimatedObjects.get('black');
-					if (flashBlackSprite != null)
-					{
-						FlxTween.cancelTweensOf(flashBlackSprite);
-						flashBlackSprite.alpha = 0;
-					}
-					if (camHUD != null)
-						camHUD.flash(FlxColor.BLACK, 0.25, null, true);
-				}
-
-			case 'Camera Follow Pos':"""
-    if "case 'Stage sprite lookup for the mod's afadein/afadeout events':" not in source and "case 'afadein':" not in source:
+    fade_case_marker = "case 'afadein' | 'afadeout':"
+    if fade_case_marker not in source:
         if event_marker not in source:
             raise RuntimeError("Could not find the PlayState custom-event insertion point.")
         source = source.replace(event_marker, event_code, 1)
 
-    if "southAnimatedObjects.set('black', southBlack);" not in source or "case 'Flash Black':" not in source:
-        raise RuntimeError("South stage fade registration or Flash Black handling was not inserted.")
+    # Validate the exact combined-case labels emitted above. Haxe accepts
+    # multiple alternatives in one case; the former exact-label check
+    # rejected this correct combined Flash Black branch before writing PlayState.
+    required_fragments = (
+        "Stage sprite lookup for the mod's afadein/afadeout events.",
+        "southAnimatedObjects.set('black', southBlack);",
+        "case 'afadein' | 'afadeout':",
+        "case 'Flash Black' | 'aCameraFlashBlack':",
+    )
+    missing = [fragment for fragment in required_fragments if fragment not in source]
+    if missing:
+        raise RuntimeError("South stage fade/flash handling is incomplete: " + repr(missing))
+
     play_file.write_text(source, encoding="utf-8")
 
 
