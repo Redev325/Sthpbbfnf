@@ -535,7 +535,7 @@ def patch_south_stage(
             raise RuntimeError("Could not find the PlayState opponentNoteHit insertion point.")
         source = source.replace(note_marker, note_code, 1)
 
-    event_marker = "\\t\\t\\tcase 'Camera Follow Pos':"
+    event_marker = "case 'Camera Follow Pos':"
     event_code = """\t\t\tcase 'aObject Play Animation':
 \t\t\t\tif (curStage == 'south')
 \t\t\t\t{
