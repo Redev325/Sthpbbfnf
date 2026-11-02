@@ -682,8 +682,11 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t// then fades it back out over value1 seconds. Keep it separate from the
 \t\t// stage's persistent black layer and keep the HUD camera unobscured.
 \t\tsouthBlackFlashOverlay = new FlxSprite(0, 0);
-\t\tsouthBlackFlashOverlay.makeGraphic(2700, 2700, FlxColor.BLACK);
-\t\tsouthBlackFlashOverlay.scale.set(2, 2);
+\t\t// Match the original Lua's screen-sized empty sprite scaled by 10.
+\t\t// A game-camera overlay must still cover the viewport at the zoom values
+\t\t// used during the late section.
+\t\tsouthBlackFlashOverlay.makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
+\t\tsouthBlackFlashOverlay.scale.set(10, 10);
 \t\tsouthBlackFlashOverlay.scrollFactor.set(0, 0);
 \t\tsouthBlackFlashOverlay.cameras = [camGame];
 \t\tsouthBlackFlashOverlay.alpha = 0;
@@ -835,7 +838,8 @@ case 'Camera Follow Pos':"""
     required = (
         "function flashSouthScreenBlack(duration:Float):Void",
         "southBlackFlashOverlay = new FlxSprite(0, 0);",
-        "case 'Flash Black' | 'aCameraFlashBlack' | 'Camera Flash':",
+        "case 'Flash Black' | 'aCameraFlashBlack' | 'CameraFlashBlack':",
+        "case 'Camera Flash':",
         "case 'badapplelol':",
         "case 'aCamaraZoom' | 'aCamaraZoom1':",
     )
