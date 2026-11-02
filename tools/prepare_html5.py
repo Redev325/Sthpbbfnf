@@ -999,8 +999,7 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
         source = source.replace(camera_marker, camera_code, 1)
 
     update_marker = "\toverride public function update(elapsed:Float)\n\t{"
-    update_code = update_marker + "\n\t\tupdateBadAppleCameraFollow();
-\t\trefreshBlackScreenDiagnostics();"
+    update_code = update_marker + "\n\t\tupdateBadAppleCameraFollow();\n\t\trefreshBlackScreenDiagnostics();"
     if "refreshBlackScreenDiagnostics();" not in source:
         if update_marker not in source:
             raise RuntimeError("Could not locate PlayState.update() for diagnostic refresh.")
