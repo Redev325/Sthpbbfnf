@@ -1450,6 +1450,18 @@ def main() -> int:
             if isinstance(event, list) and len(event) >= 3 and event[0] == "Change Character":
                 character_names.add(str(event[2]).strip())
 
+    # The upstream engine ships dozens of unrelated character definitions.
+    # They are all placed in the default asset manifest and fetched during
+    # preload, even though this one-song browser build never uses them. Keep
+    # only chart/Lua characters plus the engine's default game-over character.
+    character_names.add("bf-dead")
+    character_dir = engine / "assets" / "preload" / "characters"
+    removed_character_definitions = 0
+    for unused_character_file in character_dir.glob("*.json"):
+        if unused_character_file.stem not in character_names:
+            unused_character_file.unlink()
+            removed_character_definitions += 1
+
     icon_dir = engine / "assets" / "preload" / "images" / "icons"
     for character in sorted(character_names):
         character_file = engine / "assets" / "preload" / "characters" / f"{character}.json"
@@ -1528,6 +1540,7 @@ def main() -> int:
     print(f"Prepared game root: {game}")
     print(f"Converted OGG files to MP3: {converted}")
     print("Bloodbath-only cleanup: " + json.dumps(song_cleanup, sort_keys=True))
+    print(f"Removed unused stock character definitions from the preload manifest: {removed_character_definitions}")
     print("Browser image optimization: " + json.dumps(image_report, sort_keys=True))
     print("Graphics memory optimization: character atlases capped at 1280px; stage art remains capped at 2048px.")
     print(f"Embedded engine assets: {asset_bytes:,} bytes")
