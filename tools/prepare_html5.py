@@ -91,7 +91,7 @@ def optimize_browser_images(
 ) -> dict[str, object]:
     """Downscale oversized PNGs and keep Sparrow XML coordinates in sync.
 
-    Character atlases get a smaller 2048px cap to reduce cumulative GPU memory
+    Character atlases get a 1280px cap to reduce WebGL texture memory on lower-memory devices
     during the song's many character swaps. Stage/menu art can remain up to 4096px.
     """
     optimized = 0
@@ -1406,7 +1406,7 @@ def main() -> int:
     image_report = optimize_browser_images(
         engine / "assets" / "preload" / "images",
         max_dimension=2048,
-        character_max_dimension=2048,
+        character_max_dimension=1280,
     )
 
     character_names = {"stan", "kenny", "cartman"}
@@ -1512,6 +1512,7 @@ def main() -> int:
     print(f"Converted OGG files to MP3: {converted}")
     print("Bloodbath-only cleanup: " + json.dumps(song_cleanup, sort_keys=True))
     print("Browser image optimization: " + json.dumps(image_report, sort_keys=True))
+    print("Graphics memory optimization: character atlases capped at 1280px; stage art remains capped at 2048px.")
     print(f"Embedded engine assets: {asset_bytes:,} bytes")
     print("HTML5 limitations: desktop Lua scripts/custom events are not executed by this first browser build.")
     print("Audio limitation: this package has no vocal track; the chart is set to instrumental-only playback.")
