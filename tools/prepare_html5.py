@@ -654,7 +654,7 @@ def patch_south_stage_fades(engine: Path) -> None:
             raise RuntimeError("Could not locate the South stage fields for the black flash overlay.")
         source = source.replace(
             field_marker,
-            field_marker + "\n\tvar southBlackFlashOverlay:FlxSprite;",
+            field_marker + "\n\tvar southBlackFlashOverlay:FlxSprite;\n\tvar southCameraZoomTween:FlxTween;",
             1,
         )
 
@@ -719,7 +719,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t{
 \t\t\t\t\tvar blackFlashDuration:Float = Std.parseFloat(value1);
 \t\t\t\t\tif (Math.isNaN(blackFlashDuration) || blackFlashDuration <= 0) blackFlashDuration = 1;
-\t\t\t\t\tflashSouthScreenBlack(blackFlashDuration);
+\t\t\t\t\t// This desktop-only custom event is not included in the HTML5 export.\n\t\t\t\t\t// Do not emulate it with a fully opaque overlay: that creates the late-song\n\t\t\t\t\t// black blink immediately after the Bad Apple transition.\n\t\t\t\t\tif (southBlackFlashOverlay != null)\n\t\t\t\t\t{\n\t\t\t\t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);\n\t\t\t\t\t\tsouthBlackFlashOverlay.alpha = 0;\n\t\t\t\t\t}
 \t\t\t\t}
 
 \t\t\tcase 'Camera Flash':
@@ -811,7 +811,7 @@ case 'badapplelol':
 					// Keep malformed or extreme chart values from poisoning camera state.
 					if (!Math.isNaN(targetCameraZoom) && targetCameraZoom > 0 && targetCameraZoom <= 4)
 					{
-						FlxTween.cancelTweensOf(camGame);
+						if (southCameraZoomTween != null)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tsouthCameraZoomTween.cancel();\n\t\t\t\t\t\t\tsouthCameraZoomTween = null;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tFlxTween.cancelTweensOf(camGame);
 						var currentCameraZoom:Float = camGame.zoom;
 						if (Math.isNaN(currentCameraZoom) || currentCameraZoom <= 0 || currentCameraZoom > 4)
 						{
@@ -832,7 +832,7 @@ case 'badapplelol':
 							// Use NumTween instead of reflective VarTween: the latter can
 							// throw "property zoom is not numeric" if the camera field is
 							// left invalid by a previous graphics/runtime failure.
-							FlxTween.num(currentCameraZoom, targetCameraZoom, cameraZoomDuration, {
+							southCameraZoomTween = FlxTween.num(currentCameraZoom, targetCameraZoom, cameraZoomDuration, {
 								ease: cameraZoomEase,
 								onComplete: function(twn:FlxTween) {
 									if (camGame != null && !Math.isNaN(camGame.zoom) && camGame.zoom > 0 && camGame.zoom <= 4)
