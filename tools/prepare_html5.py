@@ -804,14 +804,24 @@ case 'badapplelol':
 				}
 
 			case 'aCamaraZoom' | 'aCamaraZoom1':
-				if (curStage == 'south')
+				if (curStage == 'south' && camGame != null)
 				{
 					var targetCameraZoom:Float = Std.parseFloat(value1);
 					var cameraZoomDuration:Float = Std.parseFloat(value2);
-					if (!Math.isNaN(targetCameraZoom) && targetCameraZoom > 0)
+					// Keep malformed or extreme chart values from poisoning camera state.
+					if (!Math.isNaN(targetCameraZoom) && targetCameraZoom > 0 && targetCameraZoom <= 4)
 					{
 						FlxTween.cancelTweensOf(camGame);
-						if (Math.isNaN(cameraZoomDuration) || cameraZoomDuration <= 0)
+						var currentCameraZoom:Float = camGame.zoom;
+						if (Math.isNaN(currentCameraZoom) || currentCameraZoom <= 0 || currentCameraZoom > 4)
+						{
+							currentCameraZoom = defaultCamZoom;
+							if (Math.isNaN(currentCameraZoom) || currentCameraZoom <= 0 || currentCameraZoom > 4)
+								currentCameraZoom = 0.6;
+							camGame.zoom = currentCameraZoom;
+							trace('[Bloodbath camera zoom] Recovered invalid camera zoom before event: ' + Std.string(currentCameraZoom));
+						}
+						if (Math.isNaN(cameraZoomDuration) || cameraZoomDuration <= 0 || cameraZoomDuration > 10)
 						{
 							defaultCamZoom = targetCameraZoom;
 							camGame.zoom = targetCameraZoom;
@@ -819,11 +829,18 @@ case 'badapplelol':
 						else
 						{
 							var cameraZoomEase:Float->Float = eventName == 'aCamaraZoom1' ? FlxEase.expoOut : FlxEase.sineInOut;
-							FlxTween.tween(camGame, {zoom: targetCameraZoom}, cameraZoomDuration, {
+							// Use NumTween instead of reflective VarTween: the latter can
+							// throw "property zoom is not numeric" if the camera field is
+							// left invalid by a previous graphics/runtime failure.
+							FlxTween.num(currentCameraZoom, targetCameraZoom, cameraZoomDuration, {
 								ease: cameraZoomEase,
 								onComplete: function(twn:FlxTween) {
-									defaultCamZoom = camGame.zoom;
+									if (camGame != null && !Math.isNaN(camGame.zoom) && camGame.zoom > 0 && camGame.zoom <= 4)
+										defaultCamZoom = camGame.zoom;
 								}
+							}, function(zoomValue:Float) {
+								if (camGame != null && !Math.isNaN(zoomValue) && zoomValue > 0 && zoomValue <= 4)
+								camGame.zoom = zoomValue;
 							});
 						}
 					}
