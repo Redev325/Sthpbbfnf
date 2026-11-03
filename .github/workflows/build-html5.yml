@@ -61,7 +61,7 @@ jobs:
 
       - name: Embed the Bloodbath mod and prepare HTML5 compatibility
         run: |
-          python3 -m py_compile tools/prepare_html5.py tools/sanitize_chart.py tools/patch_flxgame.py
+          python3 -m py_compile tools/prepare_html5.py tools/sanitize_chart.py tools/patch_flxgame.py tools/patch_html5_diagnostics.py
           python3 tools/prepare_html5.py \
             --engine engine \
             --package "$RUNNER_TEMP/game-package"
@@ -94,6 +94,7 @@ jobs:
           fi
           mkdir -p _site
           cp -a "$WEB_DIR/." _site/
+          python3 tools/patch_html5_diagnostics.py --html _site/index.html
           cp CNAME _site/CNAME
           touch _site/.nojekyll
           SITE_BYTES="$(du -sb _site | cut -f1)"
