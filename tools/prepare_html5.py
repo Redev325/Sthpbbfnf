@@ -304,6 +304,7 @@ def patch_south_stage(
 				southWhite.cameras = [camHUD];
 				southWhite.alpha = 0;
 				add(southWhite);
+				southAnimatedObjects.set('white', southWhite);
 
 				var southFog:BGSprite = new BGSprite('fog', -2000, -1000);
 				southFog.scale.set(1.4, 1.4);
@@ -314,6 +315,7 @@ def patch_south_stage(
 				southBlack.cameras = [camHUD];
 				southBlack.alpha = 0;
 				add(southBlack);
+				southAnimatedObjects.set('black', southBlack);
 
 				var southBackground:BGSprite = new BGSprite('bg', -1670, -1540, 1, 1, ['bg a'], true);
 				southBackground.scale.set(2.7, 2.7);
@@ -423,6 +425,7 @@ def patch_south_stage(
 				southBlackbar.cameras = [camHUD];
 				southBlackbar.alpha = 0;
 				add(southBlackbar);
+				southAnimatedObjects.set('blackbar', southBlackbar);
 
 			case 'stage': //Week 1"""
     # Increase each sprite's Haxe scale by the inverse of its PNG resize ratio.
@@ -808,39 +811,47 @@ case 'badapplelol':
 				{
 					var targetCameraZoom:Float = Std.parseFloat(value1);
 					var cameraZoomDuration:Float = Std.parseFloat(value2);
-					// Keep malformed or extreme chart values from poisoning camera state.
 					if (!Math.isNaN(targetCameraZoom) && targetCameraZoom > 0 && targetCameraZoom <= 4)
 					{
-						if (southCameraZoomTween != null)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tsouthCameraZoomTween.cancel();\n\t\t\t\t\t\t\tsouthCameraZoomTween = null;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tFlxTween.cancelTweensOf(camGame);
-						var currentCameraZoom:Float = camGame.zoom;
+						if (southCameraZoomTween != null)
+						{
+							southCameraZoomTween.cancel();
+							southCameraZoomTween = null;
+						}
+						// Psych Engine eases camGame.zoom toward defaultCamZoom every
+						// update. Tween the target rather than fighting that live loop.
+						var currentCameraZoom:Float = defaultCamZoom;
 						if (Math.isNaN(currentCameraZoom) || currentCameraZoom <= 0 || currentCameraZoom > 4)
 						{
-							currentCameraZoom = defaultCamZoom;
+							currentCameraZoom = camGame.zoom;
 							if (Math.isNaN(currentCameraZoom) || currentCameraZoom <= 0 || currentCameraZoom > 4)
 								currentCameraZoom = 0.6;
-							camGame.zoom = currentCameraZoom;
-							trace('[Bloodbath camera zoom] Recovered invalid camera zoom before event: ' + Std.string(currentCameraZoom));
+							defaultCamZoom = currentCameraZoom;
+							if (!camZooming) camGame.zoom = currentCameraZoom;
+							trace('[Bloodbath camera zoom] Recovered invalid camera zoom target: ' + Std.string(currentCameraZoom));
 						}
 						if (Math.isNaN(cameraZoomDuration) || cameraZoomDuration <= 0 || cameraZoomDuration > 10)
 						{
 							defaultCamZoom = targetCameraZoom;
-							camGame.zoom = targetCameraZoom;
+							if (!camZooming) camGame.zoom = targetCameraZoom;
 						}
 						else
 						{
 							var cameraZoomEase:Float->Float = eventName == 'aCamaraZoom1' ? FlxEase.expoOut : FlxEase.sineInOut;
-							// Use NumTween instead of reflective VarTween: the latter can
-							// throw "property zoom is not numeric" if the camera field is
-							// left invalid by a previous graphics/runtime failure.
 							southCameraZoomTween = FlxTween.num(currentCameraZoom, targetCameraZoom, cameraZoomDuration, {
 								ease: cameraZoomEase,
 								onComplete: function(twn:FlxTween) {
-									if (camGame != null && !Math.isNaN(camGame.zoom) && camGame.zoom > 0 && camGame.zoom <= 4)
-										defaultCamZoom = camGame.zoom;
+									defaultCamZoom = targetCameraZoom;
+									if (!camZooming && camGame != null)
+										camGame.zoom = targetCameraZoom;
 								}
 							}, function(zoomValue:Float) {
-								if (camGame != null && !Math.isNaN(zoomValue) && zoomValue > 0 && zoomValue <= 4)
-								camGame.zoom = zoomValue;
+								if (!Math.isNaN(zoomValue) && zoomValue > 0 && zoomValue <= 4)
+								{
+									defaultCamZoom = zoomValue;
+									if (!camZooming && camGame != null)
+										camGame.zoom = zoomValue;
+								}
 							});
 						}
 					}
@@ -897,6 +908,8 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \tvar blackDiagnosticLastEvent:String = "none";
 \tvar blackDiagnosticLastEventTime:Float = 0;
 \tvar blackDiagnosticEventHistory:Array<String> = [];
+\tvar southBlackDiagnosticPanel:FlxSprite;
+\tvar southBlackDiagnosticText:FlxText;
 
 \tfunction blackDiagnosticCameraValue(camera:FlxCamera, fieldName:String):Float
 \t{
@@ -1036,10 +1049,62 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tlateBlackoutWatchSince = -1;
 \t}
 
+\tfunction updateSouthBlackDiagnosticPanel():Void
+\t{
+\t\tvar songMs:Float = Conductor.songPosition;
+\t\tif (!generatedMusic || songMs < 350000)
+\t\t{
+\t\t\tif (southBlackDiagnosticPanel != null) southBlackDiagnosticPanel.visible = false;
+\t\t\tif (southBlackDiagnosticText != null) southBlackDiagnosticText.visible = false;
+\t\t\treturn;
+\t\t}
+\t\tif (southBlackDiagnosticPanel == null)
+\t\t{
+\t\t\tsouthBlackDiagnosticPanel = new FlxSprite(8, 8);
+\t\t\tsouthBlackDiagnosticPanel.makeGraphic(500, 208, 0xDD080808);
+\t\t\tsouthBlackDiagnosticPanel.scrollFactor.set(0, 0);
+\t\t\tsouthBlackDiagnosticPanel.cameras = [camOther];
+\t\t\tadd(southBlackDiagnosticPanel);
+\t\t\tsouthBlackDiagnosticText = new FlxText(16, 14, 484, "", 11);
+\t\t\tsouthBlackDiagnosticText.font = Paths.font("vcr.ttf");
+\t\t\tsouthBlackDiagnosticText.color = FlxColor.WHITE;
+\t\t\tsouthBlackDiagnosticText.scrollFactor.set(0, 0);
+\t\t\tsouthBlackDiagnosticText.cameras = [camOther];
+\t\t\tadd(southBlackDiagnosticText);
+\t\t}
+\t\tsouthBlackDiagnosticPanel.visible = true;
+\t\tsouthBlackDiagnosticText.visible = true;
+\t\tvar blackLayer:BGSprite = southAnimatedObjects.get("black");
+\t\tvar blackbarLayer:BGSprite = southAnimatedObjects.get("blackbar");
+\t\tvar whiteLayer:BGSprite = southAnimatedObjects.get("white");
+\t\tvar historyStart:Int = blackDiagnosticEventHistory.length > 3 ? blackDiagnosticEventHistory.length - 3 : 0;
+\t\tvar recentHistory:String = blackDiagnosticEventHistory.length > 0
+\t\t\t? blackDiagnosticEventHistory.slice(historyStart).join("\\n")
+\t\t\t: "none";
+\t\tvar lastEventAge:Float = Math.max(0, (songMs - blackDiagnosticLastEventTime) / 1000);
+\t\tvar report:String = "BLOODBATH BLACK-SCREEN DIAGNOSTICS  (visible from 5:50)\\n"
+\t\t\t+ "TIME " + FlxStringUtil.formatTime(songMs / 1000, true)
+\t\t\t+ "   ZOOM game=" + Std.string(blackDiagnosticCameraValue(camGame, "zoom"))
+\t\t\t+ " hud=" + Std.string(blackDiagnosticCameraValue(camHUD, "zoom")) + "\\n"
+\t\t\t+ "CAM FX black: game=" + blackDiagnosticHasBlackFx(camGame)
+\t\t\t+ " hud=" + blackDiagnosticHasBlackFx(camHUD)
+\t\t\t+ " other=" + blackDiagnosticHasBlackFx(camOther) + "\\n"
+\t\t\t+ "COVERS alpha: black=" + Std.string(blackLayer == null ? -1 : blackLayer.alpha)
+\t\t\t+ " blackbar=" + Std.string(blackbarLayer == null ? -1 : blackbarLayer.alpha)
+\t\t\t+ " white=" + Std.string(whiteLayer == null ? -1 : whiteLayer.alpha)
+\t\t\t+ " flash=" + Std.string(southBlackFlashOverlay == null ? -1 : southBlackFlashOverlay.alpha)
+\t\t\t+ " BadApple=" + Std.string(badAppleWhiteBg == null ? -1 : badAppleWhiteBg.alpha) + "\\n"
+\t\t\t+ "BARS y: top=" + Std.string(southStillStrumUpperBar == null ? -999 : southStillStrumUpperBar.y)
+\t\t\t+ " bottom=" + Std.string(southStillStrumLowerBar == null ? -999 : southStillStrumLowerBar.y) + "\\n"
+\t\t\t+ "LAST EVENT (" + Std.string(lastEventAge) + "s ago): " + blackDiagnosticLastEvent + "\\n"
+\t\t\t+ "RECOVERIES: " + Std.string(lateBlackoutRecoveries) + "\\n"
+\t\t\t+ "RECENT EVENTS:\\n" + recentHistory;
+\t\tsouthBlackDiagnosticText.text = report;
+\t}
+
 \tfunction updateSouthOverlayRecovery():Void
 \t{
-\t\t// This remains an invisible recovery watchdog; no panel or camera is
-\t\t// added above gameplay.
+\t\tupdateSouthBlackDiagnosticPanel();
 \t\trecoverLateBlackout();
 \t}
 """
