@@ -1470,18 +1470,36 @@ def main() -> int:
         character_data = json.loads(character_file.read_text(encoding="utf-8"))
         image_name = character_data.get("image", f"characters/{character}")
         relative_image = f"{image_name}.png"
+        preload_images = engine / "assets" / "preload" / "images"
+        image_file = preload_images / f"{image_name}.png"
+        atlas_file = preload_images / f"{image_name}.xml"
         image_factor = image_report.get("scaleFactors", {}).get(relative_image, 1.0)
+
+        # A few stock engine definitions (notably bf-dead) point at atlases
+        # packaged in the shared library rather than the preload library.
+        # The HTML5 Project.xml already preloads the shared library, so retain
+        # those definitions and validate against their actual asset location.
+        if not image_file.is_file() or not atlas_file.is_file():
+            shared_images = engine / "assets" / "shared" / "images"
+            shared_image_file = shared_images / f"{image_name}.png"
+            shared_atlas_file = shared_images / f"{image_name}.xml"
+            if shared_image_file.is_file() and shared_atlas_file.is_file():
+                image_file = shared_image_file
+                atlas_file = shared_atlas_file
+                image_factor = 1.0
+            else:
+                raise FileNotFoundError(
+                    f"Incomplete {character} sprite atlas: expected preload "
+                    f"{preload_images / (image_name + '.png')} and "
+                    f"{preload_images / (image_name + '.xml')}, or shared "
+                    f"{shared_image_file} and {shared_atlas_file}"
+                )
+
         scale_adjusted = False
         if image_factor < 1.0:
             original_scale = float(character_data.get("scale", 1.0))
             character_data["scale"] = round(original_scale / image_factor, 4)
             scale_adjusted = True
-        image_file = engine / "assets" / "preload" / "images" / f"{image_name}.png"
-        atlas_file = engine / "assets" / "preload" / "images" / f"{image_name}.xml"
-        if not image_file.is_file() or not atlas_file.is_file():
-            raise FileNotFoundError(
-                f"Incomplete {character} sprite atlas: expected {image_file} and {atlas_file}"
-            )
 
         # Some alternate forms ship with a stale "faker-tails" icon value.
         # Prefer their own icon, then the base form's icon, then the stock blank icon.
