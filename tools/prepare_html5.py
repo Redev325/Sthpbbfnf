@@ -942,6 +942,58 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\t\treturn;
 \t\t}
 
+\t\t// From the 5:56 blackout trigger onward, actively clear every known
+\t\t// full-screen stage cover each frame so a stale tween cannot leave it up.
+\t\tif (songMs >= 356000)
+\t\t{
+\t\t\tvar stageBlack:BGSprite = southAnimatedObjects.get('black');
+\t\t\tvar stageBlackbar:BGSprite = southAnimatedObjects.get('blackbar');
+\t\t\tvar stageWhite:BGSprite = southAnimatedObjects.get('white');
+
+\t\t\tif (stageBlack != null && stageBlack.alpha > 0.02)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(stageBlack);
+\t\t\t\tstageBlack.alpha = 0;
+\t\t\t\tstageBlack.visible = false;
+\t\t\t}
+
+\t\t\tif (stageBlackbar != null && stageBlackbar.alpha > 0.02)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(stageBlackbar);
+\t\t\t\tstageBlackbar.alpha = 0;
+\t\t\t\tstageBlackbar.visible = false;
+\t\t\t}
+
+\t\t\tif (stageWhite != null && stageWhite.alpha > 0.02)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(stageWhite);
+\t\t\t\tstageWhite.alpha = 0;
+\t\t\t\tstageWhite.visible = false;
+\t\t\t}
+
+\t\t\tif (southBlackFlashOverlay != null && southBlackFlashOverlay.alpha > 0.02)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);
+\t\t\t\tsouthBlackFlashOverlay.alpha = 0;
+\t\t\t\tsouthBlackFlashOverlay.visible = false;
+\t\t\t}
+
+\t\t\tif (badAppleWhiteBg != null && badAppleWhiteBg.alpha > 0.02)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
+\t\t\t\tbadAppleWhiteBg.alpha = 0;
+\t\t\t\tbadAppleWhiteBg.visible = false;
+\t\t\t}
+
+\t\t\t// Clear lingering black camera effects immediately, while leaving
+\t\t\t// unrelated camera effects untouched.
+\t\t\tif (blackDiagnosticHasBlackFx(camGame)) camGame.stopFX();
+\t\t\tif (blackDiagnosticHasBlackFx(camHUD)) camHUD.stopFX();
+\t\t\tif (blackDiagnosticHasBlackFx(camOther)) camOther.stopFX();
+\t\t\tif (camGame != null)
+\t\t\t\tcamGame.zoom = defaultCamZoom;
+\t\t}
+
 \t\tvar blackLayer:BGSprite = southAnimatedObjects.get('black');
 \t\tvar blackbarLayer:BGSprite = southAnimatedObjects.get('blackbar');
 \t\tvar whiteLayer:BGSprite = southAnimatedObjects.get('white');
