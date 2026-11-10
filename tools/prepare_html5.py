@@ -934,7 +934,9 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \tfunction recoverLateBlackout():Void
 \t{
 \t\tvar songMs:Float = Conductor.songPosition;
-\t\tif (songMs < 340000 || songMs > 362000)
+\t\t// The reported blackout starts around 5:56. Keep watching until the
+\t\t// song ends instead of stopping at 6:02.
+\t\tif (songMs < 356000)
 \t\t{
 \t\t\tlateBlackoutWatchSince = -1;
 \t\t\treturn;
