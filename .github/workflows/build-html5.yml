@@ -93,26 +93,17 @@ jobs:
             exit 1
           fi
 
-          # Shader paths are resolved dynamically by Paths.shaderFragment().
-          # Publish the complete runtime shader directory as plain static files
-          # at the exact assets/shaders URL expected by Lime/OpenFL.
-          if [ ! -d engine/assets/preload/shaders ]; then
-            echo "The prepared Psych Engine shader directory is missing." >&2
-            find engine/assets -maxdepth 4 -type d -name shaders -print
+          # Dynamic GLSL shader loading is not available in this HTML5 target.
+          # The preparation script removes unused shader files before Lime
+          # creates its asset manifest, so no shader URLs should be preloaded.
+          if [ -d engine/assets/preload/shaders ]; then
+            echo "Unsupported runtime shader directory remains before publishing." >&2
+            find engine/assets/preload/shaders -type f -print
             exit 1
           fi
-          mkdir -p "$WEB_DIR/assets/shaders"
-          cp -a engine/assets/preload/shaders/. "$WEB_DIR/assets/shaders/"
-          for required in BlurShader.frag.txt rainbow.frag.txt; do
-            if [ ! -s "$WEB_DIR/assets/shaders/$required" ]; then
-              echo "Required runtime shader text file is missing: assets/shaders/$required" >&2
-              find "$WEB_DIR/assets/shaders" -maxdepth 2 -type f | sort | head -120
-              exit 1
-            fi
-          done
-          if find "$WEB_DIR/assets/shaders" -type f \( -name '*.frag' -o -name '*.vert' \) -print -quit | grep -q .; then
-            echo "Unconverted .frag/.vert shader files remain in the published asset directory." >&2
-            find "$WEB_DIR/assets/shaders" -type f \( -name '*.frag' -o -name '*.vert' \) -print
+          if find "$WEB_DIR/assets" -type f \\( -iname '*.frag' -o -iname '*.vert' -o -iname '*.frag.txt' -o -iname '*.vert.txt' \\) -print -quit | grep -q .; then
+            echo "Unexpected runtime shader source was included in the HTML5 asset manifest." >&2
+            find "$WEB_DIR/assets" -type f \\( -iname '*.frag' -o -iname '*.vert' -o -iname '*.frag.txt' -o -iname '*.vert.txt' \\) -print
             exit 1
           fi
 
