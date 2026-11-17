@@ -103,10 +103,16 @@ jobs:
           fi
           mkdir -p "$WEB_DIR/assets/shaders"
           cp -a engine/assets/preload/shaders/. "$WEB_DIR/assets/shaders/"
-          if [ ! -s "$WEB_DIR/assets/shaders/rainbow.frag" ]; then
-            echo "Required runtime shader is missing: assets/shaders/rainbow.frag" >&2
-            find engine/assets -type f -iname 'rainbow.frag' -print
-            find "$WEB_DIR/assets/shaders" -maxdepth 1 -type f | head -80
+          for required in BlurShader.frag.txt rainbow.frag.txt; do
+            if [ ! -s "$WEB_DIR/assets/shaders/$required" ]; then
+              echo "Required runtime shader text file is missing: assets/shaders/$required" >&2
+              find "$WEB_DIR/assets/shaders" -maxdepth 2 -type f | sort | head -120
+              exit 1
+            fi
+          done
+          if find "$WEB_DIR/assets/shaders" -type f \( -name '*.frag' -o -name '*.vert' \) -print -quit | grep -q .; then
+            echo "Unconverted .frag/.vert shader files remain in the published asset directory." >&2
+            find "$WEB_DIR/assets/shaders" -type f \( -name '*.frag' -o -name '*.vert' \) -print
             exit 1
           fi
 
