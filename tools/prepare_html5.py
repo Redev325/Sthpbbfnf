@@ -1568,65 +1568,63 @@ def patch_chart_editor_optional_vocals(engine: Path) -> None:
     chart_file.write_text(code, encoding="utf-8")
 
 
-def patch_shader_text_assets(engine: Path) -> dict[str, int]:
-    """Publish shader source as .txt files to avoid fragile .frag/.vert URL handling.
+def strip_unsupported_html5_shader_assets(engine: Path) -> dict[str, int]:
+    """Remove runtime GLSL files that Psych Engine 0.6.3 cannot load on HTML5.
 
-    Lime's HTML5 preloader requests dynamic shader files directly by URL. Some
-    static hosting layers return 503 for the shader extensions even when the
-    files are present in the Pages artifact. The shader loaders only need text,
-    so keep the source unchanged and use a plain-text extension instead.
+    The engine's dynamic shader loader is guarded by the Haxe sys target.
+    HTML5 does not define sys, and this web port does not run the mod's Lua
+    scripts, so copied mod shader files are never usable. Leaving them in the
+    preload asset tree causes Lime to request hundreds of unused URLs and can
+    make the whole preload fail when the static host returns an intermittent
+    503 for one of them.
     """
     paths_file = engine / "source" / "Paths.hx"
     source = paths_file.read_text(encoding="utf-8")
-
-    replacements = (
-        (
-            "return getPath('shaders/$key.frag', TEXT, library);",
-            "return getPath('shaders/$key.frag.txt', TEXT, library);",
-            "fragment",
-        ),
-        (
-            "return getPath('shaders/$key.vert', TEXT, library);",
-            "return getPath('shaders/$key.vert.txt', TEXT, library);",
-            "vertex",
-        ),
+    source = source.replace(
+        "return getPath('shaders/$key.frag.txt', TEXT, library);",
+        "return getPath('shaders/$key.frag', TEXT, library);",
     )
-    for old, new, label in replacements:
-        if new not in source:
-            if source.count(old) != 1:
-                raise RuntimeError(
-                    f"Could not uniquely locate Paths.shader{label.title()}() in source/Paths.hx."
-                )
-            source = source.replace(old, new, 1)
-
+    source = source.replace(
+        "return getPath('shaders/$key.vert.txt', TEXT, library);",
+        "return getPath('shaders/$key.vert', TEXT, library);",
+    )
     paths_file.write_text(source, encoding="utf-8")
 
-    renamed = {"fragment": 0, "vertex": 0}
-    for extension, kind in ((".frag", "fragment"), (".vert", "vertex")):
-        for shader_file in list((engine / "assets").rglob(f"*{extension}")):
-            text_file = shader_file.with_name(shader_file.name + ".txt")
-            if text_file.exists():
-                if text_file.read_bytes() != shader_file.read_bytes():
-                    raise RuntimeError(
-                        f"Conflicting shader text fallback already exists: {text_file}"
-                    )
-                shader_file.unlink()
-            else:
-                shader_file.rename(text_file)
-            renamed[kind] += 1
+    removed_directories = 0
+    removed_files = 0
+    for shader_dir in (
+        engine / "assets" / "preload" / "shaders",
+        engine / "assets" / "shared" / "shaders",
+        engine / "assets" / "shaders",
+    ):
+        if shader_dir.is_dir():
+            removed_files += sum(1 for item in shader_dir.rglob("*") if item.is_file())
+            shutil.rmtree(shader_dir)
+            removed_directories += 1
 
-    remaining = [
-        path for extension in ("*.frag", "*.vert")
-        for path in (engine / "assets").rglob(extension)
+    # Also catch shader source copied into an unexpected asset subfolder.
+    for asset_file in list((engine / "assets").rglob("*")):
+        if not asset_file.is_file():
+            continue
+        lower_name = asset_file.name.lower()
+        if lower_name.endswith((".frag", ".vert", ".frag.txt", ".vert.txt")):
+            asset_file.unlink()
+            removed_files += 1
+
+    leftovers = [
+        path for path in (engine / "assets").rglob("*")
+        if path.is_file() and path.name.lower().endswith((".frag", ".vert", ".frag.txt", ".vert.txt"))
     ]
-    if remaining:
+    if leftovers:
         raise RuntimeError(
-            "Original shader extensions remain in the compiled asset tree: "
-            + ", ".join(str(path) for path in remaining[:10])
+            "HTML5 shader cleanup incomplete: "
+            + ", ".join(str(path) for path in leftovers[:10])
         )
 
-    return renamed
-
+    return {
+        "removedShaderDirectories": removed_directories,
+        "removedShaderFiles": removed_files,
+    }
 
 def keep_only_bloodbath(engine: Path) -> dict[str, int]:
     """Remove non-Bloodbath song audio, charts and week definitions."""
@@ -1713,7 +1711,7 @@ def main() -> int:
     # Restore the matching runtime assets, including data and shaders. The
     # original copy list omitted these folders, which can leave valid package
     # references unresolved in the browser build.
-    for folder in ("images", "characters", "stages", "sounds", "music", "data", "shaders"):
+    for folder in ("images", "characters", "stages", "sounds", "music", "data"):
         copy_tree(runtime_assets / folder, engine / "assets" / "preload" / folder)
     copy_tree(runtime_assets / "shared", engine / "assets" / "shared")
     copy_tree(runtime_assets / "fonts", engine / "assets" / "fonts")
@@ -1726,7 +1724,6 @@ def main() -> int:
     copy_tree(mod / "weeks", engine / "assets" / "preload" / "weeks")
     copy_tree(mod / "data" / "bloodbath", engine / "assets" / "preload" / "data" / "bloodbath")
     copy_tree(mod / "fonts", engine / "assets" / "fonts")
-    copy_tree(mod / "shaders", engine / "assets" / "preload" / "shaders")
     copy_tree(mod / "sounds", engine / "assets" / "preload" / "sounds")
     copy_tree(mod / "songs" / "bloodbath", engine / "assets" / "songs" / "bloodbath")
 
@@ -1893,8 +1890,8 @@ def main() -> int:
     patch_black_screen_diagnostics(engine)
     patch_botplay_pause_menu(engine)
     patch_chart_editor_optional_vocals(engine)
-    shader_report = patch_shader_text_assets(engine)
-    print("Shader source URL compatibility: " + json.dumps(shader_report, sort_keys=True) + "; shader files are served with .txt extensions.")
+    shader_report = strip_unsupported_html5_shader_assets(engine)
+    print("Unsupported HTML5 runtime shader assets removed: " + json.dumps(shader_report, sort_keys=True))
     converted = convert_ogg_files(engine)
     song_cleanup = keep_only_bloodbath(engine)
 
