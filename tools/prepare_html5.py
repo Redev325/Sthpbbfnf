@@ -1440,6 +1440,54 @@ def patch_botplay_pause_menu(engine: Path) -> None:
     play_file.write_text(play_source, encoding="utf-8")
 
 
+def patch_chart_editor_optional_vocals(engine: Path) -> None:
+    """Prevent the native Chart Editor from requesting a nonexistent vocal track."""
+    chart_file = engine / "source" / "editors" / "ChartingState.hx"
+    if not chart_file.is_file():
+        raise FileNotFoundError(f"Psych Engine ChartingState source is missing: {chart_file}")
+
+    code = chart_file.read_text(encoding="utf-8")
+    old = """\t\tvar file:Dynamic = Paths.voices(currentSongName);
+\t\tvocals = new FlxSound();
+\t\tif (Std.isOfType(file, Sound) || OpenFlAssets.exists(file)) {
+\t\t\tvocals.loadEmbedded(file);
+\t\t\tFlxG.sound.list.add(vocals);
+\t\t}"""
+    new = """\t\t// Bloodbath is shipped as an instrumental-only chart. Do not call
+\t\t// Paths.voices() unless the chart explicitly declares a vocal track:
+\t\t// Paths.voices() resolves the asset immediately and throws when it is absent.
+\t\tvar file:Dynamic = null;
+\t\tvocals = new FlxSound();
+\t\tif (_song != null && _song.needsVoices)
+\t\t{
+\t\t\tfile = Paths.voices(currentSongName);
+\t\t\tif (Std.isOfType(file, Sound) || OpenFlAssets.exists(file))
+\t\t\t{
+\t\t\t\tvocals.loadEmbedded(file);
+\t\t\t\tFlxG.sound.list.add(vocals);
+\t\t\t}
+\t\t}"""
+    marker = "// Bloodbath instrumental-only Chart Editor audio guard"
+    if marker not in code:
+        if code.count(old) != 1:
+            raise RuntimeError(
+                "Could not uniquely locate ChartingState.loadSong() vocal loading block."
+            )
+        code = code.replace(old, new, 1)
+        code = code.replace(
+            "\t\t// Bloodbath is shipped as an instrumental-only chart.",
+            "\t\t// Bloodbath instrumental-only Chart Editor audio guard\n"
+            "\t\t// Bloodbath is shipped as an instrumental-only chart.",
+            1,
+        )
+
+    if "if (_song != null && _song.needsVoices)" not in code:
+        raise RuntimeError("Chart Editor optional-vocals guard was not installed.")
+    if "var file:Dynamic = Paths.voices(currentSongName);" in code:
+        raise RuntimeError("Unconditional Chart Editor vocal loading remains.")
+    chart_file.write_text(code, encoding="utf-8")
+
+
 def keep_only_bloodbath(engine: Path) -> dict[str, int]:
     """Remove non-Bloodbath song audio, charts and week definitions."""
     songs_dir = engine / "assets" / "songs"
@@ -1704,6 +1752,7 @@ def main() -> int:
     patch_south_cinematic_bars(engine)
     patch_black_screen_diagnostics(engine)
     patch_botplay_pause_menu(engine)
+    patch_chart_editor_optional_vocals(engine)
     converted = convert_ogg_files(engine)
     song_cleanup = keep_only_bloodbath(engine)
 
