@@ -141,6 +141,24 @@ jobs:
             exit 1
           fi
 
+          # Psych's settings toggles load checkboxanim.png dynamically. Lime
+          # may emit the XML atlas without publishing its PNG, so copy both
+          # source files to the exact runtime URL and validate them.
+          mkdir -p "$WEB_DIR/assets/images"
+          for required in checkboxanim.png checkboxanim.xml; do
+            SOURCE_FILE="engine/assets/preload/images/$required"
+            TARGET_FILE="$WEB_DIR/assets/images/$required"
+            if [ ! -s "$SOURCE_FILE" ]; then
+              echo "Required Psych Engine image asset is missing from source: $SOURCE_FILE" >&2
+              exit 1
+            fi
+            cp -f "$SOURCE_FILE" "$TARGET_FILE"
+            if [ ! -s "$TARGET_FILE" ]; then
+              echo "Required runtime image asset is missing from the published site: assets/images/$required" >&2
+              exit 1
+            fi
+          done
+
           mkdir -p _site
           cp -a "$WEB_DIR/." _site/
           python3 tools/patch_html5_diagnostics.py --html _site/index.html
