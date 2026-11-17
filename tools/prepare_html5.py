@@ -978,6 +978,51 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tif (wallNow - lateBlackoutWatchSince < 1250)
 \t\t\treturn;
 
+\t\t// Force-clear all known blackout covers after the watchdog confirms
+\t\t// the late-song overlay condition has remained stuck for 1.25 seconds.
+\t\tif (Conductor.songPosition >= 42000)
+\t\t{
+\t\t\tif (southAnimatedObjects != null)
+\t\t\t{
+\t\t\t\tvar recoverBlack:Dynamic = southAnimatedObjects.get('black');
+\t\t\t\tvar recoverBlackbar:Dynamic = southAnimatedObjects.get('blackbar');
+\t\t\t\tvar recoverWhite:Dynamic = southAnimatedObjects.get('white');
+
+\t\t\t\tif (recoverBlack != null)
+\t\t\t\t{
+\t\t\t\t\tFlxTween.cancelTweensOf(recoverBlack);
+\t\t\t\t\trecoverBlack.alpha = 0;
+\t\t\t\t\trecoverBlack.visible = false;
+\t\t\t\t}
+\t\t\t\tif (recoverBlackbar != null)
+\t\t\t\t{
+\t\t\t\t\tFlxTween.cancelTweensOf(recoverBlackbar);
+\t\t\t\t\trecoverBlackbar.alpha = 0;
+\t\t\t\t\trecoverBlackbar.visible = false;
+\t\t\t\t}
+\t\t\t\tif (recoverWhite != null)
+\t\t\t\t{
+\t\t\t\t\tFlxTween.cancelTweensOf(recoverWhite);
+\t\t\t\t\trecoverWhite.alpha = 0;
+\t\t\t\t\trecoverWhite.visible = false;
+\t\t\t\t}
+\t\t\t}
+\t\t\tif (southBlackFlashOverlay != null)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);
+\t\t\t\tsouthBlackFlashOverlay.alpha = 0;
+\t\t\t\tsouthBlackFlashOverlay.visible = false;
+\t\t\t}
+\t\t\tif (badAppleWhiteBg != null)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
+\t\t\t\tbadAppleWhiteBg.alpha = 0;
+\t\t\t\tbadAppleWhiteBg.visible = false;
+\t\t\t}
+\t\t\tif (camGame != null)
+\t\t\t\tcamGame.zoom = defaultCamZoom;
+\t\t}
+
 \t\tvar recovered:Array<String> = [];
 
 \t\tif (blackLayer != null && blackLayer.alpha > 0.02)
@@ -1185,6 +1230,40 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tblackDiagnosticLastEventTime = Conductor.songPosition;
 \t\tblackDiagnosticEventHistory.push(blackDiagnosticLastEvent + " @ " + Std.string(Std.int(Conductor.songPosition)) + "ms");
 \t\tif (blackDiagnosticEventHistory.length > 6) blackDiagnosticEventHistory.shift();
+
+\t\t// Clear stale South-stage overlay objects at the FX event boundary.
+\t\tif (curStage == 'south' && (eventName == 'aFadeOut' || eventName == 'aFadeIn' || eventName == 'bloomHigh' || eventName == 'barrel'))
+\t\t{
+\t\t\tif (southAnimatedObjects != null)
+\t\t\t{
+\t\t\t\tvar coverNames:Array<String> = ['black', 'blackbar', 'white', 'barrel', 'bloom'];
+\t\t\t\tfor (key in coverNames)
+\t\t\t\t{
+\t\t\t\t\tvar cover:Dynamic = southAnimatedObjects.get(key);
+\t\t\t\t\tif (cover != null)
+\t\t\t\t\t{
+\t\t\t\t\t\tFlxTween.cancelTweensOf(cover);
+\t\t\t\t\t\tcover.alpha = 0;
+\t\t\t\t\t\tcover.visible = false;
+\t\t\t\t\t}
+\t\t\t\t}
+\t\t\t}
+\t\t\tif (southBlackFlashOverlay != null)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);
+\t\t\t\tsouthBlackFlashOverlay.alpha = 0;
+\t\t\t\tsouthBlackFlashOverlay.visible = false;
+\t\t\t}
+\t\t\tif (badAppleWhiteBg != null)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
+\t\t\t\tbadAppleWhiteBg.alpha = 0;
+\t\t\t\tbadAppleWhiteBg.visible = false;
+\t\t\t}
+\t\t\tif (camGame != null)
+\t\t\t\tcamGame.zoom = defaultCamZoom;
+\t\t}
+
 \t\tswitch(eventName) {"""
     if "blackDiagnosticLastEvent = eventName" not in source:
         if event_marker not in source:
