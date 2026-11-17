@@ -1384,17 +1384,22 @@ def patch_botplay_pause_menu(engine: Path) -> None:
     pause_file = engine / "source" / "PauseSubState.hx"
     source = pause_file.read_text(encoding="utf-8")
 
-    # Psych Engine already implements CPU-controlled note hitting and the
-    # pause-menu toggle, but upstream only inserts that menu item in
-    # Charting Mode. Move the insertion to the shared pause-menu setup.
-    if "Bloodbath: expose Botplay during normal gameplay" not in source:
+    # Expose the native editor and Botplay from the normal gameplay pause menu.
+    if "Bloodbath: add Chart Editor to normal gameplay pause menu" not in source:
         charting_only_line = "\t\t\tmenuItemsOG.insert(5 + num, 'Toggle Botplay');\n"
         if charting_only_line not in source:
             raise RuntimeError("Could not find the Charting Mode-only Botplay menu entry.")
         source = source.replace(charting_only_line, "", 1)
 
         menu_marker = "\t\tmenuItems = menuItemsOG;"
-        menu_addition = """\t\t// Bloodbath: expose Botplay during normal gameplay as well as Charting Mode.
+        menu_addition = """\t\t// Bloodbath: add Chart Editor to normal gameplay pause menu.
+\t\tif (!PlayState.chartingMode && !menuItemsOG.contains('Open Chart Editor'))
+\t\t{
+\t\t\tvar chartEditorIndex:Int = menuItemsOG.indexOf('Exit to menu');
+\t\t\tif (chartEditorIndex < 0) chartEditorIndex = menuItemsOG.length;
+\t\t\tmenuItemsOG.insert(chartEditorIndex, 'Open Chart Editor');
+\t\t}
+\t\t// Bloodbath: expose Botplay during normal gameplay as well as Charting Mode.
 \t\tif (!menuItemsOG.contains('Toggle Botplay'))
 \t\t{
 \t\t\tvar botplayIndex:Int = menuItemsOG.indexOf('Exit to menu');
@@ -1406,9 +1411,33 @@ def patch_botplay_pause_menu(engine: Path) -> None:
             raise RuntimeError("Could not find the shared PauseSubState menu setup.")
         source = source.replace(menu_marker, menu_addition, 1)
 
+    if "case 'Open Chart Editor':" not in source:
+        editor_case_marker = "\t\t\t\tcase 'Toggle Botplay':"
+        editor_case = """\t\t\t\tcase 'Open Chart Editor':
+\t\t\t\t\tPlayState.instance.openChartEditor();
+\t\t\t\tcase 'Toggle Botplay':"""
+        if source.count(editor_case_marker) != 1:
+            raise RuntimeError("Could not find the shared Botplay pause-menu handler.")
+        source = source.replace(editor_case_marker, editor_case, 1)
+
+    if "case 'Open Chart Editor':" not in source or "PlayState.instance.openChartEditor();" not in source:
+        raise RuntimeError("Chart Editor pause-menu action was not installed.")
     if "case 'Toggle Botplay':" not in source or "PlayState.instance.cpuControlled = !PlayState.instance.cpuControlled;" not in source:
         raise RuntimeError("Psych Engine's built-in Botplay toggle handler is missing.")
     pause_file.write_text(source, encoding="utf-8")
+
+    # The upstream method already switches to editors.ChartingState using the
+    # currently loaded PlayState.SONG. Make it callable by PauseSubState.
+    play_file = engine / "source" / "PlayState.hx"
+    play_source = play_file.read_text(encoding="utf-8")
+    if "public function openChartEditor()" not in play_source:
+        private_signature = "\tfunction openChartEditor()"
+        if play_source.count(private_signature) != 1:
+            raise RuntimeError("Could not uniquely locate PlayState.openChartEditor().")
+        play_source = play_source.replace(private_signature, "\tpublic function openChartEditor()", 1)
+    if "public function openChartEditor()" not in play_source:
+        raise RuntimeError("PlayState.openChartEditor() was not made public.")
+    play_file.write_text(play_source, encoding="utf-8")
 
 
 def keep_only_bloodbath(engine: Path) -> dict[str, int]:
