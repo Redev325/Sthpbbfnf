@@ -628,7 +628,8 @@ def patch_south_stage(
     event_code = """\t\t\tcase 'aObject Play Animation':
 \t\t\t\tif (curStage == 'south')
 \t\t\t\t{
-\t\t\t\t\tvar stageSprite:BGSprite = southAnimatedObjects.get(value1.toLowerCase());
+\t\t\t\t\tvar stageKey:String = value1 == null ? "" : value1.toLowerCase();
+\t\t\t\t\tvar stageSprite:BGSprite = southAnimatedObjects.get(stageKey);
 \t\t\t\t\tif (stageSprite != null)
 \t\t\t\t\t{
 \t\t\t\t\t\tstageSprite.visible = true;
@@ -705,15 +706,29 @@ def patch_south_stage_fades(engine: Path) -> None:
     event_code = """\t\t\tcase 'afadein' | 'afadeout':
 \t\t\t\tif (curStage == 'south')
 \t\t\t\t{
-\t\t\t\t\tvar fadeSprite:BGSprite = southAnimatedObjects.get(value1.toLowerCase());
+\t\t\t\t\tvar fadeKey:String = value1 == null ? "" : value1.toLowerCase();
+\t\t\t\t\tvar fadeSprite:BGSprite = southAnimatedObjects.get(fadeKey);
 \t\t\t\t\tif (fadeSprite != null)
 \t\t\t\t\t{
 \t\t\t\t\t\tvar fadeDuration:Float = Std.parseFloat(value2);
 \t\t\t\t\t\tif (Math.isNaN(fadeDuration) || fadeDuration < 0) fadeDuration = 0;
 \t\t\t\t\t\tvar fadeTarget:Float = eventName == 'afadein' ? 1 : 0;
 \t\t\t\t\t\tFlxTween.cancelTweensOf(fadeSprite);
-\t\t\t\t\t\tif (fadeDuration <= 0) fadeSprite.alpha = fadeTarget;
-\t\t\t\t\t\telse FlxTween.tween(fadeSprite, {alpha: fadeTarget}, fadeDuration, {ease: FlxEase.linear});
+\t\t\t\t\t\tif (fadeDuration <= 0)
+\t\t\t\t\t\t{
+\t\t\t\t\t\t\tfadeSprite.alpha = fadeTarget;
+\t\t\t\t\t\t\tfadeSprite.visible = fadeTarget > 0.01;
+\t\t\t\t\t\t}
+\t\t\t\t\t\telse
+\t\t\t\t\t\t{
+\t\t\t\t\t\t\tif (fadeTarget > 0.01) fadeSprite.visible = true;
+\t\t\t\t\t\t\tFlxTween.tween(fadeSprite, {alpha: fadeTarget}, fadeDuration, {
+\t\t\t\t\t\t\t\tease: FlxEase.linear,
+\t\t\t\t\t\t\t\tonComplete: function(tween:FlxTween) {
+\t\t\t\t\t\t\t\tif (fadeTarget <= 0.01) fadeSprite.visible = false;
+\t\t\t\t\t\t\t}
+\t\t\t\t\t\t\t});
+\t\t\t\t\t\t}
 \t\t\t\t\t}
 \t\t\t\t}
 
@@ -1232,8 +1247,14 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tif (blackDiagnosticEventHistory.length > 6) blackDiagnosticEventHistory.shift();
 
 \t\t// Clear stale South-stage overlay objects at the FX event boundary.
-\t\tvar normalizedSouthFxEvent:String = eventName.toLowerCase();
-\t\tif (curStage == 'south' && (normalizedSouthFxEvent == 'afadeout' || normalizedSouthFxEvent == 'afadein' || normalizedSouthFxEvent == 'bloomhigh' || normalizedSouthFxEvent == 'barrel'))
+\t\tvar normalizedEventName:String = eventName == null ? "" : eventName.toLowerCase();
+\t\t// Canonicalize the South-stage custom event names before the switch.
+\t\t// This accepts uppercase chart event names without changing other events.
+\t\tif (normalizedEventName == 'afadein' || normalizedEventName == 'afadeout')
+\t\t\teventName = normalizedEventName;
+\t\telse if (normalizedEventName == 'aobject play animation')
+\t\t\teventName = 'aObject Play Animation';
+\t\tif (curStage == 'south' && (normalizedEventName == 'afadeout' || normalizedEventName == 'afadein' || normalizedEventName == 'bloomhigh' || normalizedEventName == 'barrel'))
 \t\t{
 \t\t\tif (southAnimatedObjects != null)
 \t\t\t{
