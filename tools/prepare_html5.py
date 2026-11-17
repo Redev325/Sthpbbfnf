@@ -628,7 +628,7 @@ def patch_south_stage(
     event_code = """\t\t\tcase 'aObject Play Animation':
 \t\t\t\tif (curStage == 'south')
 \t\t\t\t{
-\t\t\t\t\tvar stageSprite:BGSprite = southAnimatedObjects.get(value1);
+\t\t\t\t\tvar stageSprite:BGSprite = southAnimatedObjects.get(value1.toLowerCase());
 \t\t\t\t\tif (stageSprite != null)
 \t\t\t\t\t{
 \t\t\t\t\t\tstageSprite.visible = true;
@@ -705,7 +705,7 @@ def patch_south_stage_fades(engine: Path) -> None:
     event_code = """\t\t\tcase 'afadein' | 'afadeout':
 \t\t\t\tif (curStage == 'south')
 \t\t\t\t{
-\t\t\t\t\tvar fadeSprite:BGSprite = southAnimatedObjects.get(value1);
+\t\t\t\t\tvar fadeSprite:BGSprite = southAnimatedObjects.get(value1.toLowerCase());
 \t\t\t\t\tif (fadeSprite != null)
 \t\t\t\t\t{
 \t\t\t\t\t\tvar fadeDuration:Float = Std.parseFloat(value2);
