@@ -159,6 +159,30 @@ jobs:
             fi
           done
 
+          # Preserve the game's original shader sources as static files
+          # outside Lime's generated preload manifest. HTML5 does not compile
+          # Psych 0.6.3's desktop-only Lua shader API, so these files must not
+          # trigger eager shader requests during game startup.
+          SHADER_ARCHIVE="engine/html5-shader-source-archive"
+          if [ -d "$SHADER_ARCHIVE" ]; then
+            SHADER_SOURCE_COUNT="$(find "$SHADER_ARCHIVE" -type f | wc -l)"
+            if [ "$SHADER_SOURCE_COUNT" -gt 0 ]; then
+              mkdir -p "$WEB_DIR/shader-source-archive"
+              cp -a "$SHADER_ARCHIVE/." "$WEB_DIR/shader-source-archive/"
+              PUBLISHED_SHADER_COUNT="$(find "$WEB_DIR/shader-source-archive" -type f | wc -l)"
+              if [ "$PUBLISHED_SHADER_COUNT" -ne "$SHADER_SOURCE_COUNT" ]; then
+                echo "Shader source archive copy mismatch: expected $SHADER_SOURCE_COUNT files, found $PUBLISHED_SHADER_COUNT." >&2
+                exit 1
+              fi
+              echo "Published $PUBLISHED_SHADER_COUNT preserved shader source files outside the Lime preload manifest."
+            else
+              echo "No shader source files were present in the game release package."
+            fi
+          else
+            echo "Shader source archive was not generated." >&2
+            exit 1
+          fi
+
           mkdir -p _site
           cp -a "$WEB_DIR/." _site/
           python3 tools/patch_html5_diagnostics.py --html _site/index.html
