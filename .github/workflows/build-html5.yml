@@ -93,6 +93,23 @@ jobs:
             exit 1
           fi
 
+          # Shader paths are resolved dynamically by Paths.shaderFragment().
+          # Publish the complete runtime shader directory as plain static files
+          # at the exact assets/shaders URL expected by Lime/OpenFL.
+          if [ ! -d engine/assets/preload/shaders ]; then
+            echo "The prepared Psych Engine shader directory is missing." >&2
+            find engine/assets -maxdepth 4 -type d -name shaders -print
+            exit 1
+          fi
+          mkdir -p "$WEB_DIR/assets/shaders"
+          cp -a engine/assets/preload/shaders/. "$WEB_DIR/assets/shaders/"
+          if [ ! -s "$WEB_DIR/assets/shaders/rainbow.frag" ]; then
+            echo "Required runtime shader is missing: assets/shaders/rainbow.frag" >&2
+            find engine/assets -type f -iname 'rainbow.frag' -print
+            find "$WEB_DIR/assets/shaders" -maxdepth 1 -type f | head -80
+            exit 1
+          fi
+
           # Publish Flixel UI's XML and images at the exact dynamic asset paths.
           # The Chart Editor and other FlxUI widgets request these files by URL
           # at runtime (not only through the compiled asset manifest).
