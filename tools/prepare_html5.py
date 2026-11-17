@@ -1059,6 +1059,42 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tif (camGame != null)
 \t\t\tcamGame.zoom = defaultCamZoom;
 
+\t\t// Last-resort visibility pass: run only after the watchdog has observed
+\t\t// a persistent cover for 1.25 seconds. Do not cancel legitimate fades
+\t\t// merely because the song has passed 5:56.
+\t\tif (blackCover)
+\t\t{
+\t\t\tif (southAnimatedObjects != null)
+\t\t\t{
+\t\t\t\tvar clearNames:Array<String> = ['black', 'blackbar', 'white'];
+\t\t\t\tfor (key in clearNames)
+\t\t\t\t{
+\t\t\t\t\tvar cover:BGSprite = southAnimatedObjects.get(key);
+\t\t\t\t\tif (cover != null)
+\t\t\t\t\t{
+\t\t\t\t\t\tFlxTween.cancelTweensOf(cover);
+\t\t\t\t\t\tcover.alpha = 0;
+\t\t\t\t\t\tcover.visible = false;
+\t\t\t\t\t}
+\t\t\t\t}
+\t\t\t}
+
+\t\t\tif (southBlackFlashOverlay != null)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);
+\t\t\t\tsouthBlackFlashOverlay.alpha = 0;
+\t\t\t\tsouthBlackFlashOverlay.visible = false;
+\t\t\t}
+
+\t\t\t// Preserve the intended Bad Apple white silhouette while it is active.
+\t\t\tif (!badAppleSilhouetteActive && badAppleWhiteBg != null)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
+\t\t\t\tbadAppleWhiteBg.alpha = 0;
+\t\t\t\tbadAppleWhiteBg.visible = false;
+\t\t\t}
+\t\t}
+
 \t\tif (recovered.length > 0)
 \t\t{
 \t\t\tlateBlackoutRecoveries++;
