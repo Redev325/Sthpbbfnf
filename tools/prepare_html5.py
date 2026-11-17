@@ -1568,6 +1568,66 @@ def patch_chart_editor_optional_vocals(engine: Path) -> None:
     chart_file.write_text(code, encoding="utf-8")
 
 
+def patch_shader_text_assets(engine: Path) -> dict[str, int]:
+    """Publish shader source as .txt files to avoid fragile .frag/.vert URL handling.
+
+    Lime's HTML5 preloader requests dynamic shader files directly by URL. Some
+    static hosting layers return 503 for the shader extensions even when the
+    files are present in the Pages artifact. The shader loaders only need text,
+    so keep the source unchanged and use a plain-text extension instead.
+    """
+    paths_file = engine / "source" / "Paths.hx"
+    source = paths_file.read_text(encoding="utf-8")
+
+    replacements = (
+        (
+            "return getPath('shaders/$key.frag', TEXT, library);",
+            "return getPath('shaders/$key.frag.txt', TEXT, library);",
+            "fragment",
+        ),
+        (
+            "return getPath('shaders/$key.vert', TEXT, library);",
+            "return getPath('shaders/$key.vert.txt', TEXT, library);",
+            "vertex",
+        ),
+    )
+    for old, new, label in replacements:
+        if new not in source:
+            if source.count(old) != 1:
+                raise RuntimeError(
+                    f"Could not uniquely locate Paths.shader{label.title()}() in source/Paths.hx."
+                )
+            source = source.replace(old, new, 1)
+
+    paths_file.write_text(source, encoding="utf-8")
+
+    renamed = {"fragment": 0, "vertex": 0}
+    for extension, kind in ((".frag", "fragment"), (".vert", "vertex")):
+        for shader_file in list((engine / "assets").rglob(f"*{extension}")):
+            text_file = shader_file.with_name(shader_file.name + ".txt")
+            if text_file.exists():
+                if text_file.read_bytes() != shader_file.read_bytes():
+                    raise RuntimeError(
+                        f"Conflicting shader text fallback already exists: {text_file}"
+                    )
+                shader_file.unlink()
+            else:
+                shader_file.rename(text_file)
+            renamed[kind] += 1
+
+    remaining = [
+        path for extension in ("*.frag", "*.vert")
+        for path in (engine / "assets").rglob(extension)
+    ]
+    if remaining:
+        raise RuntimeError(
+            "Original shader extensions remain in the compiled asset tree: "
+            + ", ".join(str(path) for path in remaining[:10])
+        )
+
+    return renamed
+
+
 def keep_only_bloodbath(engine: Path) -> dict[str, int]:
     """Remove non-Bloodbath song audio, charts and week definitions."""
     songs_dir = engine / "assets" / "songs"
@@ -1833,6 +1893,8 @@ def main() -> int:
     patch_black_screen_diagnostics(engine)
     patch_botplay_pause_menu(engine)
     patch_chart_editor_optional_vocals(engine)
+    shader_report = patch_shader_text_assets(engine)
+    print("Shader source URL compatibility: " + json.dumps(shader_report, sort_keys=True) + "; shader files are served with .txt extensions.")
     converted = convert_ogg_files(engine)
     song_cleanup = keep_only_bloodbath(engine)
 
