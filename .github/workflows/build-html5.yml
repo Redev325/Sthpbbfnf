@@ -93,6 +93,30 @@ jobs:
             exit 1
           fi
 
+          # Publish Flixel UI's XML and images at the exact dynamic asset paths.
+          # The Chart Editor and other FlxUI widgets request these files by URL
+          # at runtime (not only through the compiled asset manifest).
+          FLIXEL_UI_POPUP="$(find "$HOME/haxelib/flixel-ui" -type f -path '*/assets/xml/default_popup.xml' -print -quit)"
+          if [ -z "$FLIXEL_UI_POPUP" ]; then
+            echo "Could not locate flixel-ui 2.5.0 assets/xml/default_popup.xml in the Haxelib installation." >&2
+            find "$HOME/haxelib/flixel-ui" -maxdepth 5 -type f | head -80
+            exit 1
+          fi
+          FLIXEL_UI_ASSET_DIR="${FLIXEL_UI_POPUP%/xml/default_popup.xml}"
+          mkdir -p "$WEB_DIR/assets/flixel/flixel-ui/xml" "$WEB_DIR/assets/flixel/flixel-ui/img"
+          cp -a "$FLIXEL_UI_ASSET_DIR/xml/." "$WEB_DIR/assets/flixel/flixel-ui/xml/"
+          cp -a "$FLIXEL_UI_ASSET_DIR/images/." "$WEB_DIR/assets/flixel/flixel-ui/img/"
+          for required in default_popup.xml defaults.xml default_loading_screen.xml; do
+            if [ ! -s "$WEB_DIR/assets/flixel/flixel-ui/xml/$required" ]; then
+              echo "Required Flixel UI XML is missing from the published site: $required" >&2
+              exit 1
+            fi
+          done
+          if [ ! -s "$WEB_DIR/assets/flixel/flixel-ui/img/tooltip_arrow.png" ]; then
+            echo "Required Flixel UI image is missing from the published site: tooltip_arrow.png" >&2
+            exit 1
+          fi
+
           # Publish health icons as plain static files as well as compiled Lime
           # assets. Psych loads some icon paths dynamically at runtime, so keep
           # the complete icon directory available at the exact public URL path.
