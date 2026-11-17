@@ -131,6 +131,25 @@ jobs:
             exit 1
           fi
 
+          # include.xml renames these assets to flixel/flixel-ui/{img,xml}
+          # at the website root (not under assets/). Keep the original assets/
+          # copies above as a fallback, and publish the exact Lime runtime paths.
+          mkdir -p "$WEB_DIR/flixel/flixel-ui/xml" "$WEB_DIR/flixel/flixel-ui/img"
+          cp -a "$FLIXEL_UI_ASSET_DIR/xml/." "$WEB_DIR/flixel/flixel-ui/xml/"
+          cp -a "$FLIXEL_UI_ASSET_DIR/images/." "$WEB_DIR/flixel/flixel-ui/img/"
+          for required in default_popup.xml defaults.xml default_loading_screen.xml; do
+            if [ ! -s "$WEB_DIR/flixel/flixel-ui/xml/$required" ]; then
+              echo "Required root Flixel UI XML is missing: flixel/flixel-ui/xml/$required" >&2
+              exit 1
+            fi
+          done
+          for required in button_arrow_down.png button_arrow_up.png button_arrow_left.png button_arrow_right.png tooltip_arrow.png; do
+            if [ ! -s "$WEB_DIR/flixel/flixel-ui/img/$required" ]; then
+              echo "Required root Flixel UI image is missing: flixel/flixel-ui/img/$required" >&2
+              exit 1
+            fi
+          done
+
           # Publish health icons as plain static files as well as compiled Lime
           # assets. Psych loads some icon paths dynamically at runtime, so keep
           # the complete icon directory available at the exact public URL path.
