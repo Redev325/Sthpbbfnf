@@ -1568,6 +1568,69 @@ def patch_chart_editor_optional_vocals(engine: Path) -> None:
     chart_file.write_text(code, encoding="utf-8")
 
 
+def stage_html5_shader_source_archive(game: Path, engine: Path) -> dict[str, int]:
+    """Preserve every packaged shader directory outside Lime's runtime manifest.
+
+    Psych Engine 0.6.3 gates its Lua runtime-shader loader behind the desktop
+    sys target, and LUA_ALLOWED is not enabled for this HTML5 build. Keep the
+    original shader sources and any companion files in a static archive so
+    they are not lost, but do not put them in assets/preload where Lime would
+    eagerly request them during startup.
+    """
+    archive = engine / "html5-shader-source-archive"
+    if archive.exists():
+        shutil.rmtree(archive)
+    archive.mkdir(parents=True, exist_ok=True)
+
+    shader_directories = [
+        path for path in game.rglob("*")
+        if path.is_dir() and path.name.lower() == "shaders"
+    ]
+    copied: set[str] = set()
+    copied_bytes = 0
+
+    def preserve_file(source_file: Path) -> None:
+        nonlocal copied_bytes
+        relative = source_file.relative_to(game)
+        target = archive / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            if target.read_bytes() != source_file.read_bytes():
+                raise RuntimeError(
+                    "Conflicting packaged shader source paths: "
+                    + relative.as_posix()
+                )
+            return
+        shutil.copy2(source_file, target)
+        copied.add(relative.as_posix())
+        copied_bytes += source_file.stat().st_size
+
+    # Preserve all files inside every directory named shaders, not just GLSL
+    # source files; shader texture maps and include files may be required too.
+    for shader_directory in shader_directories:
+        for source_file in shader_directory.rglob("*"):
+            if source_file.is_file():
+                preserve_file(source_file)
+
+    # Also retain shader source files stored outside a folder named shaders.
+    shader_suffixes = (
+        ".frag", ".vert", ".frag.txt", ".vert.txt", ".glsl",
+        ".fx", ".fxh", ".shader",
+    )
+    for source_file in game.rglob("*"):
+        if not source_file.is_file():
+            continue
+        lower_name = source_file.name.lower()
+        if lower_name.endswith(shader_suffixes):
+            preserve_file(source_file)
+
+    return {
+        "sourceDirectories": len(shader_directories),
+        "sourceFiles": len(copied),
+        "sourceBytes": copied_bytes,
+    }
+
+
 def strip_unsupported_html5_shader_assets(engine: Path) -> dict[str, int]:
     """Remove runtime GLSL files that Psych Engine 0.6.3 cannot load on HTML5.
 
@@ -1707,6 +1770,7 @@ def main() -> int:
     game = find_game_root(args.package.resolve())
     runtime_assets = game / "assets"
     mod = game / "mods"
+    shader_archive_report = stage_html5_shader_source_archive(game, engine)
 
     # Restore the matching runtime assets, including data and shaders. The
     # original copy list omitted these folders, which can leave valid package
@@ -1892,6 +1956,7 @@ def main() -> int:
     patch_chart_editor_optional_vocals(engine)
     shader_report = strip_unsupported_html5_shader_assets(engine)
     print("Unsupported HTML5 runtime shader assets removed: " + json.dumps(shader_report, sort_keys=True))
+    print("Preserved shader source archive (not runtime-preloaded): " + json.dumps(shader_archive_report, sort_keys=True))
     converted = convert_ogg_files(engine)
     song_cleanup = keep_only_bloodbath(engine)
 
