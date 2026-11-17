@@ -92,6 +92,17 @@ jobs:
             find engine/export/release -maxdepth 5 -type f | head -100
             exit 1
           fi
+
+          # Publish health icons as plain static files as well as compiled Lime
+          # assets. Psych loads some icon paths dynamically at runtime, so keep
+          # the complete icon directory available at the exact public URL path.
+          mkdir -p "$WEB_DIR/assets/images/icons"
+          cp -a engine/assets/preload/images/icons/. "$WEB_DIR/assets/images/icons/"
+          if [ ! -s "$WEB_DIR/assets/images/icons/icon-gf.png" ]; then
+            echo "Required runtime health icon is missing: assets/images/icons/icon-gf.png" >&2
+            exit 1
+          fi
+
           mkdir -p _site
           cp -a "$WEB_DIR/." _site/
           python3 tools/patch_html5_diagnostics.py --html _site/index.html
