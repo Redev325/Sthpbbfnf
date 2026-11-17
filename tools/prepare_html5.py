@@ -1232,7 +1232,8 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tif (blackDiagnosticEventHistory.length > 6) blackDiagnosticEventHistory.shift();
 
 \t\t// Clear stale South-stage overlay objects at the FX event boundary.
-\t\tif (curStage == 'south' && (eventName == 'aFadeOut' || eventName == 'aFadeIn' || eventName == 'bloomHigh' || eventName == 'barrel'))
+\t\tvar normalizedSouthFxEvent:String = eventName.toLowerCase();
+\t\tif (curStage == 'south' && (normalizedSouthFxEvent == 'afadeout' || normalizedSouthFxEvent == 'afadein' || normalizedSouthFxEvent == 'bloomhigh' || normalizedSouthFxEvent == 'barrel'))
 \t\t{
 \t\t\tif (southAnimatedObjects != null)
 \t\t\t{
