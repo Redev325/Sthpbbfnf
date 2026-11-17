@@ -934,74 +934,20 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \tfunction recoverLateBlackout():Void
 \t{
 \t\tvar songMs:Float = Conductor.songPosition;
-\t\t// The reported blackout starts around 5:56. Keep watching until the
-\t\t// song ends instead of stopping at 6:02.
+\t\t// Keep the watchdog active from the reported 5:56 blackout until the end.
 \t\tif (songMs < 356000)
 \t\t{
 \t\t\tlateBlackoutWatchSince = -1;
 \t\t\treturn;
 \t\t}
 
-\t\t// From the 5:56 blackout trigger onward, actively clear every known
-\t\t// full-screen stage cover each frame so a stale tween cannot leave it up.
-\t\tif (songMs >= 356000)
-\t\t{
-\t\t\tvar stageBlack:BGSprite = southAnimatedObjects.get('black');
-\t\t\tvar stageBlackbar:BGSprite = southAnimatedObjects.get('blackbar');
-\t\t\tvar stageWhite:BGSprite = southAnimatedObjects.get('white');
-
-\t\t\tif (stageBlack != null && stageBlack.alpha > 0.02)
-\t\t\t{
-\t\t\t\tFlxTween.cancelTweensOf(stageBlack);
-\t\t\t\tstageBlack.alpha = 0;
-\t\t\t\tstageBlack.visible = false;
-\t\t\t}
-
-\t\t\tif (stageBlackbar != null && stageBlackbar.alpha > 0.02)
-\t\t\t{
-\t\t\t\tFlxTween.cancelTweensOf(stageBlackbar);
-\t\t\t\tstageBlackbar.alpha = 0;
-\t\t\t\tstageBlackbar.visible = false;
-\t\t\t}
-
-\t\t\tif (stageWhite != null && stageWhite.alpha > 0.02)
-\t\t\t{
-\t\t\t\tFlxTween.cancelTweensOf(stageWhite);
-\t\t\t\tstageWhite.alpha = 0;
-\t\t\t\tstageWhite.visible = false;
-\t\t\t}
-
-\t\t\tif (southBlackFlashOverlay != null && southBlackFlashOverlay.alpha > 0.02)
-\t\t\t{
-\t\t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);
-\t\t\t\tsouthBlackFlashOverlay.alpha = 0;
-\t\t\t\tsouthBlackFlashOverlay.visible = false;
-\t\t\t}
-
-\t\t\tif (badAppleWhiteBg != null && badAppleWhiteBg.alpha > 0.02)
-\t\t\t{
-\t\t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
-\t\t\t\tbadAppleWhiteBg.alpha = 0;
-\t\t\t\tbadAppleWhiteBg.visible = false;
-\t\t\t}
-
-\t\t\t// Clear lingering black camera effects immediately, while leaving
-\t\t\t// unrelated camera effects untouched.
-\t\t\tif (blackDiagnosticHasBlackFx(camGame)) camGame.stopFX();
-\t\t\tif (blackDiagnosticHasBlackFx(camHUD)) camHUD.stopFX();
-\t\t\tif (blackDiagnosticHasBlackFx(camOther)) camOther.stopFX();
-\t\t\tif (camGame != null)
-\t\t\t\tcamGame.zoom = defaultCamZoom;
-\t\t}
-
 \t\tvar blackLayer:BGSprite = southAnimatedObjects.get('black');
 \t\tvar blackbarLayer:BGSprite = southAnimatedObjects.get('blackbar');
 \t\tvar whiteLayer:BGSprite = southAnimatedObjects.get('white');
-\t\t// At these timestamps every full-screen cover should have finished its
-\t\t// charted transition. Catch partially opaque leftovers as well as 100% covers.
-\t\t// The Bad Apple white backdrop is intentional until the chart's B event.
+
 \t\tvar badAppleBackdropStuck:Bool = !badAppleSilhouetteActive
 \t\t\t&& badAppleWhiteBg != null && badAppleWhiteBg.alpha > 0.02;
+
 \t\tvar blackCover:Bool = (blackLayer != null && blackLayer.alpha > 0.02)
 \t\t\t|| (blackbarLayer != null && blackbarLayer.alpha > 0.02)
 \t\t\t|| (whiteLayer != null && whiteLayer.alpha > 0.02)
@@ -1011,6 +957,7 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\tvar cameraCover:Bool = blackDiagnosticHasBlackFx(camGame)
 \t\t\t|| blackDiagnosticHasBlackFx(camHUD)
 \t\t\t|| blackDiagnosticHasBlackFx(camOther);
+
 \t\tvar upperBarStuck:Bool = southStillStrumUpperBar != null && southStillStrumUpperBar.y > -349;
 \t\tvar lowerBarStuck:Bool = southStillStrumLowerBar != null && southStillStrumLowerBar.y < 719;
 \t\tvar cinematicCover:Bool = upperBarStuck || lowerBarStuck;
@@ -1021,75 +968,96 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\t\treturn;
 \t\t}
 
-\t\t// Use wall-clock time because Conductor.songPosition can stop advancing
-\t\t// during a stalled audio/gameplay section.
 \t\tvar wallNow:Float = Date.now().getTime();
 \t\tif (lateBlackoutWatchSince < 0)
 \t\t{
 \t\t\tlateBlackoutWatchSince = wallNow;
 \t\t\treturn;
 \t\t}
-\t\t// Let the intended 1-second flashes finish before recovering a stuck layer.
-\t\tif (wallNow - lateBlackoutWatchSince < 1250) return;
+
+\t\tif (wallNow - lateBlackoutWatchSince < 1250)
+\t\t\treturn;
 
 \t\tvar recovered:Array<String> = [];
+
 \t\tif (blackLayer != null && blackLayer.alpha > 0.02)
 \t\t{
 \t\t\tFlxTween.cancelTweensOf(blackLayer);
 \t\t\tblackLayer.alpha = 0;
+\t\t\tblackLayer.visible = false;
 \t\t\trecovered.push("stage black");
 \t\t}
+
 \t\tif (blackbarLayer != null && blackbarLayer.alpha > 0.02)
 \t\t{
 \t\t\tFlxTween.cancelTweensOf(blackbarLayer);
 \t\t\tblackbarLayer.alpha = 0;
+\t\t\tblackbarLayer.visible = false;
 \t\t\trecovered.push("stage blackbar");
 \t\t}
+
 \t\tif (whiteLayer != null && whiteLayer.alpha > 0.02)
 \t\t{
 \t\t\tFlxTween.cancelTweensOf(whiteLayer);
 \t\t\twhiteLayer.alpha = 0;
+\t\t\twhiteLayer.visible = false;
 \t\t\trecovered.push("stage white");
 \t\t}
-\t\tif (badAppleBackdropStuck)
+
+\t\tif (badAppleBackdropStuck && badAppleWhiteBg != null)
 \t\t{
 \t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
 \t\t\tbadAppleWhiteBg.alpha = 0;
+\t\t\tbadAppleWhiteBg.visible = false;
 \t\t\trecovered.push("Bad Apple backdrop");
 \t\t}
+
 \t\tif (southBlackFlashOverlay != null && southBlackFlashOverlay.alpha > 0.02)
 \t\t{
 \t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);
 \t\t\tsouthBlackFlashOverlay.alpha = 0;
+\t\t\tsouthBlackFlashOverlay.visible = false;
 \t\t\trecovered.push("black flash overlay");
 \t\t}
-\t\tif (upperBarStuck)
+
+\t\tif (upperBarStuck && southStillStrumUpperBar != null)
 \t\t{
 \t\t\tFlxTween.cancelTweensOf(southStillStrumUpperBar);
 \t\t\tsouthStillStrumUpperBar.y = -350;
+\t\t\tsouthStillStrumUpperBar.alpha = 1;
+\t\t\tsouthStillStrumUpperBar.visible = true;
 \t\t\trecovered.push("upper cinematic bar");
 \t\t}
-\t\tif (lowerBarStuck)
+
+\t\tif (lowerBarStuck && southStillStrumLowerBar != null)
 \t\t{
 \t\t\tFlxTween.cancelTweensOf(southStillStrumLowerBar);
 \t\t\tsouthStillStrumLowerBar.y = 720;
+\t\t\tsouthStillStrumLowerBar.alpha = 1;
+\t\t\tsouthStillStrumLowerBar.visible = true;
 \t\t\trecovered.push("lower cinematic bar");
 \t\t}
+
 \t\tif (blackDiagnosticHasBlackFx(camGame))
 \t\t{
 \t\t\tcamGame.stopFX();
 \t\t\trecovered.push("camGame FX");
 \t\t}
+
 \t\tif (blackDiagnosticHasBlackFx(camHUD))
 \t\t{
 \t\t\tcamHUD.stopFX();
 \t\t\trecovered.push("camHUD FX");
 \t\t}
+
 \t\tif (blackDiagnosticHasBlackFx(camOther))
 \t\t{
 \t\t\tcamOther.stopFX();
 \t\t\trecovered.push("camOther FX");
 \t\t}
+
+\t\tif (camGame != null)
+\t\t\tcamGame.zoom = defaultCamZoom;
 
 \t\tif (recovered.length > 0)
 \t\t{
@@ -1097,12 +1065,13 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\t\tblackDiagnosticLastEvent = "RECOVERED: " + recovered.join(", ");
 \t\t\tblackDiagnosticLastEventTime = songMs;
 \t\t\tblackDiagnosticEventHistory.push(blackDiagnosticLastEvent + " @ " + Std.string(Std.int(songMs)) + "ms");
-\t\t\tif (blackDiagnosticEventHistory.length > 6) blackDiagnosticEventHistory.shift();
+\t\t\tif (blackDiagnosticEventHistory.length > 6)
+\t\t\t\tblackDiagnosticEventHistory.shift();
 \t\t\ttrace("[Bloodbath overlay recovery] " + blackDiagnosticLastEvent);
 \t\t}
+
 \t\tlateBlackoutWatchSince = -1;
 \t}
-
 \tfunction updateSouthBlackDiagnosticPanel():Void
 \t{
 \t\tvar songMs:Float = Conductor.songPosition;
