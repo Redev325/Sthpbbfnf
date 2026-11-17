@@ -101,9 +101,9 @@ jobs:
             find engine/assets/preload/shaders -type f -print
             exit 1
           fi
-          if find "$WEB_DIR/assets" -type f \\( -iname '*.frag' -o -iname '*.vert' -o -iname '*.frag.txt' -o -iname '*.vert.txt' \\) -print -quit | grep -q .; then
+          if find "$WEB_DIR/assets" -type f \( -iname '*.frag' -o -iname '*.vert' -o -iname '*.frag.txt' -o -iname '*.vert.txt' \) -print -quit | grep -q .; then
             echo "Unexpected runtime shader source was included in the HTML5 asset manifest." >&2
-            find "$WEB_DIR/assets" -type f \\( -iname '*.frag' -o -iname '*.vert' -o -iname '*.frag.txt' -o -iname '*.vert.txt' \\) -print
+            find "$WEB_DIR/assets" -type f \( -iname '*.frag' -o -iname '*.vert' -o -iname '*.frag.txt' -o -iname '*.vert.txt' \) -print
             exit 1
           fi
 
