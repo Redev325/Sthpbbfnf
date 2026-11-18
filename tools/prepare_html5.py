@@ -2711,7 +2711,7 @@ def patch_south_runtime_shaders(engine: Path) -> None:
             raise RuntimeError("Could not find the South stage field insertion point for runtime shaders.")
         source = source.replace(field_marker, shader_fields + field_marker, 1)
 
-    shader_methods = r"""\t#if !flash
+    shader_methods = """\t#if !flash
 \tfunction loadSouthRuntimeShader(key:String, sourceName:String):FlxRuntimeShader
 \t{
 \t\tvar shader:FlxRuntimeShader = createRuntimeShader(sourceName);
