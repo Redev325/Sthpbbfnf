@@ -114,17 +114,23 @@ jobs:
             echo "No MP4 cutscene files were present in the game release package."
           fi
 
-          # Dynamic GLSL shader loading is not available in this HTML5 target.
-          # The preparation script removes unused shader files before Lime
-          # creates its asset manifest, so no shader URLs should be preloaded.
-          if [ -d engine/assets/preload/shaders ]; then
-            echo "Unsupported runtime shader directory remains before publishing." >&2
-            find engine/assets/preload/shaders -type f -print
+          # The HTML5 port embeds only the GLSL runtime sources used by
+          # Bloodbath's Lua timeline. Keep the unrelated ReShade collection
+          # outside Lime's manifest, but publish these 34 browser shader sources.
+          SHADER_RUNTIME_DIR="engine/assets/preload/shaders"
+          if [ ! -d "$SHADER_RUNTIME_DIR" ] || ! find "$SHADER_RUNTIME_DIR" -type f \\( -iname '*.frag' -o -iname '*.vert' \\) -print -quit | grep -q .; then
+            echo "Bloodbath runtime shader sources are missing from the HTML5 preload assets." >&2
             exit 1
           fi
-          if find "$WEB_DIR/assets" -type f \( -iname '*.frag' -o -iname '*.vert' -o -iname '*.frag.txt' -o -iname '*.vert.txt' \) -print -quit | grep -q .; then
-            echo "Unexpected runtime shader source was included in the HTML5 asset manifest." >&2
-            find "$WEB_DIR/assets" -type f \( -iname '*.frag' -o -iname '*.vert' -o -iname '*.frag.txt' -o -iname '*.vert.txt' \) -print
+          if find "$SHADER_RUNTIME_DIR" -type f ! \\( -iname '*.frag' -o -iname '*.vert' \\) -print -quit | grep -q .; then
+            echo "Unexpected non-GLSL files were added to the runtime shader preload directory." >&2
+            find "$SHADER_RUNTIME_DIR" -type f ! \\( -iname '*.frag' -o -iname '*.vert' \\) -print
+            exit 1
+          fi
+          mkdir -p "$WEB_DIR/assets/shaders"
+          cp -a "$SHADER_RUNTIME_DIR/." "$WEB_DIR/assets/shaders/"
+          if [ "$(find "$WEB_DIR/assets/shaders" -type f | wc -l)" -ne "$(find "$SHADER_RUNTIME_DIR" -type f | wc -l)" ]; then
+            echo "Published runtime shader copy is incomplete." >&2
             exit 1
           fi
 
