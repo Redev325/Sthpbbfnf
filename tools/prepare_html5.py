@@ -272,6 +272,7 @@ def patch_south_stage(
 	{
 		if (curStage != 'south') return;
 		if (corrupted) southKyleCorruptionStarted = true;
+		southKyleCorruptionActive = corrupted;
 
 		if (southKyleCharacter != null)
 		{
