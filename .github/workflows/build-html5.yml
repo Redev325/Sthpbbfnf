@@ -93,6 +93,27 @@ jobs:
             exit 1
           fi
 
+          # Keep MP4 cutscenes out of Lime's startup preload manifest. The
+          # browser-native video handler loads these files only when requested.
+          VIDEO_ARCHIVE="engine/html5-video-assets"
+          if [ ! -d "$VIDEO_ARCHIVE" ]; then
+            echo "HTML5 video archive was not generated." >&2
+            exit 1
+          fi
+          SOURCE_VIDEO_COUNT="$(find "$VIDEO_ARCHIVE" -type f -iname '*.mp4' | wc -l)"
+          if [ "$SOURCE_VIDEO_COUNT" -gt 0 ]; then
+            mkdir -p "$WEB_DIR/assets/videos"
+            cp -a "$VIDEO_ARCHIVE/." "$WEB_DIR/assets/videos/"
+            PUBLISHED_VIDEO_COUNT="$(find "$WEB_DIR/assets/videos" -type f -iname '*.mp4' | wc -l)"
+            if [ "$PUBLISHED_VIDEO_COUNT" -ne "$SOURCE_VIDEO_COUNT" ]; then
+              echo "MP4 cutscene copy mismatch: expected $SOURCE_VIDEO_COUNT files, found $PUBLISHED_VIDEO_COUNT." >&2
+              exit 1
+            fi
+            echo "Published $PUBLISHED_VIDEO_COUNT MP4 cutscene videos."
+          else
+            echo "No MP4 cutscene files were present in the game release package."
+          fi
+
           # Dynamic GLSL shader loading is not available in this HTML5 target.
           # The preparation script removes unused shader files before Lime
           # creates its asset manifest, so no shader URLs should be preloaded.
