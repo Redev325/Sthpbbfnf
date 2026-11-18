@@ -1820,7 +1820,7 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\t\t\tcamGame.zoom = defaultCamZoom;
 \t\t}
 
-\t\tswitch(eventName) {"""
+\t\t#if !flash\n\t\tif (curStage == 'south') handleSouthShaderEvent(eventName, value1, value2);\n\t\t#end\n\t\tswitch(eventName) {"""
     if "blackDiagnosticLastEvent = eventName" not in source:
         if event_marker not in source:
             raise RuntimeError("Could not locate triggerEventNote() for overlay event logging.")
@@ -3052,19 +3052,6 @@ def patch_south_runtime_shaders(engine: Path) -> None:
             1,
         )
 
-    event_marker = "\tpublic function triggerEventNote(eventName:String, value1:String, value2:String) {\n\t\tswitch(eventName) {"
-    if "handleSouthShaderEvent(eventName, value1, value2);" not in source:
-        if event_marker not in source:
-            raise RuntimeError("Could not find triggerEventNote() to attach Bloodbath shader events.")
-        source = source.replace(
-            event_marker,
-            "\tpublic function triggerEventNote(eventName:String, value1:String, value2:String) {\n"
-            "\t\t#if !flash\n"
-            "\t\tif (curStage == 'south') handleSouthShaderEvent(eventName, value1, value2);\n"
-            "\t\t#end\n"
-            "\t\tswitch(eventName) {",
-            1,
-        )
 
     play_file.write_text(source, encoding="utf-8")
 
