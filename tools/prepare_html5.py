@@ -576,7 +576,7 @@ def patch_south_stage(
 				add(southSnow);
 				southAnimatedObjects.set('nieve', southSnow);
 
-				var southKyle:BGSprite = new BGSprite('kyle s', 88, 304, 1, 1, ['idle'], true);
+				var southKyle:BGSprite = new BGSprite('kyle s', 608, 164, 1, 1, ['idle'], true);
 				// Keep the original looping idle and one-shot anim sequences.
 				southKyle.animation.addByPrefix('anim', 'idle', 24, true);
 				southKyle.animation.addByPrefix('anim1', 'anim', 22, false);
@@ -602,7 +602,7 @@ def patch_south_stage(
 
 				// Native replacements for the extra Kyle characters created by
 				// kyle.lua and kyle c.lua in the desktop mod.
-				southKyleCCharacter = new Character(80, 240, 'kyle c');
+				southKyleCCharacter = new Character(600, 100, 'kyle c');
 				southKyleCCharacter.singDuration = 6;
 				// The corrupted Kyle was being drawn on top of the active Kyle.
 				// Keep this alternate sprite hidden unless a chart event explicitly uses it.
@@ -616,11 +616,12 @@ def patch_south_stage(
 				southKyleCCharacter.animation.getByName('singRIGHT').frameRate = 15;
 				add(southKyleCCharacter);
 
-				southKyleCharacter = new Character(80, 240, 'kyle');
+				southKyleCharacter = new Character(600, 100, 'kyle');
 				southKyleCharacter.singDuration = 6;
-				// Kyle is introduced by the chart at step 472, not at song start.
-				southKyleCharacter.alpha = 0;
-				southKyleCharacter.visible = false;
+				// kyle.lua creates the normal Kyle immediately in onCreate().
+				// Keep him visible from the opening notes until the angry kyle s cut-in.
+				southKyleCharacter.alpha = 1;
+				southKyleCharacter.visible = true;
 				southKyleCharacter.addOffset('singLEFT', 70, -48);
 				// kyle.lua uses 20 FPS for all five animations.
 				southKyleCharacter.animation.getByName('idle').frameRate = 20;
@@ -772,25 +773,11 @@ def patch_south_stage(
 			switch (curStep)
 			{
 				case 11:
+					// Keep the corrupted alternate Kyle hidden during the opening section.
+					// The normal Kyle remains visible until the charted kyle s confrontation.
 					if (southKyleCCharacter != null) {
 						southKyleCCharacter.alpha = 0;
 						southKyleCCharacter.visible = false;
-					}
-					if (southKyleCharacter != null) {
-						southKyleCharacter.alpha = 0;
-						southKyleCharacter.visible = false;
-					}
-				case 304:
-					// Kyle's first custom-note section begins at step 304.
-					// Reveal his normal form before the later glitch/confrontation cues.
-					if (southKyleCharacter != null) {
-						southKyleCharacter.alpha = 1;
-						southKyleCharacter.visible = true;
-					}
-				case 472:
-					if (southKyleCharacter != null) {
-						southKyleCharacter.alpha = 1;
-						southKyleCharacter.visible = true;
 					}
 				__ICON_CASES__
 			}
@@ -2576,18 +2563,6 @@ def main() -> int:
     copy_tree(mod / "images", engine / "assets" / "preload" / "images")
     copy_tree(mod / "characters", engine / "assets" / "preload" / "characters")
     copy_tree(mod / "stages", engine / "assets" / "preload" / "stages")
-
-    # Spread the main character slots so Cartman/Timmy and Stan/Jimmy do not
-    # overlap during the first South background transition.
-    south_stage_file = engine / "assets" / "preload" / "stages" / "south.json"
-    if south_stage_file.is_file():
-        south_stage = json.loads(south_stage_file.read_text(encoding="utf-8"))
-        south_stage["girlfriend"] = [500, 140]
-        south_stage["boyfriend"] = [1500, 180]
-        south_stage_file.write_text(
-            json.dumps(south_stage, ensure_ascii=False, separators=(",", ":")),
-            encoding="utf-8",
-        )
 
     copy_tree(mod / "weeks", engine / "assets" / "preload" / "weeks")
     copy_tree(mod / "data" / "bloodbath", engine / "assets" / "preload" / "data" / "bloodbath")
