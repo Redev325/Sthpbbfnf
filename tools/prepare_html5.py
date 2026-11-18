@@ -253,6 +253,46 @@ def patch_south_stage(
 		sprite.updateHitbox();
 	}
 
+	function hideSouthExtraKyles():Void
+	{
+		if (southKyleCharacter != null)
+		{
+			FlxTween.cancelTweensOf(southKyleCharacter);
+			southKyleCharacter.alpha = 0;
+			southKyleCharacter.visible = false;
+		}
+		if (southKyleCCharacter != null)
+		{
+			FlxTween.cancelTweensOf(southKyleCCharacter);
+			southKyleCCharacter.alpha = 0;
+			southKyleCCharacter.visible = false;
+		}
+		var stageKyle:BGSprite = southAnimatedObjects.get('kyle s');
+		if (stageKyle != null)
+		{
+			FlxTween.cancelTweensOf(stageKyle);
+			stageKyle.alpha = 0;
+			stageKyle.visible = false;
+		}
+	}
+
+	function flashSouthStageLight(duration:Float):Void
+	{
+		if (curStage != 'south' || southAnimatedObjects == null) return;
+		var lightKeys:Array<String> = ['bgluz', 'bgluz2', 'bgluz3', 'bgluz4', 'bgluz42'];
+		for (lightKey in lightKeys)
+		{
+			var light:BGSprite = southAnimatedObjects.get(lightKey);
+			if (light == null || light.alpha <= 0.01) continue;
+			var restingAlpha:Float = light.alpha;
+			FlxTween.cancelTweensOf(light);
+			light.alpha = 1;
+			var lightFadeDuration:Float = duration * 0.7;
+			if (lightFadeDuration < 0.25) lightFadeDuration = 0.25;
+			FlxTween.tween(light, {alpha: restingAlpha}, lightFadeDuration, {ease: FlxEase.quadOut});
+		}
+	}
+
 	function resolveSouthCharacterName(requestedName:String):String
 	{
 		if (requestedName == null) return "";
@@ -532,7 +572,7 @@ def patch_south_stage(
 				add(southSnow);
 				southAnimatedObjects.set('nieve', southSnow);
 
-				var southKyle:BGSprite = new BGSprite('kyle s', 608, 164, 1, 1, ['idle'], true);
+				var southKyle:BGSprite = new BGSprite('kyle s', 88, 304, 1, 1, ['idle'], true);
 				// Keep the original looping idle and one-shot anim sequences.
 				southKyle.animation.addByPrefix('anim', 'idle', 24, true);
 				southKyle.animation.addByPrefix('anim1', 'anim', 22, false);
@@ -558,9 +598,12 @@ def patch_south_stage(
 
 				// Native replacements for the extra Kyle characters created by
 				// kyle.lua and kyle c.lua in the desktop mod.
-				southKyleCCharacter = new Character(600, 100, 'kyle c');
+				southKyleCCharacter = new Character(80, 240, 'kyle c');
 				southKyleCCharacter.singDuration = 6;
-				southKyleCCharacter.alpha = 1;
+				// The corrupted Kyle was being drawn on top of the active Kyle.
+				// Keep this alternate sprite hidden unless a chart event explicitly uses it.
+				southKyleCCharacter.alpha = 0;
+				southKyleCCharacter.visible = false;
 				// kyle c.lua uses 15 FPS for its animations.
 				southKyleCCharacter.animation.getByName('idle').frameRate = 15;
 				southKyleCCharacter.animation.getByName('singLEFT').frameRate = 15;
@@ -569,9 +612,11 @@ def patch_south_stage(
 				southKyleCCharacter.animation.getByName('singRIGHT').frameRate = 15;
 				add(southKyleCCharacter);
 
-				southKyleCharacter = new Character(600, 100, 'kyle');
+				southKyleCharacter = new Character(80, 240, 'kyle');
 				southKyleCharacter.singDuration = 6;
-				southKyleCharacter.alpha = 1;
+				// Kyle is introduced by the chart at step 472, not at song start.
+				southKyleCharacter.alpha = 0;
+				southKyleCharacter.visible = false;
 				southKyleCharacter.addOffset('singLEFT', 70, -48);
 				// kyle.lua uses 20 FPS for all five animations.
 				southKyleCharacter.animation.getByName('idle').frameRate = 20;
@@ -697,6 +742,9 @@ def patch_south_stage(
 				case 1285:
 					setSouthBackgroundLayer('bg2', 0.55);
 					southLightOverlay2.alpha = 1;
+					// Kyle's note section ends before this background transition.
+					// Remove both the extra Kyle character and his lingering stage animation.
+					hideSouthExtraKyles();
 				case 2325:
 					southLightOverlay2.alpha = 0;
 				case 2433:
@@ -716,9 +764,19 @@ def patch_south_stage(
 			switch (curStep)
 			{
 				case 11:
-					if (southKyleCCharacter != null) southKyleCCharacter.alpha = 0;
+					if (southKyleCCharacter != null) {
+						southKyleCCharacter.alpha = 0;
+						southKyleCCharacter.visible = false;
+					}
+					if (southKyleCharacter != null) {
+						southKyleCharacter.alpha = 0;
+						southKyleCharacter.visible = false;
+					}
 				case 472:
-					if (southKyleCharacter != null) southKyleCharacter.alpha = 1;
+					if (southKyleCharacter != null) {
+						southKyleCharacter.alpha = 1;
+						southKyleCharacter.visible = true;
+					}
 				__ICON_CASES__
 			}
 		}
@@ -842,6 +900,61 @@ def patch_south_stage(
     play_file.write_text(source, encoding="utf-8")
 
 
+def patch_change_character_visibility(engine: Path) -> None:
+    """Fully hide swapped-out character slots so Stan/Cartman do not linger."""
+    play_file = engine / "source" / "PlayState.hx"
+    source = play_file.read_text(encoding="utf-8")
+    replacements = [
+        (
+            """var lastAlpha:Float = boyfriend.alpha;
+\t\t\t\t\t\t\tboyfriend.alpha = 0.00001;
+\t\t\t\t\t\t\tboyfriend = boyfriendMap.get(value2);
+\t\t\t\t\t\t\tboyfriend.alpha = lastAlpha;""",
+            """var lastAlpha:Float = boyfriend.alpha;
+\t\t\t\t\t\t\tboyfriend.alpha = 0;
+\t\t\t\t\t\t\tboyfriend.visible = false;
+\t\t\t\t\t\t\tboyfriend = boyfriendMap.get(value2);
+\t\t\t\t\t\t\tboyfriend.visible = true;
+\t\t\t\t\t\t\tboyfriend.alpha = lastAlpha;""",
+        ),
+        (
+            """var lastAlpha:Float = dad.alpha;
+\t\t\t\t\t\t\tdad.alpha = 0.00001;
+\t\t\t\t\t\t\tdad = dadMap.get(value2);""",
+            """var lastAlpha:Float = dad.alpha;
+\t\t\t\t\t\t\tdad.alpha = 0;
+\t\t\t\t\t\t\tdad.visible = false;
+\t\t\t\t\t\t\tdad = dadMap.get(value2);
+\t\t\t\t\t\t\tdad.visible = true;""",
+        ),
+        (
+            """if(!gfMap.exists(value2))
+\t\t\t\t\t\t\t\t\taddCharacterToList(value2, charType);
+
+\t\t\t\t\t\t\t\t\tvar lastAlpha:Float = gf.alpha;
+\t\t\t\t\t\t\t\t\tgf.alpha = 0.00001;
+\t\t\t\t\t\t\t\t\tgf = gfMap.get(value2);
+\t\t\t\t\t\t\t\t\tgf.alpha = lastAlpha;""",
+            """if(!gfMap.exists(value2))
+\t\t\t\t\t\t\t\t\taddCharacterToList(value2, charType);
+
+\t\t\t\t\t\t\t\t\tvar lastAlpha:Float = gf.alpha;
+\t\t\t\t\t\t\t\t\tgf.alpha = 0;
+\t\t\t\t\t\t\t\t\tgf.visible = false;
+\t\t\t\t\t\t\t\t\tgf = gfMap.get(value2);
+\t\t\t\t\t\t\t\t\tgf.visible = true;
+\t\t\t\t\t\t\t\t\tgf.alpha = lastAlpha;""",
+        ),
+    ]
+    for old, new in replacements:
+        if old not in source:
+            if new in source:
+                continue
+            raise RuntimeError("Could not safely patch a Psych Engine Change Character visibility branch.")
+        source = source.replace(old, new, 1)
+    play_file.write_text(source, encoding="utf-8")
+
+
 def patch_south_stage_fades(engine: Path) -> None:
     """Port South stage fades and black flashes without leaving cover sprites behind."""
     play_file = engine / "source" / "PlayState.hx"
@@ -962,14 +1075,18 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\t// This desktop-only custom event is not included in the HTML5 export.\n\t\t\t\t\t// Do not emulate it with a fully opaque overlay: that creates the late-song\n\t\t\t\t\t// black blink immediately after the Bad Apple transition.\n\t\t\t\t\tif (southBlackFlashOverlay != null)\n\t\t\t\t\t{\n\t\t\t\t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);\n\t\t\t\t\t\tsouthBlackFlashOverlay.alpha = 0;\n\t\t\t\t\t}
 \t\t\t\t}
 
-\t\t\tcase 'Camera Flash':
+\t\t\tcase 'Camera Flash' | 'Flash' | 'Flash Camera' | 'Flash Red':
 \t\t\t\tif (curStage == 'south')
 \t\t\t\t{
-\t\t\t\t\t// Ordinary camera flash: white, not a persistent black overlay.
-\t\t\t\t\tvar cameraFlashDuration:Float = Std.parseFloat(value1);
-\t\t\t\t\tif (Math.isNaN(cameraFlashDuration) || cameraFlashDuration <= 0) cameraFlashDuration = 0.5;
-\t\t\t\t\tif (cameraFlashDuration > 2.5) cameraFlashDuration = 2.5;
-\t\t\t\t\tcamGame.flash(FlxColor.WHITE, cameraFlashDuration, null, true);
+\t\t\t\t\t// The chart's "Flash" event at 5:55 remaining was not supported
+\t\t\t\t\t// by the HTML5 port, so the stage lights never pulsed there.
+\t\t\t\t\tvar flashDuration:Float = Std.parseFloat(value1);
+\t\t\t\t\tif (Math.isNaN(flashDuration) || flashDuration <= 0) flashDuration = 0.75;
+\t\t\t\t\tif (flashDuration > 2.5) flashDuration = 2.5;
+\t\t\t\t\tflashSouthStageLight(flashDuration);
+\t\t\t\t\tvar flashColor:FlxColor = eventName.toLowerCase().trim() == 'flash red'
+\t\t\t\t\t\t? FlxColor.RED : FlxColor.WHITE;
+\t\t\t\t\tcamGame.flash(flashColor, flashDuration, null, true);
 \t\t\t\t}
 
 case 'badapplelol':
@@ -2409,6 +2526,18 @@ def main() -> int:
     copy_tree(runtime_assets / "shared", engine / "assets" / "shared")
     copy_tree(runtime_assets / "fonts", engine / "assets" / "fonts")
 
+    # Spread the main character slots so Cartman/Timmy and Stan/Jimmy do not
+    # overlap during the first South background transition.
+    south_stage_file = engine / "assets" / "preload" / "stages" / "south.json"
+    if south_stage_file.is_file():
+        south_stage = json.loads(south_stage_file.read_text(encoding="utf-8"))
+        south_stage["girlfriend"] = [500, 140]
+        south_stage["boyfriend"] = [1500, 180]
+        south_stage_file.write_text(
+            json.dumps(south_stage, ensure_ascii=False, separators=(",", ":")),
+            encoding="utf-8",
+        )
+
     # Embed every non-script resource folder from the mod, not just JSON files.
     # This preserves atlases, XML/animation metadata, text data and other sidecars.
     copy_tree(mod / "images", engine / "assets" / "preload" / "images")
@@ -2601,6 +2730,7 @@ def main() -> int:
     icon_changes = read_icon_changes(mod / "data" / "bloodbath" / "IconManager.lua")
     patch_note_types(engine)
     patch_south_stage(engine, image_report, icon_changes, character_names)
+    patch_change_character_visibility(engine)
     patch_south_stage_fades(engine)
     patch_south_cinematic_bars(engine)
     patch_black_screen_diagnostics(engine)
