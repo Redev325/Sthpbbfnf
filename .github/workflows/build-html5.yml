@@ -118,13 +118,15 @@ jobs:
           # Bloodbath's Lua timeline. Keep the unrelated ReShade collection
           # outside Lime's manifest, but publish these 34 browser shader sources.
           SHADER_RUNTIME_DIR="engine/assets/preload/shaders"
-          if [ ! -d "$SHADER_RUNTIME_DIR" ] || ! find "$SHADER_RUNTIME_DIR" -type f \\( -iname '*.frag' -o -iname '*.vert' \\) -print -quit | grep -q .; then
+          RUNTIME_SHADER_COUNT="$(find "$SHADER_RUNTIME_DIR" -type f | grep -E '\\.(frag|vert)$' | wc -l)"
+          if [ ! -d "$SHADER_RUNTIME_DIR" ] || [ "$RUNTIME_SHADER_COUNT" -eq 0 ]; then
             echo "Bloodbath runtime shader sources are missing from the HTML5 preload assets." >&2
             exit 1
           fi
-          if find "$SHADER_RUNTIME_DIR" -type f ! \\( -iname '*.frag' -o -iname '*.vert' \\) -print -quit | grep -q .; then
+          UNEXPECTED_SHADER_COUNT="$(find "$SHADER_RUNTIME_DIR" -type f | grep -Ev '\\.(frag|vert)$' | wc -l)"
+          if [ "$UNEXPECTED_SHADER_COUNT" -gt 0 ]; then
             echo "Unexpected non-GLSL files were added to the runtime shader preload directory." >&2
-            find "$SHADER_RUNTIME_DIR" -type f ! \\( -iname '*.frag' -o -iname '*.vert' \\) -print
+            find "$SHADER_RUNTIME_DIR" -type f | grep -Ev '\\.(frag|vert)$'
             exit 1
           fi
           mkdir -p "$WEB_DIR/assets/shaders"
