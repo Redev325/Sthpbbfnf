@@ -1307,7 +1307,7 @@ case 'Camera Follow Pos':"""
         "function flashSouthScreenBlack(duration:Float):Void",
         "southBlackFlashOverlay = new FlxSprite(0, 0);",
         "case 'Flash Black' | 'aCameraFlashBlack' | 'CameraFlashBlack':",
-        "case 'Camera Flash':",
+        "case 'Camera Flash' | 'Flash' | 'Flash Camera' | 'Flash Red':",
         "case 'badapplelol':",
         "case 'aCamaraZoom' | 'aCamaraZoom1' | 'aCamaraZoom3':",
         "case \"Bitto's zoom event\":",
