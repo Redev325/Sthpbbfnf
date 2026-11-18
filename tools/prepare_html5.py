@@ -336,7 +336,10 @@ def patch_south_stage(
 			return playSouthCharacterAnimation(kyleTarget, requestedAnimation);
 		}
 
-		var stageSprite:BGSprite = southAnimatedObjects.get(normalizedKey);
+		var stageSpriteKey:String = normalizedKey;
+		if (normalizedKey == 'bg2' && requestedAnimation != null && requestedAnimation.trim().length > 0)
+			stageSpriteKey = 'bg2 n';
+		var stageSprite:BGSprite = southAnimatedObjects.get(stageSpriteKey);
 		if (stageSprite == null) return false;
 		var animationName:String = requestedAnimation == null ? "" : requestedAnimation.trim();
 		if (animationName.length > 0 && stageSprite.animation.getByName(animationName) == null)
@@ -1909,53 +1912,70 @@ def stage_html5_video_assets(game: Path, engine: Path) -> dict[str, int]:
         shutil.rmtree(archive)
     archive.mkdir(parents=True, exist_ok=True)
 
-    mods_dir = game / "mods"
-    video_roots = [game / "assets" / "videos", mods_dir / "videos"]
-    if mods_dir.is_dir():
-        video_roots.extend(
-            child / "videos"
-            for child in mods_dir.iterdir()
-            if child.is_dir() and child.name.lower() != "videos"
-        )
+    # Search all common cutscene directories in the extracted package.
+    video_dir_names = {"videos", "video", "cutscenes", "cutscene", "cinematics", "cinematic", "movies"}
+    video_roots: list[Path] = []
+    seen_roots: set[Path] = set()
+    for candidate in game.rglob("*"):
+        if not candidate.is_dir() or candidate.name.lower() not in video_dir_names:
+            continue
+        resolved = candidate.resolve()
+        if resolved not in seen_roots:
+            seen_roots.add(resolved)
+            video_roots.append(candidate)
 
-    supported_video_extensions = {".mp4", ".m4v", ".webm", ".ogv", ".ogg", ".mov"}
+    browser_video_extensions = {".mp4", ".m4v", ".webm", ".ogv", ".mov"}
+    transcode_video_extensions = {".avi", ".mkv", ".flv", ".mpg", ".mpeg", ".wmv", ".m2v"}
     copied: set[str] = set()
     copied_bytes = 0
-    source_directories = 0
     extension_counts: dict[str, int] = {}
+    transcoded_files = 0
 
     for video_root in video_roots:
-        if not video_root.is_dir():
-            continue
-        source_directories += 1
         for source_file in video_root.rglob("*"):
-            if not source_file.is_file() or source_file.suffix.lower() not in supported_video_extensions:
+            if not source_file.is_file():
+                continue
+            source_extension = source_file.suffix.lower()
+            if source_extension not in browser_video_extensions | transcode_video_extensions:
                 continue
 
             relative = source_file.relative_to(video_root)
-            target = archive / relative
+            target_relative = relative if source_extension in browser_video_extensions else relative.with_suffix(".mp4")
+            target = archive / target_relative
             target.parent.mkdir(parents=True, exist_ok=True)
-            relative_key = relative.as_posix()
+            relative_key = target_relative.as_posix()
 
             if target.exists():
-                if target.read_bytes() != source_file.read_bytes():
-                    raise RuntimeError(
-                        "Conflicting MP4 cutscene files use the same relative path: "
-                        + relative_key
-                    )
-                continue
+                if source_extension in browser_video_extensions and target.read_bytes() == source_file.read_bytes():
+                    continue
+                raise RuntimeError("Conflicting cutscene videos resolve to the same published path: " + relative_key)
 
-            shutil.copy2(source_file, target)
+            if source_extension in browser_video_extensions:
+                shutil.copy2(source_file, target)
+                copied_bytes += source_file.stat().st_size
+                extension_counts[source_extension] = extension_counts.get(source_extension, 0) + 1
+            else:
+                subprocess.run(
+                    [
+                        "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+                        "-i", str(source_file), "-map", "0:v:0", "-map", "0:a?",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "veryfast",
+                        "-crf", "20", "-c:a", "aac", "-b:a", "160k",
+                        "-movflags", "+faststart", str(target),
+                    ],
+                    check=True,
+                )
+                copied_bytes += target.stat().st_size
+                extension_counts[".mp4 (transcoded)"] = extension_counts.get(".mp4 (transcoded)", 0) + 1
+                transcoded_files += 1
             copied.add(relative_key)
-            copied_bytes += source_file.stat().st_size
-            extension = source_file.suffix.lower()
-            extension_counts[extension] = extension_counts.get(extension, 0) + 1
 
     return {
-        "sourceDirectories": source_directories,
+        "sourceDirectories": len(video_roots),
         "sourceFiles": len(copied),
         "sourceBytes": copied_bytes,
         "sourceExtensions": extension_counts,
+        "transcodedFiles": transcoded_files,
     }
 
 
