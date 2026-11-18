@@ -240,6 +240,19 @@ def patch_south_stage(
 	var southCameraBoyfriendX:Float = 1200;
 	var southCameraBoyfriendY:Float = 540;
 
+	function fitSouthCutsceneOverlay(sprite:BGSprite):Void
+	{
+		if (sprite == null || sprite.frameWidth <= 0 || sprite.frameHeight <= 0) return;
+
+		// The stage's anim/anim2/anim2 c/anim3 atlases have smaller 16:9
+		// frames, but they are full-screen cinematic overlays, not corner sprites.
+		// Fit the current atlas frame to the actual game viewport at runtime.
+		sprite.setPosition(0, 0);
+		sprite.scrollFactor.set(0, 0);
+		sprite.scale.set(FlxG.width / sprite.frameWidth, FlxG.height / sprite.frameHeight);
+		sprite.updateHitbox();
+	}
+
 	function resolveSouthCharacterName(requestedName:String):String
 	{
 		if (requestedName == null) return "";
@@ -496,7 +509,15 @@ def patch_south_stage(
 				southAnimatedObjects.set('bg2', southBackground2);
 
 				var southBackground2Animated:BGSprite = new BGSprite('bg2', -1970, -1040, 1, 1, ['idle'], true);
-				southBackground2Animated.scale.set(2.7, 2.7);
+				// The static bg2 s image is 1920x1080; each bg2 atlas frame is
+				// 960x546. Scale the animated overlay to the same world-space size
+				// instead of leaving it at half width and height.
+				southBackground2.updateHitbox();
+				southBackground2Animated.scale.set(
+					southBackground2.width / southBackground2Animated.frameWidth,
+					southBackground2.height / southBackground2Animated.frameHeight
+				);
+				southBackground2Animated.updateHitbox();
 				southBackground2Animated.alpha = 0;
 				add(southBackground2Animated);
 				southAnimatedObjects.set('bg2 n', southBackground2Animated);
@@ -571,6 +592,7 @@ def patch_south_stage(
 
 				var southAnim:BGSprite = new BGSprite('anim', 0, 0, 1, 1, ['anim a'], true);
 				southAnim.animation.addByPrefix('anim', 'anim a', 24, false);
+				fitSouthCutsceneOverlay(southAnim);
 				southAnim.cameras = [camHUD];
 				southAnim.alpha = 0;
 				add(southAnim);
@@ -578,6 +600,7 @@ def patch_south_stage(
 
 				var southAnim2:BGSprite = new BGSprite('anim2', 0, 0, 1, 1, ['anim2 a'], true);
 				southAnim2.animation.addByPrefix('anim', 'anim2 a', 24, false);
+				fitSouthCutsceneOverlay(southAnim2);
 				southAnim2.cameras = [camHUD];
 				southAnim2.alpha = 0;
 				add(southAnim2);
@@ -585,6 +608,7 @@ def patch_south_stage(
 
 				var southAnim2C:BGSprite = new BGSprite('anim2 c', 0, 0, 1, 1, ['anim2 c a'], true);
 				southAnim2C.animation.addByPrefix('anim', 'anim2 c a', 24, false);
+				fitSouthCutsceneOverlay(southAnim2C);
 				southAnim2C.cameras = [camHUD];
 				southAnim2C.alpha = 0;
 				add(southAnim2C);
@@ -592,6 +616,7 @@ def patch_south_stage(
 
 				var southAnim3:BGSprite = new BGSprite('anim3', 0, 0, 1, 1, ['anim3 idle'], true);
 				southAnim3.animation.addByPrefix('anim', 'anim3 idle', 24, false);
+				fitSouthCutsceneOverlay(southAnim3);
 				southAnim3.cameras = [camHUD];
 				southAnim3.alpha = 0;
 				add(southAnim3);
