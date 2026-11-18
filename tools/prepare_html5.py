@@ -239,6 +239,8 @@ def patch_south_stage(
 	var southCameraDadY:Float = 400;
 	var southCameraBoyfriendX:Float = 1200;
 	var southCameraBoyfriendY:Float = 540;
+	var southCameraDadOverride:Bool = false;
+	var southCameraBoyfriendOverride:Bool = false;
 
 	function fitSouthCutsceneOverlay(sprite:BGSprite):Void
 	{
@@ -403,6 +405,8 @@ def patch_south_stage(
 			return false;
 		}
 
+		// Switch to the dedicated animated Kyle atlas when he confronts Cartman.
+		if (normalizedKey == 'kyle s') hideSouthExtraKyles();
 		if (isSouthBackgroundLayer(normalizedKey)) setSouthBackgroundLayer(normalizedKey, 0.35);
 		stageSprite.visible = true;
 		stageSprite.alpha = 1;
@@ -776,6 +780,13 @@ def patch_south_stage(
 						southKyleCharacter.alpha = 0;
 						southKyleCharacter.visible = false;
 					}
+				case 304:
+					// Kyle's first custom-note section begins at step 304.
+					// Reveal his normal form before the later glitch/confrontation cues.
+					if (southKyleCharacter != null) {
+						southKyleCharacter.alpha = 1;
+						southKyleCharacter.visible = true;
+					}
 				case 472:
 					if (southKyleCharacter != null) {
 						southKyleCharacter.alpha = 1;
@@ -973,14 +984,9 @@ def patch_south_stage_fades(engine: Path) -> None:
     zoom_function = """\tfunction applySouthCameraZoom(zoomValue:Float):Void
 \t{
 \t\tif (Math.isNaN(zoomValue) || zoomValue <= 0 || zoomValue > 4) return;
-\t\tdefaultCamZoom = zoomValue;
-\t\tif (camGame != null)
-\t\t{
-\t\t\tcamGame.zoom = zoomValue;
-\t\t\t// Recalculate camera scroll from the active follow target after the
-\t\t\t// viewport changes size, keeping the intended world point centred.
-\t\t\tcamGame.snapToTarget();
-\t\t}
+\t\t// Change zoom without snapping camera scroll on every tween frame.
+\t\t// Character follow is handled by Psych Engine's normal camera logic.
+\t\tif (camGame != null) camGame.zoom = zoomValue;
 \t}
 
 \t"""
@@ -1161,6 +1167,7 @@ case 'badapplelol':
 					var newBoyfriendCameraY:Float = Std.parseFloat(value2);
 					if (!Math.isNaN(newBoyfriendCameraX)) southCameraBoyfriendX = newBoyfriendCameraX;
 					if (!Math.isNaN(newBoyfriendCameraY)) southCameraBoyfriendY = newBoyfriendCameraY;
+\t\t\t\t\t\tsouthCameraBoyfriendOverride = !Math.isNaN(newBoyfriendCameraX) && !Math.isNaN(newBoyfriendCameraY);
 					moveCameraSection();
 				}
 
@@ -1171,6 +1178,7 @@ case 'badapplelol':
 					var newDadCameraY:Float = Std.parseFloat(value2);
 					if (!Math.isNaN(newDadCameraX)) southCameraDadX = newDadCameraX;
 					if (!Math.isNaN(newDadCameraY)) southCameraDadY = newDadCameraY;
+\t\t\t\t\t\tsouthCameraDadOverride = !Math.isNaN(newDadCameraX) && !Math.isNaN(newDadCameraY);
 					moveCameraSection();
 				}
 
@@ -1181,7 +1189,8 @@ case 'badapplelol':
 					var cameraZoomDuration:Float = Std.parseFloat(value2);
 					if (!Math.isNaN(targetCameraZoom) && targetCameraZoom > 0 && targetCameraZoom <= 4)
 					{
-						if (southCameraZoomTween != null)
+						\t\t\t\t\t\tdefaultCamZoom = targetCameraZoom;
+if (southCameraZoomTween != null)
 						{
 							southCameraZoomTween.cancel();
 							southCameraZoomTween = null;
@@ -1225,7 +1234,8 @@ case 'badapplelol':
 						if (!Math.isNaN(regularZoom) && regularZoom > 0 && regularZoom <= 4)
 						{
 							if (southCameraZoomTween != null) southCameraZoomTween.cancel();
-							applySouthCameraZoom(regularZoom);
+							\t\t\t\t\t\t\tdefaultCamZoom = regularZoom;
+applySouthCameraZoom(regularZoom);
 						}
 					}
 					else if (value1 != null && value1.toLowerCase().trim() == 'custom')
@@ -1238,7 +1248,8 @@ case 'badapplelol':
 							var bittoEaseName:String = zoomParts.length > 2 ? zoomParts[2].toLowerCase().trim() : 'linear';
 							if (!Math.isNaN(bittoTarget) && bittoTarget > 0 && bittoTarget <= 4)
 							{
-								if (southCameraZoomTween != null) southCameraZoomTween.cancel();
+								\t\t\t\t\t\t\t\tdefaultCamZoom = bittoTarget;
+if (southCameraZoomTween != null) southCameraZoomTween.cancel();
 								var bittoStart:Float = camGame.zoom;
 								var bittoEase:Float->Float = FlxEase.linear;
 								switch (bittoEaseName)
@@ -1285,7 +1296,8 @@ case 'badapplelol':
 					var propertyZoom:Float = Std.parseFloat(value2);
 					if (!Math.isNaN(propertyZoom) && propertyZoom > 0 && propertyZoom <= 4)
 					{
-						if (southCameraZoomTween != null) southCameraZoomTween.cancel();
+						\t\t\t\t\t\tdefaultCamZoom = propertyZoom;
+if (southCameraZoomTween != null) southCameraZoomTween.cancel();
 						applySouthCameraZoom(propertyZoom);
 					}
 				}
@@ -1343,10 +1355,29 @@ case 'Camera Follow Pos':"""
 \t\t\tif (isCameraOnForcedPos) return;
 \t\t\tif (SONG != null && SONG.notes != null && SONG.notes[curSection] != null)
 \t\t\t{
-\t\t\t\tif (SONG.notes[curSection].mustHitSection)
-\t\t\t\t\tcamFollow.set(southCameraBoyfriendX, southCameraBoyfriendY);
+\t\t\t\t// Default to live character midpoints and JSON camera_position values.
+\t\t\t\t// Charted aofiseti points override those targets only when supplied.
+\t\t\t\tif (gf != null && SONG.notes[curSection].gfSection)
+\t\t\t\t{
+\t\t\t\t\tcamFollow.set(gf.getMidpoint().x, gf.getMidpoint().y);
+\t\t\t\t\tcamFollow.x += gf.cameraPosition[0] + girlfriendCameraOffset[0];
+\t\t\t\t\tcamFollow.y += gf.cameraPosition[1] + girlfriendCameraOffset[1];
+\t\t\t\t\ttweenCamIn();
+\t\t\t\t}
+\t\t\t\telse if (SONG.notes[curSection].mustHitSection)
+\t\t\t\t{
+\t\t\t\t\tif (southCameraBoyfriendOverride)
+\t\t\t\t\t\tcamFollow.set(southCameraBoyfriendX, southCameraBoyfriendY);
+\t\t\t\t\telse
+\t\t\t\t\t\tmoveCamera(false);
+\t\t\t\t}
 \t\t\t\telse
-\t\t\t\t\tcamFollow.set(southCameraDadX, southCameraDadY);
+\t\t\t\t{
+\t\t\t\t\tif (southCameraDadOverride)
+\t\t\t\t\t\tcamFollow.set(southCameraDadX, southCameraDadY);
+\t\t\t\t\telse
+\t\t\t\t\t\tmoveCamera(true);
+\t\t\t\t}
 \t\t\t\treturn;
 \t\t\t}
 \t\t}
