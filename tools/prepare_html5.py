@@ -870,7 +870,7 @@ case 'badapplelol':
 					moveCameraSection();
 				}
 
-			case 'aCamaraZoom' | 'aCamaraZoom1':
+			case 'aCamaraZoom' | 'aCamaraZoom1' | 'aCamaraZoom3':
 				if (curStage == 'south' && camGame != null)
 				{
 					var targetCameraZoom:Float = Std.parseFloat(value1);
@@ -901,7 +901,7 @@ case 'badapplelol':
 						}
 						else
 						{
-							var cameraZoomEase:Float->Float = eventName == 'aCamaraZoom1' ? FlxEase.expoOut : FlxEase.sineInOut;
+							var cameraZoomEase:Float->Float = eventName == 'aCamaraZoom1' ? FlxEase.expoOut : (eventName == 'aCamaraZoom3' ? FlxEase.expoIn : FlxEase.sineInOut);
 							southCameraZoomTween = FlxTween.num(currentCameraZoom, targetCameraZoom, cameraZoomDuration, {
 								ease: cameraZoomEase,
 								onComplete: function(twn:FlxTween) {
@@ -921,6 +921,107 @@ case 'badapplelol':
 					}
 				}
 
+
+			case "Bitto's zoom event":
+				if (curStage == 'south' && camGame != null)
+				{
+					if (value1 != null && value1.toLowerCase().trim() == 'regular')
+					{
+						var regularZoom:Float = Std.parseFloat(value2);
+						if (!Math.isNaN(regularZoom) && regularZoom > 0 && regularZoom <= 4)
+						{
+							if (southCameraZoomTween != null) southCameraZoomTween.cancel();
+							defaultCamZoom = regularZoom;
+							if (!camZooming) camGame.zoom = regularZoom;
+						}
+					}
+					else if (value1 != null && value1.toLowerCase().trim() == 'custom')
+					{
+						var zoomParts:Array<String> = (value2 == null ? "" : value2).split(',');
+						if (zoomParts.length >= 2)
+						{
+							var bittoTarget:Float = Std.parseFloat(zoomParts[0]);
+							var bittoDuration:Float = Std.parseFloat(zoomParts[1]);
+							var bittoEaseName:String = zoomParts.length > 2 ? zoomParts[2].toLowerCase().trim() : 'linear';
+							if (!Math.isNaN(bittoTarget) && bittoTarget > 0 && bittoTarget <= 4)
+							{
+								if (southCameraZoomTween != null) southCameraZoomTween.cancel();
+								var bittoStart:Float = defaultCamZoom;
+								if (Math.isNaN(bittoStart) || bittoStart <= 0 || bittoStart > 4) bittoStart = camGame.zoom;
+								var bittoEase:Float->Float = FlxEase.linear;
+								switch (bittoEaseName)
+								{
+									case 'quadIn': bittoEase = FlxEase.quadIn;
+									case 'quadOut': bittoEase = FlxEase.quadOut;
+									case 'quadInOut': bittoEase = FlxEase.quadInOut;
+									case 'sineIn': bittoEase = FlxEase.sineIn;
+									case 'sineOut': bittoEase = FlxEase.sineOut;
+									case 'sineInOut': bittoEase = FlxEase.sineInOut;
+									case 'expoIn': bittoEase = FlxEase.expoIn;
+									case 'expoOut': bittoEase = FlxEase.expoOut;
+									case 'expoInOut': bittoEase = FlxEase.expoInOut;
+									case 'circIn': bittoEase = FlxEase.circIn;
+									case 'circOut': bittoEase = FlxEase.circOut;
+									case 'backIn': bittoEase = FlxEase.backIn;
+									case 'backOut': bittoEase = FlxEase.backOut;
+								}
+								if (Math.isNaN(bittoDuration) || bittoDuration <= 0)
+								{
+									defaultCamZoom = bittoTarget;
+									if (!camZooming) camGame.zoom = bittoTarget;
+								}
+								else
+								{
+									southCameraZoomTween = FlxTween.num(bittoStart, bittoTarget, bittoDuration, {ease: bittoEase}, function(zoomValue:Float) {
+										if (!Math.isNaN(zoomValue) && zoomValue > 0 && zoomValue <= 4)
+										{
+											defaultCamZoom = zoomValue;
+											if (!camZooming && camGame != null) camGame.zoom = zoomValue;
+										}
+									});
+								}
+							}
+						}
+					}
+				}
+
+			case 'Set Property':
+				if (curStage == 'south' && camGame != null && value1 != null && value1.toLowerCase().trim() == 'defaultcamzoom')
+				{
+					var propertyZoom:Float = Std.parseFloat(value2);
+					if (!Math.isNaN(propertyZoom) && propertyZoom > 0 && propertyZoom <= 4)
+					{
+						if (southCameraZoomTween != null) southCameraZoomTween.cancel();
+						defaultCamZoom = propertyZoom;
+						if (!camZooming) camGame.zoom = propertyZoom;
+					}
+				}
+
+			case 'acamera_target':
+				if (curStage == 'south')
+				{
+					var requestedCameraSpeed:Float = Std.parseFloat(value2);
+					if (!Math.isNaN(requestedCameraSpeed) && requestedCameraSpeed > 0 && requestedCameraSpeed <= 10)
+						cameraSpeed = requestedCameraSpeed;
+
+					var targetKey:String = value1 == null ? "" : value1.toLowerCase().trim();
+					var targetCharacter:Character = null;
+					switch (targetKey)
+					{
+						case 'bf' | 'boyfriend': targetCharacter = boyfriend;
+						case 'dad' | 'opponent': targetCharacter = dad;
+						case 'gf' | 'girlfriend': targetCharacter = gf;
+					}
+					if (targetCharacter != null && camFollow != null)
+					{
+						isCameraOnForcedPos = true;
+						camFollow.set(
+							targetCharacter.getMidpoint().x + targetCharacter.cameraPosition[0],
+							targetCharacter.getMidpoint().y + targetCharacter.cameraPosition[1]
+						);
+					}
+				}
+
 case 'Camera Follow Pos':"""
     if "case 'Flash Black' | 'aCameraFlashBlack' | 'Camera Flash':" not in source:
         if len(source.split(event_marker)) - 1 != 1:
@@ -933,7 +1034,10 @@ case 'Camera Follow Pos':"""
         "case 'Flash Black' | 'aCameraFlashBlack' | 'CameraFlashBlack':",
         "case 'Camera Flash':",
         "case 'badapplelol':",
-        "case 'aCamaraZoom' | 'aCamaraZoom1':",
+        "case 'aCamaraZoom' | 'aCamaraZoom1' | 'aCamaraZoom3':",
+        `case "Bitto's zoom event":`,
+        "case 'Set Property':",
+        "case 'acamera_target':",
     )
     missing = [item for item in required if item not in source]
     if missing:
