@@ -528,6 +528,7 @@ def patch_south_stage(
 				southCraig.alpha = 0;
 				add(southCraig);
 				southAnimatedObjects.set('craig s', southCraig);
+				southAnimatedObjects.set('craig', southCraig);
 
 				// Native replacements for the extra Kyle characters created by
 				// kyle.lua and kyle c.lua in the desktop mod.
@@ -561,24 +562,28 @@ def patch_south_stage(
 				southAnimatedObjects.set('blackbar', southBlackbar);
 
 				var southAnim:BGSprite = new BGSprite('anim', 0, 0, 1, 1, ['anim a'], true);
+				southAnim.animation.addByPrefix('anim', 'anim a', 24, false);
 				southAnim.cameras = [camHUD];
 				southAnim.alpha = 0;
 				add(southAnim);
 				southAnimatedObjects.set('anim', southAnim);
 
 				var southAnim2:BGSprite = new BGSprite('anim2', 0, 0, 1, 1, ['anim2 a'], true);
+				southAnim2.animation.addByPrefix('anim', 'anim2 a', 24, false);
 				southAnim2.cameras = [camHUD];
 				southAnim2.alpha = 0;
 				add(southAnim2);
 				southAnimatedObjects.set('anim2', southAnim2);
 
 				var southAnim2C:BGSprite = new BGSprite('anim2 c', 0, 0, 1, 1, ['anim2 c a'], true);
+				southAnim2C.animation.addByPrefix('anim', 'anim2 c a', 24, false);
 				southAnim2C.cameras = [camHUD];
 				southAnim2C.alpha = 0;
 				add(southAnim2C);
 				southAnimatedObjects.set('anim2 c', southAnim2C);
 
 				var southAnim3:BGSprite = new BGSprite('anim3', 0, 0, 1, 1, ['anim3 idle'], true);
+				southAnim3.animation.addByPrefix('anim', 'anim3 idle', 24, false);
 				southAnim3.cameras = [camHUD];
 				southAnim3.alpha = 0;
 				add(southAnim3);
