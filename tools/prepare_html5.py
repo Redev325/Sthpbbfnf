@@ -290,16 +290,19 @@ def patch_south_stage(
 				southSun.scale.set(1.4, 1.2);
 				southSun.alpha = 0;
 				add(southSun);
+				southAnimatedObjects.set('sun', southSun);
 
 				var southFogBack:BGSprite = new BGSprite('fog bg2', -1670, -1240);
 				southFogBack.scale.set(3, 3);
 				southFogBack.alpha = 0;
 				add(southFogBack);
+				southAnimatedObjects.set('wow1', southFogBack);
 
 				var southVignette:BGSprite = new BGSprite('Vignette', -20, 0);
 				southVignette.cameras = [camOther];
 				southVignette.alpha = 0;
 				add(southVignette);
+				southAnimatedObjects.set('vignette', southVignette);
 
 				var southWhite:BGSprite = new BGSprite('white', -1700, -500);
 				southWhite.cameras = [camHUD];
@@ -311,6 +314,7 @@ def patch_south_stage(
 				southFog.scale.set(1.4, 1.4);
 				southFog.alpha = 0;
 				add(southFog);
+				southAnimatedObjects.set('fog', southFog);
 
 				var southBlack:BGSprite = new BGSprite('black', 0, 0);
 				southBlack.cameras = [camHUD];
@@ -321,58 +325,70 @@ def patch_south_stage(
 				var southBackground:BGSprite = new BGSprite('bg', -1670, -1540, 1, 1, ['bg a'], true);
 				southBackground.scale.set(2.7, 2.7);
 				southBackground.updateHitbox();
+				southBackground.alpha = 0;
 				add(southBackground);
+				southAnimatedObjects.set('bg', southBackground);
 
 				southLightOverlay = new BGSprite('luzbg', -1670, -1540);
 				southLightOverlay.scale.set(2.7, 2.7);
 				southLightOverlay.alpha = 0;
 				add(southLightOverlay);
+				southAnimatedObjects.set('bgluz', southLightOverlay);
 
 				var southBackground3:BGSprite = new BGSprite('bg3', -1770, -940, 1, 1, ['idle'], true);
 				southBackground3.scale.set(2.3, 2.3);
 				southBackground3.alpha = 0;
 				add(southBackground3);
+				southAnimatedObjects.set('bg3', southBackground3);
 
 				southLightOverlay3 = new BGSprite('bg3luz', -1770, -940);
 				southLightOverlay3.scale.set(2.3, 2.3);
 				southLightOverlay3.alpha = 0;
 				add(southLightOverlay3);
+				southAnimatedObjects.set('bgluz3', southLightOverlay3);
 
 				var southBackground4:BGSprite = new BGSprite('bg4', -540, -740, 1, 1, ['bg4 a'], true);
 				southBackground4.scale.set(1.7, 1.7);
 				southBackground4.alpha = 0;
 				add(southBackground4);
+				southAnimatedObjects.set('bg4', southBackground4);
 
 				southLightOverlay4 = new BGSprite('bg4luz', -540, -740);
 				southLightOverlay4.scale.set(1.7, 1.7);
 				southLightOverlay4.alpha = 0;
 				add(southLightOverlay4);
+				southAnimatedObjects.set('bgluz4', southLightOverlay4);
 
 				southLightOverlay42 = new BGSprite('bg4luz2', -540, -740);
 				southLightOverlay42.scale.set(1.7, 1.7);
 				southLightOverlay42.alpha = 0;
 				add(southLightOverlay42);
+				southAnimatedObjects.set('bgluz42', southLightOverlay42);
 
 				var southBackground2:BGSprite = new BGSprite('bg2 s', -1970, -1040);
 				southBackground2.scale.set(2.7, 2.7);
 				southBackground2.alpha = 0;
 				add(southBackground2);
+				southAnimatedObjects.set('bg2', southBackground2);
 
 				var southBackground2Animated:BGSprite = new BGSprite('bg2', -1970, -1040, 1, 1, ['idle'], true);
 				southBackground2Animated.scale.set(2.7, 2.7);
 				southBackground2Animated.alpha = 0;
 				add(southBackground2Animated);
+				southAnimatedObjects.set('bg2 n', southBackground2Animated);
 
 				southLightOverlay2 = new BGSprite('bg2luz', -1970, -1040);
 				southLightOverlay2.scale.set(2.7, 2.7);
 				southLightOverlay2.flipX = true;
 				southLightOverlay2.alpha = 0;
 				add(southLightOverlay2);
+				southAnimatedObjects.set('bgluz2', southLightOverlay2);
 
 				var southSnow:BGSprite = new BGSprite('nieve', -1970, -1040);
 				southSnow.scale.set(2.7, 2.7);
 				southSnow.alpha = 0;
 				add(southSnow);
+				southAnimatedObjects.set('nieve', southSnow);
 
 				var southKyle:BGSprite = new BGSprite('kyle s', 608, 164, 1, 1, ['idle'], true);
 				// Keep the original looping idle and one-shot anim sequences.
@@ -427,6 +443,30 @@ def patch_south_stage(
 				southBlackbar.alpha = 0;
 				add(southBlackbar);
 				southAnimatedObjects.set('blackbar', southBlackbar);
+
+				var southAnim:BGSprite = new BGSprite('anim', 0, 0, 1, 1, ['anim a'], true);
+				southAnim.cameras = [camHUD];
+				southAnim.alpha = 0;
+				add(southAnim);
+				southAnimatedObjects.set('anim', southAnim);
+
+				var southAnim2:BGSprite = new BGSprite('anim2', 0, 0, 1, 1, ['anim2 a'], true);
+				southAnim2.cameras = [camHUD];
+				southAnim2.alpha = 0;
+				add(southAnim2);
+				southAnimatedObjects.set('anim2', southAnim2);
+
+				var southAnim2C:BGSprite = new BGSprite('anim2 c', 0, 0, 1, 1, ['anim2 c a'], true);
+				southAnim2C.cameras = [camHUD];
+				southAnim2C.alpha = 0;
+				add(southAnim2C);
+				southAnimatedObjects.set('anim2 c', southAnim2C);
+
+				var southAnim3:BGSprite = new BGSprite('anim3', 0, 0, 1, 1, ['anim3 idle'], true);
+				southAnim3.cameras = [camHUD];
+				southAnim3.alpha = 0;
+				add(southAnim3);
+				southAnimatedObjects.set('anim3', southAnim3);
 
 			case 'stage': //Week 1"""
     # Increase each sprite's Haxe scale by the inverse of its PNG resize ratio.
