@@ -210,9 +210,13 @@ def patch_south_stage(
     engine: Path,
     image_report: dict[str, object],
     icon_changes: list[tuple[int, str, str, str]],
+    character_names: set[str],
 ) -> None:
     play_file = engine / "source" / "PlayState.hx"
     source = play_file.read_text(encoding="utf-8")
+    known_character_names = "[" + ", ".join(
+        json.dumps(name) for name in sorted(character_names, key=str.lower)
+    ) + "]"
 
     # Keep references to the original stage's animated light overlays so the
     # stage.lua step changes can be reproduced natively in the HTML5 build.
@@ -225,6 +229,7 @@ def patch_south_stage(
 	var southLightOverlay4:BGSprite;
 	var southLightOverlay42:BGSprite;
 	var southAnimatedObjects:Map<String, BGSprite> = new Map();
+	var southKnownCharacterNames:Array<String> = __KNOWN_CHARACTER_NAMES__;
 	var southKyleCharacter:Character;
 	var southKyleCCharacter:Character;
 	var badAppleWhiteBg:FlxSprite;
@@ -234,6 +239,115 @@ def patch_south_stage(
 	var southCameraDadY:Float = 400;
 	var southCameraBoyfriendX:Float = 1200;
 	var southCameraBoyfriendY:Float = 540;
+
+	function resolveSouthCharacterName(requestedName:String):String
+	{
+		if (requestedName == null) return "";
+		var cleanedName:String = requestedName.trim();
+		var normalizedName:String = cleanedName.toLowerCase();
+		for (knownName in southKnownCharacterNames)
+		{
+			if (knownName != null && knownName.toLowerCase() == normalizedName)
+				return knownName;
+		}
+		return cleanedName;
+	}
+
+	function isSouthBackgroundLayer(key:String):Bool
+	{
+		return key == 'bg' || key == 'bg2' || key == 'bg2 n' || key == 'bg3' || key == 'bg4';
+	}
+
+	function setSouthBackgroundLayer(activeKey:String, duration:Float):Void
+	{
+		if (curStage != 'south' || southAnimatedObjects == null) return;
+		var normalizedKey:String = activeKey == null ? "" : activeKey.trim().toLowerCase();
+		if (!isSouthBackgroundLayer(normalizedKey)) return;
+		if (Math.isNaN(duration) || duration < 0) duration = 0;
+		var backgroundKeys:Array<String> = ['bg', 'bg2', 'bg2 n', 'bg3', 'bg4'];
+		for (backgroundKey in backgroundKeys)
+		{
+			var backgroundSprite:BGSprite = southAnimatedObjects.get(backgroundKey);
+			if (backgroundSprite == null) continue;
+			var targetAlpha:Float = backgroundKey == normalizedKey ? 1 : 0;
+			FlxTween.cancelTweensOf(backgroundSprite);
+			if (targetAlpha > 0.01) backgroundSprite.visible = true;
+			if (duration <= 0)
+			{
+				backgroundSprite.alpha = targetAlpha;
+				backgroundSprite.visible = targetAlpha > 0.01;
+			}
+			else
+			{
+				FlxTween.tween(backgroundSprite, {alpha: targetAlpha}, duration, {
+					ease: FlxEase.sineInOut,
+					onComplete: function(_:FlxTween) {
+						backgroundSprite.visible = targetAlpha > 0.01;
+					}
+				});
+			}
+		}
+	}
+
+	function playSouthCharacterAnimation(character:Character, requestedAnimation:String):Bool
+	{
+		if (character == null || requestedAnimation == null) return false;
+		var animationName:String = requestedAnimation.trim();
+		for (candidate in character.animation.getNameList())
+		{
+			if (candidate.toLowerCase() == animationName.toLowerCase())
+			{
+				animationName = candidate;
+				break;
+			}
+		}
+		if (!character.animation.exists(animationName))
+		{
+			trace('[Bloodbath sprite event] Missing character animation "' + requestedAnimation + '" for ' + character.curCharacter);
+			return false;
+		}
+		character.visible = true;
+		character.alpha = 1;
+		character.playAnim(animationName, true);
+		character.specialAnim = true;
+		return true;
+	}
+
+	function playSouthStageObjectAnimation(key:String, requestedAnimation:String):Bool
+	{
+		var normalizedKey:String = key == null ? "" : key.trim().toLowerCase();
+		if (normalizedKey == 'kyle' || normalizedKey == 'kyle c' || normalizedKey == 'kylec')
+		{
+			var kyleTarget:Character = normalizedKey == 'kyle' ? southKyleCharacter : southKyleCCharacter;
+			return playSouthCharacterAnimation(kyleTarget, requestedAnimation);
+		}
+
+		var stageSprite:BGSprite = southAnimatedObjects.get(normalizedKey);
+		if (stageSprite == null) return false;
+		var animationName:String = requestedAnimation == null ? "" : requestedAnimation.trim();
+		if (animationName.length > 0)
+		{
+			for (candidate in stageSprite.animation.getNameList())
+			{
+				if (candidate.toLowerCase() == animationName.toLowerCase())
+				{
+					animationName = candidate;
+					break;
+				}
+			}
+			if (!stageSprite.animation.exists(animationName))
+			{
+				trace('[Bloodbath sprite event] Missing stage animation "' + requestedAnimation + '" for ' + normalizedKey);
+				return false;
+			}
+		}
+
+		if (isSouthBackgroundLayer(normalizedKey)) setSouthBackgroundLayer(normalizedKey, 0.35);
+		stageSprite.visible = true;
+		stageSprite.alpha = 1;
+		if (animationName.length > 0) stageSprite.animation.play(animationName, true);
+		return true;
+	}
 
 	function tweenBadAppleSpriteColor(sprite:FlxSprite, targetColor:FlxColor, duration:Float):Void
 	{
@@ -277,6 +391,7 @@ def patch_south_stage(
 		}
 	}
 """
+    fields = fields.replace("__KNOWN_CHARACTER_NAMES__", known_character_names)
     if "var southLightOverlay:BGSprite;" not in source:
         if class_marker not in source:
             raise RuntimeError("Could not locate the PlayState class declaration.")
@@ -325,7 +440,8 @@ def patch_south_stage(
 				var southBackground:BGSprite = new BGSprite('bg', -1670, -1540, 1, 1, ['bg a'], true);
 				southBackground.scale.set(2.7, 2.7);
 				southBackground.updateHitbox();
-				southBackground.alpha = 0;
+				southBackground.alpha = 1;
+				southBackground.visible = true;
 				add(southBackground);
 				southAnimatedObjects.set('bg', southBackground);
 
@@ -539,17 +655,21 @@ def patch_south_stage(
 			switch (curStep)
 			{
 				case 128:
+					setSouthBackgroundLayer('bg', 0.45);
 					southLightOverlay.alpha = 0.5;
 				case 1202:
 					southLightOverlay.alpha = 0;
 				case 1285:
+					setSouthBackgroundLayer('bg2', 0.55);
 					southLightOverlay2.alpha = 1;
 				case 2325:
 					southLightOverlay2.alpha = 0;
 				case 2433:
-					// The third background becomes visible beneath its lighting layer.
+					// Reveal the third background together with its matching light layer.
+					setSouthBackgroundLayer('bg3', 0.55);
 					southLightOverlay3.alpha = 0.75;
 				case 3713:
+					setSouthBackgroundLayer('bg4', 0.55);
 					southLightOverlay3.alpha = 0;
 					southLightOverlay42.alpha = 1;
 					southLightOverlay4.alpha = 0.75;
@@ -668,15 +788,14 @@ def patch_south_stage(
     event_marker = "case 'Camera Follow Pos':"
     event_code = """\t\t\tcase 'aObject Play Animation':
 \t\t\t\tif (curStage == 'south')
+\t\t\t\t\tplaySouthStageObjectAnimation(value1, value2);
+
+\t\t\tcase 'aBackground Change':
+\t\t\t\tif (curStage == 'south')
 \t\t\t\t{
-\t\t\t\t\tvar stageKey:String = value1 == null ? "" : value1.toLowerCase();
-\t\t\t\t\tvar stageSprite:BGSprite = southAnimatedObjects.get(stageKey);
-\t\t\t\t\tif (stageSprite != null)
-\t\t\t\t\t{
-\t\t\t\t\t\tstageSprite.visible = true;
-\t\t\t\t\t\tstageSprite.alpha = 1;
-\t\t\t\t\t\tstageSprite.animation.play(value2, true);
-\t\t\t\t\t}
+\t\t\t\t\tvar backgroundDuration:Float = Std.parseFloat(value2);
+\t\t\t\t\tif (Math.isNaN(backgroundDuration) || backgroundDuration < 0) backgroundDuration = 0.55;
+\t\t\t\t\tsetSouthBackgroundLayer(value1, backgroundDuration);
 \t\t\t\t}
 
 \t\t\tcase 'Camera Follow Pos':"""
@@ -1394,6 +1513,29 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 
     event_marker = "public function triggerEventNote(eventName:String, value1:String, value2:String) {\n\t\tswitch(eventName) {"
     event_code = """public function triggerEventNote(eventName:String, value1:String, value2:String) {
+\t\t// Normalize Bloodbath event names without changing unrelated Psych Engine events.
+\t\tvar normalizedSouthEventName:String = eventName == null ? "" : eventName.toLowerCase().trim();
+\t\tswitch (normalizedSouthEventName)
+\t\t{
+\t\t\tcase 'change character':
+\t\t\t\teventName = 'Change Character';
+\t\t\t\tvalue2 = resolveSouthCharacterName(value2);
+\t\t\tcase 'aobject play animation':
+\t\t\t\teventName = 'aObject Play Animation';
+\t\t\tcase 'abackground change' | 'background change' | 'change background':
+\t\t\t\teventName = 'aBackground Change';
+\t\t\tcase 'afadein': eventName = 'afadein';
+\t\t\tcase 'afadeout': eventName = 'afadeout';
+\t\t\tcase 'acamarazoom': eventName = 'aCamaraZoom';
+\t\t\tcase 'acamarazoom1': eventName = 'aCamaraZoom1';
+\t\t\tcase 'acamarazoom3': eventName = 'aCamaraZoom3';
+\t\t\tcase "bitto's zoom event": eventName = "Bitto's zoom event";
+\t\t\tcase 'set property': eventName = 'Set Property';
+\t\t\tcase 'acamera_target': eventName = 'acamera_target';
+\t\t\tcase 'aofisetibf' | 'ofisetibf' | 'aofisetibf-fest': eventName = 'aofisetiBF';
+\t\t\tcase 'aofisetidad' | 'ofisetidad' | 'aofisetidad-fest': eventName = 'aofisetiDad';
+\t\t\tcase 'play video': eventName = 'Play Video';
+\t\t}
 \t\tblackDiagnosticLastEvent = eventName + " [" + value1 + " | " + value2 + "]";
 \t\tblackDiagnosticLastEventTime = Conductor.songPosition;
 \t\tblackDiagnosticEventHistory.push(blackDiagnosticLastEvent + " @ " + Std.string(Std.int(Conductor.songPosition)) + "ms");
@@ -2263,7 +2405,7 @@ def main() -> int:
             continue
         entries = event_group[1] if isinstance(event_group[1], list) else []
         for event in entries:
-            if isinstance(event, list) and len(event) >= 3 and event[0] == "Change Character":
+            if isinstance(event, list) and len(event) >= 3 and str(event[0]).strip().lower() == "change character":
                 character_names.add(str(event[2]).strip())
 
     # The upstream engine ships dozens of unrelated character definitions.
@@ -2271,6 +2413,29 @@ def main() -> int:
     # preload, even though this one-song browser build never uses them. Keep
     # only chart/Lua characters plus the engine's default game-over character.
     character_names.add("bf-dead")
+    # Keep every complete mod character definition so runtime Change Character
+    # events can select the correct sprite even when the name is not in the chart.
+    mod_character_dir = mod / "characters"
+    if mod_character_dir.is_dir():
+        for mod_character_file in mod_character_dir.glob("*.json"):
+            try:
+                mod_character_data = json.loads(mod_character_file.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            mod_image_name = str(mod_character_data.get("image", f"characters/{mod_character_file.stem}"))
+            mod_preload_images = engine / "assets" / "preload" / "images"
+            mod_shared_images = engine / "assets" / "shared" / "images"
+            mod_has_preload_atlas = (
+                (mod_preload_images / f"{mod_image_name}.png").is_file()
+                and (mod_preload_images / f"{mod_image_name}.xml").is_file()
+            )
+            mod_has_shared_atlas = (
+                (mod_shared_images / f"{mod_image_name}.png").is_file()
+                and (mod_shared_images / f"{mod_image_name}.xml").is_file()
+            )
+            if mod_has_preload_atlas or mod_has_shared_atlas:
+                character_names.add(mod_character_file.stem)
+
     character_dir = engine / "assets" / "preload" / "characters"
     removed_character_definitions = 0
     for unused_character_file in character_dir.glob("*.json"):
@@ -2362,7 +2527,7 @@ def main() -> int:
 
     icon_changes = read_icon_changes(mod / "data" / "bloodbath" / "IconManager.lua")
     patch_note_types(engine)
-    patch_south_stage(engine, image_report, icon_changes)
+    patch_south_stage(engine, image_report, icon_changes, character_names)
     patch_south_stage_fades(engine)
     patch_south_cinematic_bars(engine)
     patch_black_screen_diagnostics(engine)
