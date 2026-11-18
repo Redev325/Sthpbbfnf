@@ -1805,7 +1805,7 @@ def patch_html5_video_cutscenes(engine: Path) -> None:
 		return;
 		#end
 	}
-""".trim();
+""".strip()
         source = source[:start] + replacement + source[end:];
 
     if "HTML5 chart event: Play Video" not in source:
