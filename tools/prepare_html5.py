@@ -293,15 +293,16 @@ def patch_south_stage(
 	{
 		if (character == null || requestedAnimation == null) return false;
 		var animationName:String = requestedAnimation.trim();
-		for (candidate in character.animation.getNameList())
+		for (candidateAnimation in character.animation.getAnimationList())
 		{
+			var candidate:String = candidateAnimation.name;
 			if (candidate.toLowerCase() == animationName.toLowerCase())
 			{
 				animationName = candidate;
 				break;
 			}
 		}
-		if (!character.animation.exists(animationName))
+		if (character.animation.getByName(animationName) == null)
 		{
 			trace('[Bloodbath sprite event] Missing character animation "' + requestedAnimation + '" for ' + character.curCharacter);
 			return false;
@@ -327,15 +328,16 @@ def patch_south_stage(
 		var animationName:String = requestedAnimation == null ? "" : requestedAnimation.trim();
 		if (animationName.length > 0)
 		{
-			for (candidate in stageSprite.animation.getNameList())
+			for (candidateAnimation in stageSprite.animation.getAnimationList())
 			{
+				var candidate:String = candidateAnimation.name;
 				if (candidate.toLowerCase() == animationName.toLowerCase())
 				{
 					animationName = candidate;
 					break;
 				}
 			}
-			if (!stageSprite.animation.exists(animationName))
+			if (stageSprite.animation.getByName(animationName) == null)
 			{
 				trace('[Bloodbath sprite event] Missing stage animation "' + requestedAnimation + '" for ' + normalizedKey);
 				return false;
