@@ -3029,6 +3029,16 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \t\t\t\ttweenSouthShaderUniform('barrelhud', 'barrel', 0, 0.4);
 \t\t\tcase 'blur':
 \t\t\t\ttweenSouthShaderUniform('blur', 'strength', southShaderNumber(value1, 0), southShaderNumber(value2, 0));
+\t\t\tcase 'blurbeat':
+\t\t\t\t// The release script tweens an undeclared bbStrength sprite;
+\t\t\t\t// reproduce the intended one-shot blur and barrel-zoom pulse
+\t\t\t\t// through the real embedded runtime shader uniforms.
+\t\t\t\tsetSouthShaderUniform('blur', 'strength', 12.5);
+\t\t\t\ttweenSouthShaderUniform('blur', 'strength', 0, 0.4);
+\t\t\t\tsetSouthShaderUniform('barrel', 'zoom', 0.85);
+\t\t\t\tsetSouthShaderUniform('barrelhud', 'zoom', 0.85);
+\t\t\t\ttweenSouthShaderUniform('barrel', 'zoom', 1, 0.4);
+\t\t\t\ttweenSouthShaderUniform('barrelhud', 'zoom', 1, 0.4);
 \t\t\tcase 'chromaticabber':
 \t\t\t\ttweenSouthShaderUniform('chrom', 'strength', southShaderNumber(value1, 0), southShaderNumber(value2, 0));
 \t\t\tcase 'chrombeat':
