@@ -740,7 +740,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\t}
 \t\t\t\t}
 
-\t\t\t\t\t\tcase 'Flash Black' | 'aCameraFlashBlack' | 'CameraFlashBlack':
+\t\t\tcase 'Flash Black' | 'aCameraFlashBlack' | 'CameraFlashBlack':
 \t\t\t\tif (curStage == 'south')
 \t\t\t\t{
 \t\t\t\t\tvar blackFlashDuration:Float = Std.parseFloat(value1);
