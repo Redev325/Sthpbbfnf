@@ -1913,7 +1913,7 @@ def patch_chart_editor_optional_vocals(engine: Path) -> None:
 
 
 def stage_html5_video_assets(game: Path, engine: Path) -> dict[str, int]:
-    """Stage MP4 cutscenes outside Lime's preload manifest for browser playback."""
+    """Stage browser-playable cutscene videos outside Lime's preload manifest."""
     archive = engine / "html5-video-assets"
     if archive.exists():
         shutil.rmtree(archive)
@@ -1928,16 +1928,18 @@ def stage_html5_video_assets(game: Path, engine: Path) -> dict[str, int]:
             if child.is_dir() and child.name.lower() != "videos"
         )
 
+    supported_video_extensions = {".mp4", ".m4v", ".webm", ".ogv", ".ogg", ".mov"}
     copied: set[str] = set()
     copied_bytes = 0
     source_directories = 0
+    extension_counts: dict[str, int] = {}
 
     for video_root in video_roots:
         if not video_root.is_dir():
             continue
         source_directories += 1
         for source_file in video_root.rglob("*"):
-            if not source_file.is_file() or source_file.suffix.lower() != ".mp4":
+            if not source_file.is_file() or source_file.suffix.lower() not in supported_video_extensions:
                 continue
 
             relative = source_file.relative_to(video_root)
@@ -1956,11 +1958,14 @@ def stage_html5_video_assets(game: Path, engine: Path) -> dict[str, int]:
             shutil.copy2(source_file, target)
             copied.add(relative_key)
             copied_bytes += source_file.stat().st_size
+            extension = source_file.suffix.lower()
+            extension_counts[extension] = extension_counts.get(extension, 0) + 1
 
     return {
         "sourceDirectories": source_directories,
         "sourceFiles": len(copied),
         "sourceBytes": copied_bytes,
+        "sourceExtensions": extension_counts,
     }
 
 
@@ -1992,8 +1997,13 @@ def patch_html5_video_cutscenes(engine: Path) -> None:
 			startAndEnd();
 			return;
 		}
-		if (!videoName.toLowerCase().endsWith(".mp4")) videoName += ".mp4";
-		if (!videoName.startsWith("assets/videos/")) videoName = "assets/videos/" + videoName;
+		var lowerVideoName:String = videoName.toLowerCase();
+		var hasVideoExtension:Bool = lowerVideoName.endsWith(".mp4") || lowerVideoName.endsWith(".m4v")
+			|| lowerVideoName.endsWith(".webm") || lowerVideoName.endsWith(".ogv")
+			|| lowerVideoName.endsWith(".ogg") || lowerVideoName.endsWith(".mov");
+		if (!hasVideoExtension) videoName += ".mp4";
+		if (videoName.startsWith("videos/")) videoName = "assets/" + videoName;
+		else if (!videoName.startsWith("assets/videos/")) videoName = "assets/videos/" + videoName;
 
 		var browserVideo:Dynamic = js.Browser.document.createElement("video");
 		var playbackFinished:Bool = false;
