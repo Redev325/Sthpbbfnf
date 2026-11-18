@@ -2654,7 +2654,30 @@ def copy_south_runtime_shader_sources(mod: Path, engine: Path) -> dict[str, obje
         for extension in (".frag", ".vert"):
             source_file = shader_source / f"{name}{extension}"
             if source_file.is_file():
-                shutil.copy2(source_file, destination / source_file.name)
+                # Keep the original release shader archive untouched, but
+                # write WebGL-safe copies into the HTML5 preload directory.
+                # GLSL ES 1.00 does not implicitly convert integer literals
+                # when comparing them with float uniforms/vector components.
+                shader_text = source_file.read_text(encoding="utf-8", errors="replace")
+                compatibility_fixes = {
+                    "bloom.frag": [
+                        ("if (effect <= 0)", "if (effect <= 0.0)"),
+                    ],
+                    "SobelEffect.frag": [
+                        ("if (strength <= 0)", "if (strength <= 0.0)"),
+                    ],
+                    "vcr with no glitch.frag": [
+                        ("curUV.x<0", "curUV.x<0.0"),
+                        ("curUV.x>1", "curUV.x>1.0"),
+                        ("curUV.y<0", "curUV.y<0.0"),
+                        ("curUV.y>1", "curUV.y>1.0"),
+                    ],
+                }
+                for old_expression, webgl_expression in compatibility_fixes.get(source_file.name, []):
+                    if old_expression in shader_text:
+                        shader_text = shader_text.replace(old_expression, webgl_expression)
+                target_file = destination / source_file.name
+                target_file.write_text(shader_text, encoding="utf-8")
                 copied.append(source_file.name)
                 found = True
         if not found:
