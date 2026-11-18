@@ -917,7 +917,7 @@ def patch_change_character_visibility(engine: Path) -> None:
             if keep_last_alpha else ""
         )
         pattern = re.compile(
-            rf"(?P<indent>\\t*)var lastAlpha:Float = {character}\.alpha;\n"
+            rf"(?P<indent>\t*)var lastAlpha:Float = {character}\.alpha;\n"
             rf"(?P=indent){character}\.alpha = 0\.00001;\n"
             rf"(?P=indent){character} = {character_map}\.get\(value2\);"
             + trailing
@@ -926,14 +926,14 @@ def patch_change_character_visibility(engine: Path) -> None:
         def replace_swap(match: re.Match[str]) -> str:
             indent = match.group("indent")
             replacement = (
-                f"var lastAlpha:Float = {character}.alpha;\\n"
-                f"{indent}{character}.alpha = 0;\\n"
-                f"{indent}{character}.visible = false;\\n"
-                f"{indent}{character} = {character_map}.get(value2);\\n"
+                f"var lastAlpha:Float = {character}.alpha;\n"
+                f"{indent}{character}.alpha = 0;\n"
+                f"{indent}{character}.visible = false;\n"
+                f"{indent}{character} = {character_map}.get(value2);\n"
                 f"{indent}{character}.visible = true;"
             )
             if keep_last_alpha:
-                replacement += f"\\n{indent}{character}.alpha = lastAlpha;"
+                replacement += f"\n{indent}{character}.alpha = lastAlpha;"
             return replacement
 
         source, changed = pattern.subn(replace_swap, source, count=1)
