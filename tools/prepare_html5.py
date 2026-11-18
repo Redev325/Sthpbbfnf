@@ -904,60 +904,49 @@ def patch_change_character_visibility(engine: Path) -> None:
     """Fully hide swapped-out character slots so Stan/Cartman do not linger."""
     play_file = engine / "source" / "PlayState.hx"
     source = play_file.read_text(encoding="utf-8")
-    replacements = [
-        (
-            """var lastAlpha:Float = boyfriend.alpha;
-\t\t\t\t\t\t\tboyfriend.alpha = 0.00001;
-\t\t\t\t\t\t\tboyfriend = boyfriendMap.get(value2);
-\t\t\t\t\t\t\tboyfriend.alpha = lastAlpha;""",
-            """var lastAlpha:Float = boyfriend.alpha;
-\t\t\t\t\t\t\tboyfriend.alpha = 0;
-\t\t\t\t\t\t\tboyfriend.visible = false;
-\t\t\t\t\t\t\tboyfriend = boyfriendMap.get(value2);
-\t\t\t\t\t\t\tboyfriend.visible = true;
-\t\t\t\t\t\t\tboyfriend.alpha = lastAlpha;""",
-        ),
-        (
-            """var lastAlpha:Float = dad.alpha;
-\t\t\t\t\t\t\tdad.alpha = 0.00001;
-\t\t\t\t\t\t\tdad = dadMap.get(value2);""",
-            """var lastAlpha:Float = dad.alpha;
-\t\t\t\t\t\t\tdad.alpha = 0;
-\t\t\t\t\t\t\tdad.visible = false;
-\t\t\t\t\t\t\tdad = dadMap.get(value2);
-\t\t\t\t\t\t\tdad.visible = true;""",
-        ),
-        (
-            """if(!gfMap.exists(value2))
-\t\t\t\t\t\t\t\t{
-\t\t\t\t\t\t\t\t\taddCharacterToList(value2, charType);
-\t\t\t\t\t\t\t\t}
 
-\t\t\t\t\t\t\t\tvar lastAlpha:Float = gf.alpha;
-\t\t\t\t\t\t\t\tgf.alpha = 0;
-\t\t\t\t\t\t\t\tgf.visible = false;
-\t\t\t\t\t\t\t\tgf = gfMap.get(value2);
-\t\t\t\t\t\t\t\tgf.visible = true;
-\t\t\t\t\t\t\t\tgf.alpha = lastAlpha;""",
-            """if(!gfMap.exists(value2))
-\t\t\t\t\t\t\t\t{
-\t\t\t\t\t\t\t\t\taddCharacterToList(value2, charType);
-\t\t\t\t\t\t\t\t}
+    # All three slot swaps in Psych 0.6.3 keep the previous sprite in its
+    # group. Set it fully hidden, then explicitly show the selected character.
+    for character, character_map, keep_last_alpha in (
+        ("boyfriend", "boyfriendMap", True),
+        ("dad", "dadMap", False),
+        ("gf", "gfMap", True),
+    ):
+        trailing = (
+            rf"\n(?P=indent){character}\.alpha = lastAlpha;"
+            if keep_last_alpha else ""
+        )
+        pattern = re.compile(
+            rf"(?P<indent>\\t*)var lastAlpha:Float = {character}\.alpha;\n"
+            rf"(?P=indent){character}\.alpha = 0\.00001;\n"
+            rf"(?P=indent){character} = {character_map}\.get\(value2\);"
+            + trailing
+        )
 
-\t\t\t\t\t\t\t\tvar lastAlpha:Float = gf.alpha;
-\t\t\t\t\t\t\t\tgf.alpha = 0;
-\t\t\t\t\t\t\t\t\tgf.visible = false;
-\t\t\t\t\t\t\t\tgf = gfMap.get(value2);
-\t\t\t\t\t\t\t\t\tgf.visible = true;
-\t\t\t\t\t\t\t\tgf.alpha = lastAlpha;""",
-        ),
-    ]
-    for old, new in replacements:
-        if old not in source:
-            if new in source:
-                continue
-            raise RuntimeError("Could not safely patch a Psych Engine Change Character visibility branch.")
-        source = source.replace(old, new, 1)
+        def replace_swap(match: re.Match[str]) -> str:
+            indent = match.group("indent")
+            replacement = (
+                f"var lastAlpha:Float = {character}.alpha;\\n"
+                f"{indent}{character}.alpha = 0;\\n"
+                f"{indent}{character}.visible = false;\\n"
+                f"{indent}{character} = {character_map}.get(value2);\\n"
+                f"{indent}{character}.visible = true;"
+            )
+            if keep_last_alpha:
+                replacement += f"\\n{indent}{character}.alpha = lastAlpha;"
+            return replacement
+
+        source, changed = pattern.subn(replace_swap, source, count=1)
+        if changed != 1:
+            already_patched = (
+                f"{character}.visible = false;" in source
+                and f"{character}.visible = true;" in source
+            )
+            if not already_patched:
+                raise RuntimeError(
+                    f"Could not safely patch the {character} Change Character visibility branch."
+                )
+
     play_file.write_text(source, encoding="utf-8")
 
 
@@ -2532,6 +2521,12 @@ def main() -> int:
     copy_tree(runtime_assets / "shared", engine / "assets" / "shared")
     copy_tree(runtime_assets / "fonts", engine / "assets" / "fonts")
 
+    # Embed every non-script resource folder from the mod, not just JSON files.
+    # This preserves atlases, XML/animation metadata, text data and other sidecars.
+    copy_tree(mod / "images", engine / "assets" / "preload" / "images")
+    copy_tree(mod / "characters", engine / "assets" / "preload" / "characters")
+    copy_tree(mod / "stages", engine / "assets" / "preload" / "stages")
+
     # Spread the main character slots so Cartman/Timmy and Stan/Jimmy do not
     # overlap during the first South background transition.
     south_stage_file = engine / "assets" / "preload" / "stages" / "south.json"
@@ -2544,11 +2539,6 @@ def main() -> int:
             encoding="utf-8",
         )
 
-    # Embed every non-script resource folder from the mod, not just JSON files.
-    # This preserves atlases, XML/animation metadata, text data and other sidecars.
-    copy_tree(mod / "images", engine / "assets" / "preload" / "images")
-    copy_tree(mod / "characters", engine / "assets" / "preload" / "characters")
-    copy_tree(mod / "stages", engine / "assets" / "preload" / "stages")
     copy_tree(mod / "weeks", engine / "assets" / "preload" / "weeks")
     copy_tree(mod / "data" / "bloodbath", engine / "assets" / "preload" / "data" / "bloodbath")
     copy_tree(mod / "fonts", engine / "assets" / "fonts")
