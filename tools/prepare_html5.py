@@ -2688,17 +2688,17 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \tpublic var runtimeShaders:Map<String, Array<String>> = new Map<String, Array<String>>();
 \tpublic function createRuntimeShader(name:String):FlxRuntimeShader
 \t{
-\t\tif (!ClientPrefs.shaders) return new FlxRuntimeShader();
+\t\tif (!ClientPrefs.shaders) return new FlxRuntimeShader(null, null, 100);
 \t\tif (!runtimeShaders.exists(name) && !initLuaShader(name))
 \t\t{
 \t\t\tFlxG.log.warn('Shader ' + name + ' is missing from the embedded HTML5 assets.');
-\t\t\treturn new FlxRuntimeShader();
+\t\t\treturn new FlxRuntimeShader(null, null, 100);
 \t\t}
 \t\tvar shaderSources:Array<String> = runtimeShaders.get(name);
-\t\treturn new FlxRuntimeShader(shaderSources[0], shaderSources[1]);
+\t\treturn new FlxRuntimeShader(shaderSources[0], shaderSources[1], 100);
 \t}
 
-\tpublic function initLuaShader(name:String, ?glslVersion:Int = 120):Bool
+\tpublic function initLuaShader(name:String, ?glslVersion:Int = 100):Bool
 \t{
 \t\tif (!ClientPrefs.shaders) return false;
 \t\tif (runtimeShaders.exists(name)) return true;
@@ -2722,7 +2722,7 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \t}
 \t#end"""
         source = source[:runtime_start] + runtime_block + source[runtime_end:]
-    elif "public function initLuaShader(name:String, ?glslVersion:Int = 120):Bool" not in source:
+    elif "public function initLuaShader(name:String, ?glslVersion:Int = 100):Bool" not in source:
         raise RuntimeError("Could not find Psych Engine's desktop-only runtime shader loader to port.")
 
     shader_fields = """\t#if !flash
