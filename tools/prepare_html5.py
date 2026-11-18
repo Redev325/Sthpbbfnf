@@ -2483,7 +2483,6 @@ def strip_unsupported_html5_shader_assets(engine: Path) -> dict[str, int]:
     removed_directories = 0
     removed_files = 0
     for shader_dir in (
-        engine / "assets" / "preload" / "shaders",
         engine / "assets" / "shared" / "shaders",
         engine / "assets" / "shaders",
     ):
@@ -2497,13 +2496,20 @@ def strip_unsupported_html5_shader_assets(engine: Path) -> dict[str, int]:
         if not asset_file.is_file():
             continue
         lower_name = asset_file.name.lower()
-        if lower_name.endswith((".frag", ".vert", ".frag.txt", ".vert.txt")):
+        is_embedded_runtime_shader = (
+            asset_file.parent == engine / "assets" / "preload" / "shaders"
+            and lower_name.endswith((".frag", ".vert"))
+        )
+        if lower_name.endswith((".frag", ".vert", ".frag.txt", ".vert.txt")) and not is_embedded_runtime_shader:
             asset_file.unlink()
             removed_files += 1
 
+    runtime_shader_dir = engine / "assets" / "preload" / "shaders"
     leftovers = [
         path for path in (engine / "assets").rglob("*")
-        if path.is_file() and path.name.lower().endswith((".frag", ".vert", ".frag.txt", ".vert.txt"))
+        if path.is_file()
+        and path.name.lower().endswith((".frag", ".vert", ".frag.txt", ".vert.txt"))
+        and not (path.parent == runtime_shader_dir and path.name.lower().endswith((".frag", ".vert")))
     ]
     if leftovers:
         raise RuntimeError(
@@ -2585,6 +2591,484 @@ def convert_ogg_files(engine: Path) -> int:
     return converted
 
 
+
+def copy_south_runtime_shader_sources(mod: Path, engine: Path) -> dict[str, object]:
+    """Copy only the shader sources actually requested by the Bloodbath Lua scripts.
+
+    The complete ReShade collection remains archived as source material. The
+    browser build embeds the 34 Psych runtime shaders referenced by
+    ZNickShaders.lua and the glitch-note scripts, without preloading unrelated
+    desktop ReShade .fx files.
+    """
+    shader_source = mod / "shaders"
+    lua_directory = mod / "data" / "bloodbath"
+    if not shader_source.is_dir() or not lua_directory.is_dir():
+        raise FileNotFoundError("Bloodbath runtime shader sources or data scripts are missing.")
+
+    shader_names: set[str] = set()
+    shader_call = re.compile(
+        r"""(?:createRuntimeShader|initLuaShader)\s*\(?\s*['"]([^'"]+)['"]""",
+        re.IGNORECASE,
+    )
+    for lua_file in lua_directory.glob("*.lua"):
+        lua_text = lua_file.read_text(encoding="utf-8", errors="replace")
+        shader_names.update(name.strip() for name in shader_call.findall(lua_text) if name.strip())
+
+    if not shader_names:
+        raise RuntimeError("No runtime shader names were found in the Bloodbath Lua scripts.")
+
+    destination = engine / "assets" / "preload" / "shaders"
+    destination.mkdir(parents=True, exist_ok=True)
+    copied: list[str] = []
+    missing: list[str] = []
+    for name in sorted(shader_names, key=str.lower):
+        found = False
+        for extension in (".frag", ".vert"):
+            source_file = shader_source / f"{name}{extension}"
+            if source_file.is_file():
+                shutil.copy2(source_file, destination / source_file.name)
+                copied.append(source_file.name)
+                found = True
+        if not found:
+            missing.append(name)
+
+    if missing:
+        raise FileNotFoundError(
+            "Bloodbath Lua scripts request shader sources that are missing: "
+            + ", ".join(missing)
+        )
+
+    return {
+        "shaderNames": sorted(shader_names, key=str.lower),
+        "copiedFiles": copied,
+        "copiedCount": len(copied),
+    }
+
+
+def patch_south_runtime_shaders(engine: Path) -> None:
+    """Enable embedded FlxRuntimeShader sources and port Bloodbath's shader timeline to HTML5."""
+    play_file = engine / "source" / "PlayState.hx"
+    source = play_file.read_text(encoding="utf-8")
+
+    runtime_start = source.find("\t#if (!flash && sys)\n\tpublic var runtimeShaders:")
+    if runtime_start >= 0:
+        runtime_end = source.find("\n\t#end\n", runtime_start)
+        if runtime_end < 0:
+            raise RuntimeError("Could not locate the end of Psych Engine's runtime shader block.")
+        runtime_end += len("\n\t#end")
+        runtime_block = """\t#if !flash
+\tpublic var runtimeShaders:Map<String, Array<String>> = new Map<String, Array<String>>();
+\tpublic function createRuntimeShader(name:String):FlxRuntimeShader
+\t{
+\t\tif (!ClientPrefs.shaders) return new FlxRuntimeShader();
+\t\tif (!runtimeShaders.exists(name) && !initLuaShader(name))
+\t\t{
+\t\t\tFlxG.log.warn('Shader ' + name + ' is missing from the embedded HTML5 assets.');
+\t\t\treturn new FlxRuntimeShader();
+\t\t}
+\t\tvar shaderSources:Array<String> = runtimeShaders.get(name);
+\t\treturn new FlxRuntimeShader(shaderSources[0], shaderSources[1]);
+\t}
+
+\tpublic function initLuaShader(name:String, ?glslVersion:Int = 120):Bool
+\t{
+\t\tif (!ClientPrefs.shaders) return false;
+\t\tif (runtimeShaders.exists(name)) return true;
+
+\t\tvar fragmentPath:String = Paths.shaderFragment(name);
+\t\tvar vertexPath:String = Paths.shaderVertex(name);
+\t\tvar fragmentSource:String = null;
+\t\tvar vertexSource:String = null;
+\t\tif (OpenFlAssets.exists(fragmentPath))
+\t\t\tfragmentSource = OpenFlAssets.getText(fragmentPath);
+\t\tif (OpenFlAssets.exists(vertexPath))
+\t\t\tvertexSource = OpenFlAssets.getText(vertexPath);
+
+\t\tif (fragmentSource == null && vertexSource == null)
+\t\t{
+\t\t\tFlxG.log.warn('Missing embedded shader ' + name + ' (.frag/.vert).');
+\t\t\treturn false;
+\t\t}
+\t\truntimeShaders.set(name, [fragmentSource, vertexSource]);
+\t\treturn true;
+\t}
+\t#end"""
+        source = source[:runtime_start] + runtime_block + source[runtime_end:]
+    elif "public function initLuaShader(name:String, ?glslVersion:Int = 120):Bool" not in source:
+        raise RuntimeError("Could not find Psych Engine's desktop-only runtime shader loader to port.")
+
+    shader_fields = """\t#if !flash
+\tvar southRuntimeShaderObjects:Map<String, FlxRuntimeShader> = new Map();
+\tvar southShaderUniformValues:Map<String, Float> = new Map();
+\tvar southShaderUniformTweens:Map<String, FlxTween> = new Map();
+\tvar southShaderFeatureFlags:Map<String, Bool> = new Map();
+\tvar southShaderClock:Float = 0;
+\t#end
+"""
+    field_marker = "\tvar badAppleWhiteBg:FlxSprite;"
+    if "var southRuntimeShaderObjects:" not in source:
+        if field_marker not in source:
+            raise RuntimeError("Could not find the South stage field insertion point for runtime shaders.")
+        source = source.replace(field_marker, shader_fields + field_marker, 1)
+
+    shader_methods = r"""\t#if !flash
+\tfunction loadSouthRuntimeShader(key:String, sourceName:String):FlxRuntimeShader
+\t{
+\t\tvar shader:FlxRuntimeShader = createRuntimeShader(sourceName);
+\t\tif (shader != null) southRuntimeShaderObjects.set(key, shader);
+\t\treturn shader;
+\t}
+
+\tfunction setSouthShaderUniform(shaderKey:String, uniformName:String, value:Float):Void
+\t{
+\t\tvar shader:FlxRuntimeShader = southRuntimeShaderObjects.get(shaderKey);
+\t\tif (shader == null || Math.isNaN(value)) return;
+\t\tvar uniformKey:String = shaderKey + "." + uniformName;
+\t\tsouthShaderUniformValues.set(uniformKey, value);
+\t\tshader.setFloat(uniformName, value);
+\t}
+
+\tfunction tweenSouthShaderUniform(shaderKey:String, uniformName:String, target:Float, duration:Float):Void
+\t{
+\t\tif (Math.isNaN(target)) return;
+\t\tvar shader:FlxRuntimeShader = southRuntimeShaderObjects.get(shaderKey);
+\t\tif (shader == null) return;
+\t\tvar uniformKey:String = shaderKey + "." + uniformName;
+\t\tvar current:Float = southShaderUniformValues.exists(uniformKey)
+\t\t\t? southShaderUniformValues.get(uniformKey) : target;
+\t\tif (southShaderUniformTweens.exists(uniformKey))
+\t\t{
+\t\t\tvar oldTween:FlxTween = southShaderUniformTweens.get(uniformKey);
+\t\t\tif (oldTween != null) oldTween.cancel();
+\t\t\tsouthShaderUniformTweens.remove(uniformKey);
+\t\t}
+\t\tif (duration <= 0 || Math.isNaN(duration))
+\t\t{
+\t\t\tsetSouthShaderUniform(shaderKey, uniformName, target);
+\t\t\treturn;
+\t\t}
+\t\tvar tweenState = {value: current};
+\t\tvar activeTween:FlxTween = FlxTween.tween(tweenState, {value: target}, duration, {
+\t\t\tease: FlxEase.linear,
+\t\t\tonUpdate: function(_:FlxTween)
+\t\t\t{
+\t\t\t\tsetSouthShaderUniform(shaderKey, uniformName, tweenState.value);
+\t\t\t},
+\t\t\tonComplete: function(_:FlxTween)
+\t\t\t{
+\t\t\t\tsouthShaderUniformTweens.remove(uniformKey);
+\t\t\t}
+\t\t});
+\t\tsouthShaderUniformTweens.set(uniformKey, activeTween);
+\t}
+
+\tfunction appendSouthShaderFilter(filters:Array<BitmapFilter>, shaderKey:String):Void
+\t{
+\t\tvar shader:FlxRuntimeShader = southRuntimeShaderObjects.get(shaderKey);
+\t\tif (shader != null) filters.push(new ShaderFilter(shader));
+\t}
+
+\tfunction southShaderFeatureEnabled(key:String):Bool
+\t{
+\t\treturn southShaderFeatureFlags.exists(key) && southShaderFeatureFlags.get(key) == true;
+\t}
+
+\tfunction refreshSouthShaderFilters():Void
+\t{
+\t\tif (curStage != 'south' || !ClientPrefs.shaders) return;
+
+\t\tvar gameFilters:Array<BitmapFilter> = [];
+\t\tfor (key in ['bloomEffect', 'greyScale', 'barrel', 'blur', 'mosaic', 'chrom', 'colorola', 'vig', 'glitchy', 'sob'])
+\t\t\tappendSouthShaderFilter(gameFilters, key);
+\t\tif (southShaderFeatureEnabled('invert')) appendSouthShaderFilter(gameFilters, 'invert');
+\t\tif (southShaderFeatureEnabled('pc')) appendSouthShaderFilter(gameFilters, 'pc');
+\t\tappendSouthShaderFilter(gameFilters, 'mirrorRepeat');
+\t\tfor (key in ['cross', 'smok', 'old tv', 'lightsrgb', 'effect weird', 'static', 'crt distorsionnew',
+\t\t\t'starfield', 'colorswitching', 'tv', 'raytracingcube', 'blaze', 'gameboy', 'vcrshader',
+\t\t\t'vcr with no glitch', 'rgbeffect3', 'chromaticRadialBlur'])
+\t\t\tif (southShaderFeatureEnabled(key)) appendSouthShaderFilter(gameFilters, key);
+\t\tappendSouthShaderFilter(gameFilters, 'color');
+\t\tcamGame.setFilters(gameFilters);
+
+\t\tvar hudFilters:Array<BitmapFilter> = [];
+\t\tfor (key in ['bloomEffect', 'greyScale', 'barrelhud', 'blur', 'mosaic', 'chrom', 'colorola', 'scan', 'glitchy', 'sob'])
+\t\t\tappendSouthShaderFilter(hudFilters, key);
+\t\tappendSouthShaderFilter(hudFilters, 'mirrorRepeathud');
+\t\tfor (key in ['cross', 'old tv', 'vcrshader', 'vcr with no glitch', 'rgbeffect3', 'chromaticRadialBlur'])
+\t\t\tif (southShaderFeatureEnabled(key)) appendSouthShaderFilter(hudFilters, key);
+\t\tcamHUD.setFilters(hudFilters);
+\t}
+
+\tfunction setSouthShaderFeature(key:String, enabled:Bool):Void
+\t{
+\t\tsouthShaderFeatureFlags.set(key, enabled);
+\t\trefreshSouthShaderFilters();
+\t}
+
+\tfunction southShaderNumber(value:String, fallback:Float):Float
+\t{
+\t\tif (value == null || value.trim().length == 0) return fallback;
+\t\tvar parsed:Float = Std.parseFloat(value);
+\t\treturn Math.isNaN(parsed) ? fallback : parsed;
+\t}
+
+\tfunction southShaderPair(value:String, firstDefault:Float, secondDefault:Float):Array<Float>
+\t{
+\t\tif (value == null) return [firstDefault, secondDefault];
+\t\tvar parts:Array<String> = value.split(',');
+\t\tvar first:Float = parts.length > 0 ? southShaderNumber(parts[0], firstDefault) : firstDefault;
+\t\tvar second:Float = parts.length > 1 ? southShaderNumber(parts[1], secondDefault) : secondDefault;
+\t\treturn [first, second];
+\t}
+
+\tfunction initSouthBloodbathShaders():Void
+\t{
+\t\tif (curStage != 'south' || !ClientPrefs.shaders) return;
+
+\t\tvar shaderDefinitions:Array<Array<String>> = [
+\t\t\t['bloomEffect', 'bloom'],
+\t\t\t['greyScale', 'greyScale'],
+\t\t\t['barrel', 'barrelblur'],
+\t\t\t['barrelhud', 'barrelblur'],
+\t\t\t['blur', 'Gaussian Blur'],
+\t\t\t['mosaic', 'mosaic'],
+\t\t\t['chrom', 'ChromAbEffect'],
+\t\t\t['colorola', 'ColorShader'],
+\t\t\t['scan', 'scanline'],
+\t\t\t['vig', 'vignette'],
+\t\t\t['glitchy', 'Glitchy'],
+\t\t\t['sob', 'SobelEffect'],
+\t\t\t['mirrorRepeat', 'mirrorRepeat'],
+\t\t\t['mirrorRepeathud', 'mirrorRepeat'],
+\t\t\t['color', 'ColorOverrideEffect'],
+\t\t\t['BarrelBlurEffect', 'BarrelBlurEffect'],
+\t\t\t['cross', 'cross_hatch'],
+\t\t\t['old tv', 'old tv'],
+\t\t\t['lightsrgb', 'lightsrgb'],
+\t\t\t['static', 'static'],
+\t\t\t['effect weird', 'effect weird'],
+\t\t\t['crt distorsionnew', 'crt distorsionnew'],
+\t\t\t['starfield', 'starfield'],
+\t\t\t['colorswitching', 'colorswitching'],
+\t\t\t['tv', 'tv'],
+\t\t\t['raytracingcube', 'raytracingcube'],
+\t\t\t['smok', 'PerlinSmokeEffect'],
+\t\t\t['chromaticRadialBlur', 'chromaticRadialBlur'],
+\t\t\t['vcrshader', 'vcrshader'],
+\t\t\t['vcr with no glitch', 'vcr with no glitch'],
+\t\t\t['rgbeffect3', 'rgbeffect3'],
+\t\t\t['blaze', 'blaze'],
+\t\t\t['gameboy', 'gameboy'],
+\t\t\t['invert', 'invert'],
+\t\t\t['pc', 'pc'],
+\t\t\t['NewGlitch2', 'NewGlitch2']
+\t\t];
+\t\tfor (definition in shaderDefinitions)
+\t\t\tloadSouthRuntimeShader(definition[0], definition[1]);
+
+\t\tsetSouthShaderUniform('bloomEffect', 'effect', 0);
+\t\tsetSouthShaderUniform('bloomEffect', 'strength', 1);
+\t\tsetSouthShaderUniform('bloomEffect', 'contrast', 1);
+\t\tsetSouthShaderUniform('bloomEffect', 'brightness', 0);
+\t\tsetSouthShaderUniform('greyScale', 'strength', 0);
+\t\tfor (key in ['barrel', 'barrelhud'])
+\t\t{
+\t\t\tsetSouthShaderUniform(key, 'barrel', 0);
+\t\t\tsetSouthShaderUniform(key, 'zoom', 1);
+\t\t\tsetSouthShaderUniform(key, 'angle', 0);
+\t\t\tsetSouthShaderUniform(key, 'x', 0);
+\t\t\tsetSouthShaderUniform(key, 'y', 0);
+\t\t\tvar barrelShader:FlxRuntimeShader = southRuntimeShaderObjects.get(key);
+\t\t\tif (barrelShader != null) barrelShader.setBool('doChroma', false);
+\t\t}
+\t\tsetSouthShaderUniform('BarrelBlurEffect', 'barrel', 0);
+\t\tsetSouthShaderUniform('BarrelBlurEffect', 'zoom', 1);
+\t\tsetSouthShaderUniform('BarrelBlurEffect', 'angle', 0);
+\t\tsetSouthShaderUniform('BarrelBlurEffect', 'x', 0);
+\t\tsetSouthShaderUniform('BarrelBlurEffect', 'y', 0);
+\t\tsetSouthShaderUniform('blur', 'strength', 0);
+\t\tsetSouthShaderUniform('mosaic', 'strength', 0);
+\t\tsetSouthShaderUniform('chrom', 'strength', 0);
+\t\tsetSouthShaderUniform('colorola', 'zoom', 1);
+\t\tsetSouthShaderUniform('colorola', 'red', 1);
+\t\tsetSouthShaderUniform('colorola', 'green', 1);
+\t\tsetSouthShaderUniform('colorola', 'blue', 1);
+\t\tsetSouthShaderUniform('scan', 'strength', 0);
+\t\tsetSouthShaderUniform('scan', 'pixelsBetweenEachLine', 0);
+\t\tsetSouthShaderUniform('vig', 'strength', 0);
+\t\tsetSouthShaderUniform('vig', 'size', 0);
+\t\tsetSouthShaderUniform('vig', 'red', 0);
+\t\tsetSouthShaderUniform('vig', 'green', 0);
+\t\tsetSouthShaderUniform('vig', 'blue', 0);
+\t\tsetSouthShaderUniform('glitchy', 'iTime', 0);
+\t\tsetSouthShaderUniform('glitchy', 'AMT', 0);
+\t\tsetSouthShaderUniform('glitchy', 'SPEED', 0);
+\t\tsetSouthShaderUniform('sob', 'strength', 0);
+\t\tsetSouthShaderUniform('sob', 'intensity', 1);
+\t\tfor (key in ['mirrorRepeat', 'mirrorRepeathud'])
+\t\t{
+\t\t\tsetSouthShaderUniform(key, 'x', 0);
+\t\t\tsetSouthShaderUniform(key, 'y', 0);
+\t\t\tsetSouthShaderUniform(key, 'angle', 0);
+\t\t\tsetSouthShaderUniform(key, 'zoom', 1);
+\t\t}
+\t\tsetSouthShaderUniform('color', 'red', 1);
+\t\tsetSouthShaderUniform('color', 'green', 1);
+\t\tsetSouthShaderUniform('color', 'blue', 1);
+\t\tsetSouthShaderUniform('chromaticRadialBlur', 'Count', 0);
+\t\tsetSouthShaderUniform('chromaticRadialBlur', 'blur', 0);
+\t\tsetSouthShaderUniform('chromaticRadialBlur', 'falloff', 0);
+\t\tfor (key in ['cross', 'old tv', 'lightsrgb', 'static', 'effect weird', 'crt distorsionnew',
+\t\t\t'starfield', 'colorswitching', 'tv', 'raytracingcube', 'smok', 'vcrshader',
+\t\t\t'vcr with no glitch', 'rgbeffect3', 'blaze', 'gameboy', 'invert', 'pc'])
+\t\t\tsetSouthShaderUniform(key, 'iTime', 0);
+
+\t\tfor (key in ['cross', 'old tv', 'lightsrgb', 'static', 'effect weird', 'crt distorsionnew',
+\t\t\t'starfield', 'colorswitching', 'tv', 'raytracingcube', 'smok', 'vcrshader',
+\t\t\t'vcr with no glitch', 'rgbeffect3', 'blaze', 'gameboy', 'invert', 'pc',
+\t\t\t'chromaticRadialBlur'])
+\t\t\tsouthShaderFeatureFlags.set(key, false);
+\t\trefreshSouthShaderFilters();
+\t}
+
+\tfunction updateSouthBloodbathShaders(elapsed:Float):Void
+\t{
+\t\tif (curStage != 'south' || !ClientPrefs.shaders || southRuntimeShaderObjects == null) return;
+\t\tsouthShaderClock += elapsed;
+\t\tfor (key in ['cross', 'old tv', 'lightsrgb', 'static', 'effect weird', 'crt distorsionnew',
+\t\t\t'starfield', 'colorswitching', 'tv', 'raytracingcube', 'smok', 'vcrshader',
+\t\t\t'vcr with no glitch', 'rgbeffect3', 'blaze', 'gameboy', 'invert', 'pc'])
+\t\t{
+\t\t\tvar shader:FlxRuntimeShader = southRuntimeShaderObjects.get(key);
+\t\t\tif (shader != null) shader.setFloat('iTime', southShaderClock);
+\t\t}
+\t\tvar glitchShader:FlxRuntimeShader = southRuntimeShaderObjects.get('glitchy');
+\t\tif (glitchShader != null) glitchShader.setFloat('iTime', southShaderClock);
+\t}
+
+\tfunction handleSouthShaderEvent(eventName:String, value1:String, value2:String):Void
+\t{
+\t\tif (curStage != 'south' || !ClientPrefs.shaders || eventName == null) return;
+\t\tvar eventKey:String = eventName.trim().toLowerCase();
+\t\tvar toggle:Bool = value1 != null && value1.trim().toLowerCase() == 'on';
+\t\tswitch (eventKey)
+\t\t{
+\t\t\tcase 'crt distorsionnew':
+\t\t\t\tsetSouthShaderFeature('crt distorsionnew', toggle);
+\t\t\tcase 'crazyshader':
+\t\t\t\tsetSouthShaderFeature('vcrshader', toggle);
+\t\t\tcase 'invert':
+\t\t\t\tsetSouthShaderFeature('invert', toggle);
+\t\t\tcase 'cross' | 'smoke' | 'old tv' | 'lightsrgb' | 'effect weird' | 'static' |
+\t\t\t\t'starfield' | 'tv' | 'raytracingcube' | 'colorswitching' | 'blaze' | 'gameboy' | 'pc':
+\t\t\t\tvar featureKey:String = eventKey == 'smoke' ? 'smok' : eventKey;
+\t\t\t\tsetSouthShaderFeature(featureKey, toggle);
+\t\t\tcase 'greyscale':
+\t\t\t\ttweenSouthShaderUniform('greyScale', 'strength', southShaderNumber(value1, 0), southShaderNumber(value2, 0));
+\t\t\tcase 'sobelintensity':
+\t\t\t\ttweenSouthShaderUniform('sob', 'intensity', southShaderNumber(value1, 1), southShaderNumber(value2, 0));
+\t\t\tcase 'sobeleffect':
+\t\t\t\ttweenSouthShaderUniform('sob', 'strength', southShaderNumber(value1, 0), southShaderNumber(value2, 0));
+\t\t\tcase 'sobelflash':
+\t\t\t\tsetSouthShaderUniform('sob', 'strength', southShaderNumber(value1, 0));
+\t\t\t\ttweenSouthShaderUniform('sob', 'strength', 0, southShaderNumber(value2, 0));
+\t\t\tcase 'bloomhigh':
+\t\t\t\tsetSouthShaderUniform('bloomEffect', 'effect', 0.8);
+\t\t\t\tsetSouthShaderUniform('bloomEffect', 'strength', 1.6);
+\t\t\t\ttweenSouthShaderUniform('bloomEffect', 'effect', 0, southShaderNumber(value1, 0));
+\t\t\t\ttweenSouthShaderUniform('bloomEffect', 'strength', 0, southShaderNumber(value1, 0));
+\t\t\tcase 'bloommed':
+\t\t\t\tsetSouthShaderUniform('bloomEffect', 'effect', 0.5);
+\t\t\t\tsetSouthShaderUniform('bloomEffect', 'strength', 1.3);
+\t\t\t\ttweenSouthShaderUniform('bloomEffect', 'effect', 0, southShaderNumber(value1, 0));
+\t\t\t\ttweenSouthShaderUniform('bloomEffect', 'strength', 0, southShaderNumber(value1, 0));
+\t\t\tcase 'bloomlow':
+\t\t\t\tsetSouthShaderUniform('bloomEffect', 'effect', 0.2);
+\t\t\t\tsetSouthShaderUniform('bloomEffect', 'strength', 1);
+\t\t\t\ttweenSouthShaderUniform('bloomEffect', 'effect', 0, southShaderNumber(value1, 0));
+\t\t\t\ttweenSouthShaderUniform('bloomEffect', 'strength', 0, southShaderNumber(value1, 0));
+\t\t\tcase 'bloomlow low':
+\t\t\t\tsetSouthShaderUniform('bloomEffect', 'effect', 0.1);
+\t\t\t\tsetSouthShaderUniform('bloomEffect', 'strength', 0.23);
+\t\t\t\ttweenSouthShaderUniform('bloomEffect', 'effect', 0, southShaderNumber(value1, 0));
+\t\t\t\ttweenSouthShaderUniform('bloomEffect', 'strength', 0, southShaderNumber(value1, 0));
+\t\t\tcase 'bloom':
+\t\t\t\tvar bloomValue:Float = southShaderNumber(value1, 0);
+\t\t\t\ttweenSouthShaderUniform('bloomEffect', 'effect', bloomValue, southShaderNumber(value2, 0));
+\t\t\t\ttweenSouthShaderUniform('bloomEffect', 'strength', bloomValue * 2, southShaderNumber(value2, 0));
+\t\t\tcase 'barrel':
+\t\t\t\tvar barrelPair:Array<Float> = southShaderPair(value1, 0, 0);
+\t\t\t\tvar barrelDuration:Float = southShaderNumber(value2, 0);
+\t\t\t\ttweenSouthShaderUniform('barrel', 'barrel', barrelPair[0], barrelDuration);
+\t\t\t\ttweenSouthShaderUniform('barrelhud', 'barrel', barrelPair[1], barrelDuration);
+\t\t\tcase 'barrelangle':
+\t\t\t\tvar anglePair:Array<Float> = southShaderPair(value1, 0, 0);
+\t\t\t\tvar angleDuration:Float = southShaderNumber(value2, 0);
+\t\t\t\ttweenSouthShaderUniform('barrel', 'angle', anglePair[0], angleDuration);
+\t\t\t\ttweenSouthShaderUniform('barrelhud', 'angle', anglePair[1], angleDuration);
+\t\t\tcase 'barrelbeat':
+\t\t\t\tvar beatPair:Array<Float> = southShaderPair(value1, 0, 0);
+\t\t\t\tsetSouthShaderUniform('barrel', 'barrel', beatPair[0]);
+\t\t\t\tsetSouthShaderUniform('barrelhud', 'barrel', beatPair[1]);
+\t\t\t\ttweenSouthShaderUniform('barrel', 'barrel', 0, 0.4);
+\t\t\t\ttweenSouthShaderUniform('barrelhud', 'barrel', 0, 0.4);
+\t\t\tcase 'blur':
+\t\t\t\ttweenSouthShaderUniform('blur', 'strength', southShaderNumber(value1, 0), southShaderNumber(value2, 0));
+\t\t\tcase 'chromaticabber':
+\t\t\t\ttweenSouthShaderUniform('chrom', 'strength', southShaderNumber(value1, 0), southShaderNumber(value2, 0));
+\t\t\tcase 'chrombeat':
+\t\t\t\tsetSouthShaderUniform('chrom', 'strength', 0.009);
+\t\t\t\ttweenSouthShaderUniform('chrom', 'strength', 0, 1);
+\t\t\tcase 'aglitch':
+\t\t\t\tsetSouthShaderUniform('glitchy', 'AMT', southShaderNumber(value1, 0));
+\t\t\t\tsetSouthShaderUniform('glitchy', 'SPEED', southShaderNumber(value2, 0));
+\t\t}
+\t}
+\t#end
+"""
+    if "function initSouthBloodbathShaders():Void" not in source:
+        method_marker = "\tfunction set_songSpeed(value:Float):Float"
+        if method_marker not in source:
+            raise RuntimeError("Could not locate a safe PlayState method insertion point for South runtime shaders.")
+        source = source.replace(method_marker, shader_methods + "\n" + method_marker, 1)
+
+    create_marker = "\t\tsuper.create();\n"
+    if "initSouthBloodbathShaders();" not in source:
+        if create_marker not in source:
+            raise RuntimeError("Could not find PlayState super.create() to initialize the shader stack.")
+        source = source.replace(
+            create_marker,
+            create_marker + "\t\tif (curStage == 'south') initSouthBloodbathShaders();\n",
+            1,
+        )
+
+    update_marker = "\t\tcallOnLuas('onUpdatePost', [elapsed]);"
+    if "updateSouthBloodbathShaders(elapsed);" not in source:
+        if update_marker not in source:
+            raise RuntimeError("Could not find PlayState onUpdatePost update point for shader time uniforms.")
+        source = source.replace(
+            update_marker,
+            update_marker + "\n\t\tupdateSouthBloodbathShaders(elapsed);",
+            1,
+        )
+
+    event_marker = "\tpublic function triggerEventNote(eventName:String, value1:String, value2:String) {\n\t\tswitch(eventName) {"
+    if "handleSouthShaderEvent(eventName, value1, value2);" not in source:
+        if event_marker not in source:
+            raise RuntimeError("Could not find triggerEventNote() to attach Bloodbath shader events.")
+        source = source.replace(
+            event_marker,
+            "\tpublic function triggerEventNote(eventName:String, value1:String, value2:String) {\n"
+            "\t\t#if !flash\n"
+            "\t\tif (curStage == 'south') handleSouthShaderEvent(eventName, value1, value2);\n"
+            "\t\t#end\n"
+            "\t\tswitch(eventName) {",
+            1,
+        )
+
+    play_file.write_text(source, encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--engine", required=True, type=Path)
@@ -2619,6 +3103,7 @@ def main() -> int:
     copy_tree(mod / "fonts", engine / "assets" / "fonts")
     copy_tree(mod / "sounds", engine / "assets" / "preload" / "sounds")
     copy_tree(mod / "songs" / "bloodbath", engine / "assets" / "songs" / "bloodbath")
+    runtime_shader_asset_report = copy_south_runtime_shader_sources(mod, engine)
 
     # This port contains exactly one playable week. Do not append Bloodbath to
     # Psych Engine's stock week list; that made all base-game songs appear too.
@@ -2801,6 +3286,7 @@ def main() -> int:
     icon_changes = read_icon_changes(mod / "data" / "bloodbath" / "IconManager.lua")
     patch_note_types(engine)
     patch_south_stage(engine, image_report, icon_changes, character_names)
+    patch_south_runtime_shaders(engine)
     patch_change_character_visibility(engine)
     patch_south_stage_fades(engine)
     patch_south_cinematic_bars(engine)
@@ -2809,6 +3295,7 @@ def main() -> int:
     patch_chart_editor_optional_vocals(engine)
     patch_html5_video_cutscenes(engine)
     shader_report = strip_unsupported_html5_shader_assets(engine)
+    print("Embedded Bloodbath runtime shader sources: " + json.dumps(runtime_shader_asset_report, sort_keys=True))
     print("Unsupported HTML5 runtime shader assets removed: " + json.dumps(shader_report, sort_keys=True))
     print("Preserved shader source archive (not runtime-preloaded): " + json.dumps(shader_archive_report, sort_keys=True))
     print("HTML5 MP4 cutscene assets: " + json.dumps(video_archive_report, sort_keys=True))
