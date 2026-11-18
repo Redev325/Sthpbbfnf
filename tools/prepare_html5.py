@@ -920,31 +920,392 @@ case 'Camera Follow Pos':"""
 
 
 def patch_black_screen_diagnostics(engine: Path) -> None:
-    """Normalize South-stage custom event names without time-based overlay cleanup."""
+    """Recover stuck South-stage covers without drawing diagnostics over gameplay."""
     play_file = engine / "source" / "PlayState.hx"
     source = play_file.read_text(encoding="utf-8")
 
+    field_marker = "\tvar badAppleWhiteBg:FlxSprite;"
+    fields = field_marker + """
+\tvar lateBlackoutWatchSince:Float = -1;
+\tvar lateBlackoutRecoveries:Int = 0;
+\tvar blackDiagnosticLastEvent:String = "none";
+\tvar blackDiagnosticLastEventTime:Float = 0;
+\tvar blackDiagnosticEventHistory:Array<String> = [];
+\tvar southBlackDiagnosticPanel:FlxSprite;
+\tvar southBlackDiagnosticText:FlxText;
+
+\tfunction blackDiagnosticCameraValue(camera:FlxCamera, fieldName:String):Float
+\t{
+\t\tif (camera == null) return 0;
+\t\tvar rawValue:Dynamic = Reflect.field(camera, fieldName);
+\t\tif (rawValue == null) return 0;
+\t\tvar parsed:Float = Std.parseFloat(Std.string(rawValue));
+\t\treturn Math.isNaN(parsed) ? 0 : parsed;
+\t}
+
+\tfunction blackDiagnosticHasBlackFx(camera:FlxCamera):Bool
+\t{
+\t\tif (camera == null) return false;
+\t\tvar fadeAlpha:Float = blackDiagnosticCameraValue(camera, "_fxFadeAlpha");
+\t\tvar flashAlpha:Float = blackDiagnosticCameraValue(camera, "_fxFlashAlpha");
+\t\tvar fadeColor:Dynamic = Reflect.field(camera, "_fxFadeColor");
+\t\tvar flashColor:Dynamic = Reflect.field(camera, "_fxFlashColor");
+\t\treturn (fadeAlpha > 0.02 && fadeColor == FlxColor.BLACK)
+\t\t\t|| (flashAlpha > 0.02 && flashColor == FlxColor.BLACK);
+\t}
+
+\tfunction recoverLateBlackout():Void
+\t{
+\t\tvar songMs:Float = Conductor.songPosition;
+\t\t// Keep the watchdog active from the reported 5:56 blackout until the end.
+\t\tif (songMs < 356000)
+\t\t{
+\t\t\tlateBlackoutWatchSince = -1;
+\t\t\treturn;
+\t\t}
+
+\t\tvar blackLayer:BGSprite = southAnimatedObjects.get('black');
+\t\tvar blackbarLayer:BGSprite = southAnimatedObjects.get('blackbar');
+\t\tvar whiteLayer:BGSprite = southAnimatedObjects.get('white');
+
+\t\tvar badAppleBackdropStuck:Bool = !badAppleSilhouetteActive
+\t\t\t&& badAppleWhiteBg != null && badAppleWhiteBg.alpha > 0.02;
+
+\t\tvar blackCover:Bool = (blackLayer != null && blackLayer.alpha > 0.02)
+\t\t\t|| (blackbarLayer != null && blackbarLayer.alpha > 0.02)
+\t\t\t|| (whiteLayer != null && whiteLayer.alpha > 0.02)
+\t\t\t|| badAppleBackdropStuck
+\t\t\t|| (southBlackFlashOverlay != null && southBlackFlashOverlay.alpha > 0.02);
+
+\t\tvar cameraCover:Bool = blackDiagnosticHasBlackFx(camGame)
+\t\t\t|| blackDiagnosticHasBlackFx(camHUD)
+\t\t\t|| blackDiagnosticHasBlackFx(camOther);
+
+\t\tvar upperBarStuck:Bool = southStillStrumUpperBar != null && southStillStrumUpperBar.y > -349;
+\t\tvar lowerBarStuck:Bool = southStillStrumLowerBar != null && southStillStrumLowerBar.y < 719;
+\t\tvar cinematicCover:Bool = upperBarStuck || lowerBarStuck;
+
+\t\tif (!blackCover && !cameraCover && !cinematicCover)
+\t\t{
+\t\t\tlateBlackoutWatchSince = -1;
+\t\t\treturn;
+\t\t}
+
+\t\tvar wallNow:Float = Date.now().getTime();
+\t\tif (lateBlackoutWatchSince < 0)
+\t\t{
+\t\t\tlateBlackoutWatchSince = wallNow;
+\t\t\treturn;
+\t\t}
+
+\t\tif (wallNow - lateBlackoutWatchSince < 1250)
+\t\t\treturn;
+
+\t\t// Force-clear all known blackout covers after the watchdog confirms
+\t\t// the late-song overlay condition has remained stuck for 1.25 seconds.
+\t\tif (Conductor.songPosition >= 42000)
+\t\t{
+\t\t\tif (southAnimatedObjects != null)
+\t\t\t{
+\t\t\t\tvar recoverBlack:Dynamic = southAnimatedObjects.get('black');
+\t\t\t\tvar recoverBlackbar:Dynamic = southAnimatedObjects.get('blackbar');
+\t\t\t\tvar recoverWhite:Dynamic = southAnimatedObjects.get('white');
+
+\t\t\t\tif (recoverBlack != null)
+\t\t\t\t{
+\t\t\t\t\tFlxTween.cancelTweensOf(recoverBlack);
+\t\t\t\t\trecoverBlack.alpha = 0;
+\t\t\t\t\trecoverBlack.visible = false;
+\t\t\t\t}
+\t\t\t\tif (recoverBlackbar != null)
+\t\t\t\t{
+\t\t\t\t\tFlxTween.cancelTweensOf(recoverBlackbar);
+\t\t\t\t\trecoverBlackbar.alpha = 0;
+\t\t\t\t\trecoverBlackbar.visible = false;
+\t\t\t\t}
+\t\t\t\tif (recoverWhite != null)
+\t\t\t\t{
+\t\t\t\t\tFlxTween.cancelTweensOf(recoverWhite);
+\t\t\t\t\trecoverWhite.alpha = 0;
+\t\t\t\t\trecoverWhite.visible = false;
+\t\t\t\t}
+\t\t\t}
+\t\t\tif (southBlackFlashOverlay != null)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);
+\t\t\t\tsouthBlackFlashOverlay.alpha = 0;
+\t\t\t\tsouthBlackFlashOverlay.visible = false;
+\t\t\t}
+\t\t\tif (badAppleWhiteBg != null)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
+\t\t\t\tbadAppleWhiteBg.alpha = 0;
+\t\t\t\tbadAppleWhiteBg.visible = false;
+\t\t\t}
+\t\t\tif (camGame != null)
+\t\t\t\tcamGame.zoom = defaultCamZoom;
+\t\t}
+
+\t\tvar recovered:Array<String> = [];
+
+\t\tif (blackLayer != null && blackLayer.alpha > 0.02)
+\t\t{
+\t\t\tFlxTween.cancelTweensOf(blackLayer);
+\t\t\tblackLayer.alpha = 0;
+\t\t\tblackLayer.visible = false;
+\t\t\trecovered.push("stage black");
+\t\t}
+
+\t\tif (blackbarLayer != null && blackbarLayer.alpha > 0.02)
+\t\t{
+\t\t\tFlxTween.cancelTweensOf(blackbarLayer);
+\t\t\tblackbarLayer.alpha = 0;
+\t\t\tblackbarLayer.visible = false;
+\t\t\trecovered.push("stage blackbar");
+\t\t}
+
+\t\tif (whiteLayer != null && whiteLayer.alpha > 0.02)
+\t\t{
+\t\t\tFlxTween.cancelTweensOf(whiteLayer);
+\t\t\twhiteLayer.alpha = 0;
+\t\t\twhiteLayer.visible = false;
+\t\t\trecovered.push("stage white");
+\t\t}
+
+\t\tif (badAppleBackdropStuck && badAppleWhiteBg != null)
+\t\t{
+\t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
+\t\t\tbadAppleWhiteBg.alpha = 0;
+\t\t\tbadAppleWhiteBg.visible = false;
+\t\t\trecovered.push("Bad Apple backdrop");
+\t\t}
+
+\t\tif (southBlackFlashOverlay != null && southBlackFlashOverlay.alpha > 0.02)
+\t\t{
+\t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);
+\t\t\tsouthBlackFlashOverlay.alpha = 0;
+\t\t\tsouthBlackFlashOverlay.visible = false;
+\t\t\trecovered.push("black flash overlay");
+\t\t}
+
+\t\tif (upperBarStuck && southStillStrumUpperBar != null)
+\t\t{
+\t\t\tFlxTween.cancelTweensOf(southStillStrumUpperBar);
+\t\t\tsouthStillStrumUpperBar.y = -350;
+\t\t\tsouthStillStrumUpperBar.alpha = 1;
+\t\t\tsouthStillStrumUpperBar.visible = true;
+\t\t\trecovered.push("upper cinematic bar");
+\t\t}
+
+\t\tif (lowerBarStuck && southStillStrumLowerBar != null)
+\t\t{
+\t\t\tFlxTween.cancelTweensOf(southStillStrumLowerBar);
+\t\t\tsouthStillStrumLowerBar.y = 720;
+\t\t\tsouthStillStrumLowerBar.alpha = 1;
+\t\t\tsouthStillStrumLowerBar.visible = true;
+\t\t\trecovered.push("lower cinematic bar");
+\t\t}
+
+\t\tif (blackDiagnosticHasBlackFx(camGame))
+\t\t{
+\t\t\tcamGame.stopFX();
+\t\t\trecovered.push("camGame FX");
+\t\t}
+
+\t\tif (blackDiagnosticHasBlackFx(camHUD))
+\t\t{
+\t\t\tcamHUD.stopFX();
+\t\t\trecovered.push("camHUD FX");
+\t\t}
+
+\t\tif (blackDiagnosticHasBlackFx(camOther))
+\t\t{
+\t\t\tcamOther.stopFX();
+\t\t\trecovered.push("camOther FX");
+\t\t}
+
+\t\tif (camGame != null)
+\t\t\tcamGame.zoom = defaultCamZoom;
+
+\t\t// Last-resort visibility pass: run only after the watchdog has observed
+\t\t// a persistent cover for 1.25 seconds. Do not cancel legitimate fades
+\t\t// merely because the song has passed 5:56.
+\t\tif (blackCover)
+\t\t{
+\t\t\tif (southAnimatedObjects != null)
+\t\t\t{
+\t\t\t\tvar clearNames:Array<String> = ['black', 'blackbar', 'white'];
+\t\t\t\tfor (key in clearNames)
+\t\t\t\t{
+\t\t\t\t\tvar cover:BGSprite = southAnimatedObjects.get(key);
+\t\t\t\t\tif (cover != null)
+\t\t\t\t\t{
+\t\t\t\t\t\tFlxTween.cancelTweensOf(cover);
+\t\t\t\t\t\tcover.alpha = 0;
+\t\t\t\t\t\tcover.visible = false;
+\t\t\t\t\t}
+\t\t\t\t}
+\t\t\t}
+
+\t\t\tif (southBlackFlashOverlay != null)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);
+\t\t\t\tsouthBlackFlashOverlay.alpha = 0;
+\t\t\t\tsouthBlackFlashOverlay.visible = false;
+\t\t\t}
+
+\t\t\t// Preserve the intended Bad Apple white silhouette while it is active.
+\t\t\tif (!badAppleSilhouetteActive && badAppleWhiteBg != null)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
+\t\t\t\tbadAppleWhiteBg.alpha = 0;
+\t\t\t\tbadAppleWhiteBg.visible = false;
+\t\t\t}
+\t\t}
+
+\t\tif (recovered.length > 0)
+\t\t{
+\t\t\tlateBlackoutRecoveries++;
+\t\t\tblackDiagnosticLastEvent = "RECOVERED: " + recovered.join(", ");
+\t\t\tblackDiagnosticLastEventTime = songMs;
+\t\t\tblackDiagnosticEventHistory.push(blackDiagnosticLastEvent + " @ " + Std.string(Std.int(songMs)) + "ms");
+\t\t\tif (blackDiagnosticEventHistory.length > 6)
+\t\t\t\tblackDiagnosticEventHistory.shift();
+\t\t\ttrace("[Bloodbath overlay recovery] " + blackDiagnosticLastEvent);
+\t\t}
+
+\t\tlateBlackoutWatchSince = -1;
+\t}
+\tfunction updateSouthBlackDiagnosticPanel():Void
+\t{
+\t\tvar songMs:Float = Conductor.songPosition;
+\t\tif (!generatedMusic || songMs < 350000)
+\t\t{
+\t\t\tif (southBlackDiagnosticPanel != null) southBlackDiagnosticPanel.visible = false;
+\t\t\tif (southBlackDiagnosticText != null) southBlackDiagnosticText.visible = false;
+\t\t\treturn;
+\t\t}
+\t\tif (southBlackDiagnosticPanel == null)
+\t\t{
+\t\t\tsouthBlackDiagnosticPanel = new FlxSprite(8, 8);
+\t\t\tsouthBlackDiagnosticPanel.makeGraphic(500, 208, 0xDD080808);
+\t\t\tsouthBlackDiagnosticPanel.scrollFactor.set(0, 0);
+\t\t\tsouthBlackDiagnosticPanel.cameras = [camOther];
+\t\t\tadd(southBlackDiagnosticPanel);
+\t\t\tsouthBlackDiagnosticText = new FlxText(16, 14, 484, "", 11);
+\t\t\tsouthBlackDiagnosticText.font = Paths.font("vcr.ttf");
+\t\t\tsouthBlackDiagnosticText.color = FlxColor.WHITE;
+\t\t\tsouthBlackDiagnosticText.scrollFactor.set(0, 0);
+\t\t\tsouthBlackDiagnosticText.cameras = [camOther];
+\t\t\tadd(southBlackDiagnosticText);
+\t\t}
+\t\tsouthBlackDiagnosticPanel.visible = true;
+\t\tsouthBlackDiagnosticText.visible = true;
+\t\tvar blackLayer:BGSprite = southAnimatedObjects.get("black");
+\t\tvar blackbarLayer:BGSprite = southAnimatedObjects.get("blackbar");
+\t\tvar whiteLayer:BGSprite = southAnimatedObjects.get("white");
+\t\tvar historyStart:Int = blackDiagnosticEventHistory.length > 3 ? blackDiagnosticEventHistory.length - 3 : 0;
+\t\tvar recentHistory:String = blackDiagnosticEventHistory.length > 0
+\t\t\t? blackDiagnosticEventHistory.slice(historyStart).join("\\n")
+\t\t\t: "none";
+\t\tvar lastEventAge:Float = Math.max(0, (songMs - blackDiagnosticLastEventTime) / 1000);
+\t\tvar report:String = "BLOODBATH BLACK-SCREEN DIAGNOSTICS  (visible from 5:50)\\n"
+\t\t\t+ "TIME " + FlxStringUtil.formatTime(songMs / 1000, true)
+\t\t\t+ "   ZOOM game=" + Std.string(blackDiagnosticCameraValue(camGame, "zoom"))
+\t\t\t+ " hud=" + Std.string(blackDiagnosticCameraValue(camHUD, "zoom")) + "\\n"
+\t\t\t+ "CAM FX black: game=" + blackDiagnosticHasBlackFx(camGame)
+\t\t\t+ " hud=" + blackDiagnosticHasBlackFx(camHUD)
+\t\t\t+ " other=" + blackDiagnosticHasBlackFx(camOther) + "\\n"
+\t\t\t+ "COVERS alpha: black=" + Std.string(blackLayer == null ? -1 : blackLayer.alpha)
+\t\t\t+ " blackbar=" + Std.string(blackbarLayer == null ? -1 : blackbarLayer.alpha)
+\t\t\t+ " white=" + Std.string(whiteLayer == null ? -1 : whiteLayer.alpha)
+\t\t\t+ " flash=" + Std.string(southBlackFlashOverlay == null ? -1 : southBlackFlashOverlay.alpha)
+\t\t\t+ " BadApple=" + Std.string(badAppleWhiteBg == null ? -1 : badAppleWhiteBg.alpha) + "\\n"
+\t\t\t+ "BARS y: top=" + Std.string(southStillStrumUpperBar == null ? -999 : southStillStrumUpperBar.y)
+\t\t\t+ " bottom=" + Std.string(southStillStrumLowerBar == null ? -999 : southStillStrumLowerBar.y) + "\\n"
+\t\t\t+ "LAST EVENT (" + Std.string(lastEventAge) + "s ago): " + blackDiagnosticLastEvent + "\\n"
+\t\t\t+ "RECOVERIES: " + Std.string(lateBlackoutRecoveries) + "\\n"
+\t\t\t+ "RECENT EVENTS:\\n" + recentHistory;
+\t\tsouthBlackDiagnosticText.text = report;
+\t}
+
+\tfunction updateSouthOverlayRecovery():Void
+\t{
+\t\tupdateSouthBlackDiagnosticPanel();
+\t\trecoverLateBlackout();
+\t}
+"""
+    if "var lateBlackoutWatchSince:Float = -1;" not in source:
+        if field_marker not in source:
+            raise RuntimeError("Could not locate the South stage fields for blackout recovery.")
+        source = source.replace(field_marker, fields, 1)
+
+    update_marker = "\toverride public function update(elapsed:Float)\n\t{"
+    update_code = update_marker + "\n\t\tupdateBadAppleCameraFollow();\n\t\tupdateSouthOverlayRecovery();"
+    if "updateSouthOverlayRecovery();" not in source:
+        if update_marker not in source:
+            raise RuntimeError("Could not locate PlayState.update() for South overlay recovery.")
+        source = source.replace(update_marker, update_code, 1)
+
     event_marker = "public function triggerEventNote(eventName:String, value1:String, value2:String) {\n\t\tswitch(eventName) {"
     event_code = """public function triggerEventNote(eventName:String, value1:String, value2:String) {
-\t\t// Normalize only the South-stage custom events that are case-sensitive in the
-\t\t// base engine. Their handlers then act on the exact sprite named by the event.
-\t\tvar normalizedSouthEventName:String = eventName == null ? "" : eventName.toLowerCase();
-\t\tif (normalizedSouthEventName == 'afadein' || normalizedSouthEventName == 'afadeout')
-\t\t\teventName = normalizedSouthEventName;
-\t\telse if (normalizedSouthEventName == 'aobject play animation')
-\t\t\teventName = 'aObject Play Animation';
+\t\tblackDiagnosticLastEvent = eventName + " [" + value1 + " | " + value2 + "]";
+\t\tblackDiagnosticLastEventTime = Conductor.songPosition;
+\t\tblackDiagnosticEventHistory.push(blackDiagnosticLastEvent + " @ " + Std.string(Std.int(Conductor.songPosition)) + "ms");
+\t\tif (blackDiagnosticEventHistory.length > 6) blackDiagnosticEventHistory.shift();
+
+\t\t// Clear stale South-stage overlay objects at the FX event boundary.
+\t\tvar normalizedSouthFxEvent:String = eventName.toLowerCase();
+\t\tif (curStage == 'south' && (normalizedSouthFxEvent == 'afadeout' || normalizedSouthFxEvent == 'afadein' || normalizedSouthFxEvent == 'bloomhigh' || normalizedSouthFxEvent == 'barrel'))
+\t\t{
+\t\t\tif (southAnimatedObjects != null)
+\t\t\t{
+\t\t\t\tvar coverNames:Array<String> = ['black', 'blackbar', 'white', 'barrel', 'bloom'];
+\t\t\t\tfor (key in coverNames)
+\t\t\t\t{
+\t\t\t\t\tvar cover:Dynamic = southAnimatedObjects.get(key);
+\t\t\t\t\tif (cover != null)
+\t\t\t\t\t{
+\t\t\t\t\t\tFlxTween.cancelTweensOf(cover);
+\t\t\t\t\t\tcover.alpha = 0;
+\t\t\t\t\t\tcover.visible = false;
+\t\t\t\t\t}
+\t\t\t\t}
+\t\t\t}
+\t\t\tif (southBlackFlashOverlay != null)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);
+\t\t\t\tsouthBlackFlashOverlay.alpha = 0;
+\t\t\t\tsouthBlackFlashOverlay.visible = false;
+\t\t\t}
+\t\t\tif (badAppleWhiteBg != null)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(badAppleWhiteBg);
+\t\t\t\tbadAppleWhiteBg.alpha = 0;
+\t\t\t\tbadAppleWhiteBg.visible = false;
+\t\t\t}
+\t\t\tif (camGame != null)
+\t\t\t\tcamGame.zoom = defaultCamZoom;
+\t\t}
 
 \t\tswitch(eventName) {"""
-    if "var normalizedSouthEventName:String" not in source:
+    if "blackDiagnosticLastEvent = eventName" not in source:
         if event_marker not in source:
-            raise RuntimeError("Could not locate triggerEventNote() for South event-name normalization.")
+            raise RuntimeError("Could not locate triggerEventNote() for overlay event logging.")
         source = source.replace(event_marker, event_code, 1)
 
-    # Fail the build rather than silently reintroducing broad, time-based resets.
-    forbidden = ("recoverLate" + "Blackout()", "lateBlackout" + "WatchSince", "Date.now()" + ".getTime()")
-    found = [item for item in forbidden if item in source]
-    if found:
-        raise RuntimeError("Unsafe time-based blackout recovery remains in PlayState.hx: " + repr(found))
+    required = (
+        "function recoverLateBlackout():Void",
+        "function updateSouthOverlayRecovery():Void",
+        "Date.now().getTime()",
+        "southBlackFlashOverlay.alpha = 0;",
+        "southStillStrumUpperBar.y = -350;",
+        "southStillStrumLowerBar.y = 720;",
+        "updateSouthOverlayRecovery();",
+    )
+    missing = [item for item in required if item not in source]
+    if missing:
+        raise RuntimeError("South overlay recovery patch is incomplete: " + repr(missing))
     play_file.write_text(source, encoding="utf-8")
 
 
