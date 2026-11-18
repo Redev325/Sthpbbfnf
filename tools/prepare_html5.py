@@ -2666,6 +2666,10 @@ def copy_south_runtime_shader_sources(mod: Path, engine: Path) -> dict[str, obje
                     "SobelEffect.frag": [
                         ("if (strength <= 0)", "if (strength <= 0.0)"),
                     ],
+                    "Gaussian Blur.frag": [
+                        ("x < 1;", "x < 1.0;"),
+                        ("y < 1;", "y < 1.0;"),
+                    ],
                     "vcr with no glitch.frag": [
                         ("curUV.x<0", "curUV.x<0.0"),
                         ("curUV.x>1", "curUV.x>1.0"),
