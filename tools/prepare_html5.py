@@ -1154,7 +1154,7 @@ case 'Camera Follow Pos':"""
         "case 'Camera Flash':",
         "case 'badapplelol':",
         "case 'aCamaraZoom' | 'aCamaraZoom1' | 'aCamaraZoom3':",
-        `case "Bitto's zoom event":`,
+        "case \"Bitto's zoom event\":",
         "case 'Set Property':",
         "case 'acamera_target':",
     )
