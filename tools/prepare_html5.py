@@ -232,6 +232,7 @@ def patch_south_stage(
 	var southKnownCharacterNames:Array<String> = __KNOWN_CHARACTER_NAMES__;
 	var southKyleCharacter:Character;
 	var southKyleCCharacter:Character;
+	var southKyleCorruptionStarted:Bool = false;
 	var badAppleWhiteBg:FlxSprite;
 	var badAppleSilhouetteActive:Bool = false;
 	var badAppleLastCameraSection:Int = -1;
@@ -253,6 +254,37 @@ def patch_south_stage(
 		sprite.scrollFactor.set(0, 0);
 		sprite.scale.set(FlxG.width / sprite.frameWidth, FlxG.height / sprite.frameHeight);
 		sprite.updateHitbox();
+	}
+
+	function hideSouthAngryKyle():Void
+	{
+		var stageKyle:BGSprite = southAnimatedObjects.get('kyle s');
+		if (stageKyle != null)
+		{
+			FlxTween.cancelTweensOf(stageKyle);
+			stageKyle.alpha = 0;
+			stageKyle.visible = false;
+		}
+	}
+
+	function setSouthKyleCorruptionState(corrupted:Bool):Void
+	{
+		if (curStage != 'south') return;
+		if (corrupted) southKyleCorruptionStarted = true;
+
+		if (southKyleCharacter != null)
+		{
+			FlxTween.cancelTweensOf(southKyleCharacter);
+			southKyleCharacter.alpha = corrupted ? 0 : 1;
+			southKyleCharacter.visible = !corrupted;
+		}
+		if (southKyleCCharacter != null)
+		{
+			FlxTween.cancelTweensOf(southKyleCCharacter);
+			southKyleCCharacter.alpha = corrupted ? 1 : 0;
+			southKyleCCharacter.visible = corrupted;
+		}
+		if (corrupted) hideSouthAngryKyle();
 	}
 
 	function hideSouthExtraKyles():Void
@@ -375,6 +407,14 @@ def patch_south_stage(
 			trace('[Bloodbath sprite event] Missing character animation "' + requestedAnimation + '" for ' + character.curCharacter);
 			return false;
 		}
+		// The chart's explicit kyle/kyle c animation cue is the form-change
+		// trigger. Keep exactly one Kyle form visible and remove the angry
+		// kyle s overlay as soon as the corrupted form takes over.
+		if (character == southKyleCCharacter)
+			setSouthKyleCorruptionState(true);
+		else if (character == southKyleCharacter)
+			setSouthKyleCorruptionState(false);
+
 		character.visible = true;
 		character.alpha = 1;
 		character.playAnim(animationName, true);
@@ -406,7 +446,13 @@ def patch_south_stage(
 		}
 
 		// Switch to the dedicated animated Kyle atlas when he confronts Cartman.
-		if (normalizedKey == 'kyle s') hideSouthExtraKyles();
+		if (normalizedKey == 'kyle s')
+		{
+			// Once the corrupted Kyle has taken over, the angry overlay must
+			// never be shown again later in the chart.
+			if (southKyleCorruptionStarted) return false;
+			hideSouthExtraKyles();
+		}
 		if (isSouthBackgroundLayer(normalizedKey)) setSouthBackgroundLayer(normalizedKey, 0.35);
 		stageSprite.visible = true;
 		stageSprite.alpha = 1;
@@ -752,8 +798,12 @@ def patch_south_stage(
 					southLightOverlay2.alpha = 0.22;
 					FlxTween.tween(southLightOverlay2, {alpha: 1}, 0.38, {ease: FlxEase.quadOut});
 					// Kyle's note section ends before this background transition.
-					// Remove both the extra Kyle character and his lingering stage animation.
-					hideSouthExtraKyles();
+					// Clear the normal/angry forms at the transition, but don't
+					// erase corrupted Kyle if his charted takeover has already begun.
+					if (southKyleCCharacter == null || !southKyleCCharacter.visible)
+						hideSouthExtraKyles();
+					else
+						hideSouthAngryKyle();
 				case 2325:
 					southLightOverlay2.alpha = 0;
 				case 2433:
