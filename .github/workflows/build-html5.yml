@@ -100,11 +100,11 @@ jobs:
             echo "HTML5 video archive was not generated." >&2
             exit 1
           fi
-          SOURCE_VIDEO_COUNT="$(find "$VIDEO_ARCHIVE" -type f -iname '*.mp4' | wc -l)"
+          SOURCE_VIDEO_COUNT="$(find "$VIDEO_ARCHIVE" -type f \( -iname '*.mp4' -o -iname '*.m4v' -o -iname '*.webm' -o -iname '*.ogv' -o -iname '*.ogg' -o -iname '*.mov' \) | wc -l)"
           if [ "$SOURCE_VIDEO_COUNT" -gt 0 ]; then
             mkdir -p "$WEB_DIR/assets/videos"
             cp -a "$VIDEO_ARCHIVE/." "$WEB_DIR/assets/videos/"
-            PUBLISHED_VIDEO_COUNT="$(find "$WEB_DIR/assets/videos" -type f -iname '*.mp4' | wc -l)"
+            PUBLISHED_VIDEO_COUNT="$(find "$WEB_DIR/assets/videos" -type f \( -iname '*.mp4' -o -iname '*.m4v' -o -iname '*.webm' -o -iname '*.ogv' -o -iname '*.ogg' -o -iname '*.mov' \) | wc -l)"
             if [ "$PUBLISHED_VIDEO_COUNT" -ne "$SOURCE_VIDEO_COUNT" ]; then
               echo "MP4 cutscene copy mismatch: expected $SOURCE_VIDEO_COUNT files, found $PUBLISHED_VIDEO_COUNT." >&2
               exit 1
