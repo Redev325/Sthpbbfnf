@@ -1367,9 +1367,6 @@ def patch_south_cinematic_bars(engine: Path) -> None:
 \t\ttweenSouthCinematicHudAlpha(scoreTxt, entering ? 0 : southStillStrumHudAlphaAt(2), hudDuration);
 \t\ttweenSouthCinematicHudAlpha(iconP1, entering ? 0 : southStillStrumHudAlphaAt(3), hudDuration);
 \t\ttweenSouthCinematicHudAlpha(iconP2, entering ? 0 : southStillStrumHudAlphaAt(4), hudDuration);
-\t\ttweenSouthCinematicHudAlpha(timeBar, entering ? 0 : southStillStrumHudAlphaAt(5), hudDuration);
-\t\ttweenSouthCinematicHudAlpha(timeBarBG, entering ? 0 : southStillStrumHudAlphaAt(6), hudDuration);
-\t\ttweenSouthCinematicHudAlpha(timeTxt, entering ? 0 : southStillStrumHudAlphaAt(7), hudDuration);
 \t}
 
 \tfunction playSouthBorderBop(speed:Float, distance:Float):Void
@@ -1411,6 +1408,12 @@ def patch_south_cinematic_bars(engine: Path) -> None:
 \t\tsouthStillStrumLowerBar.scrollFactor.set(0, 0);
 \t\tsouthStillStrumLowerBar.cameras = [camHUD];
 \t\tadd(southStillStrumLowerBar);
+
+\t\t// Keep the song timer visible above cinematic effects and bars.
+\t\t// Reordering preserves the same HUD objects and their original alpha values.
+\t\tif (timeBarBG != null) { remove(timeBarBG, false); add(timeBarBG); }
+\t\tif (timeBar != null) { remove(timeBar, false); add(timeBar); }
+\t\tif (timeTxt != null) { remove(timeTxt, false); add(timeTxt); }
 
 \t\t// Save the user's actual HUD alpha settings so the exit event restores them.
 \t\tsouthStillStrumHudOriginalAlpha = [
