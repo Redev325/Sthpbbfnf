@@ -52,8 +52,9 @@ def find_game_root(package_dir: Path) -> Path:
 def patch_project(engine: Path) -> None:
     project_file = engine / "Project.xml"
     project = project_file.read_text(encoding="utf-8")
-    # This release contains one custom Bloodbath week. Drop video support and
-    # unrelated stock-week asset libraries from the browser build.
+    # Keep hxCodec's native VLC backend out of the browser build. The
+    # HTML5 build gets its own DOM <video> playback path below, while the
+    # unrelated stock-week asset libraries are still removed.
     project, removed = re.subn(
         r"^\s*<define\s+name=[\"']VIDEOS_ALLOWED[\"'][^>]*/>\s*\n",
         "",
@@ -1594,6 +1595,248 @@ def patch_chart_editor_optional_vocals(engine: Path) -> None:
     chart_file.write_text(code, encoding="utf-8")
 
 
+def stage_html5_video_assets(game: Path, engine: Path) -> dict[str, int]:
+    """Stage MP4 cutscenes outside Lime's preload manifest for browser playback."""
+    archive = engine / "html5-video-assets"
+    if archive.exists():
+        shutil.rmtree(archive)
+    archive.mkdir(parents=True, exist_ok=True)
+
+    mods_dir = game / "mods"
+    video_roots = [game / "assets" / "videos", mods_dir / "videos"]
+    if mods_dir.is_dir():
+        video_roots.extend(
+            child / "videos"
+            for child in mods_dir.iterdir()
+            if child.is_dir() and child.name.lower() != "videos"
+        )
+
+    copied: set[str] = set()
+    copied_bytes = 0
+    source_directories = 0
+
+    for video_root in video_roots:
+        if not video_root.is_dir():
+            continue
+        source_directories += 1
+        for source_file in video_root.rglob("*"):
+            if not source_file.is_file() or source_file.suffix.lower() != ".mp4":
+                continue
+
+            relative = source_file.relative_to(video_root)
+            target = archive / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            relative_key = relative.as_posix()
+
+            if target.exists():
+                if target.read_bytes() != source_file.read_bytes():
+                    raise RuntimeError(
+                        "Conflicting MP4 cutscene files use the same relative path: "
+                        + relative_key
+                    )
+                continue
+
+            shutil.copy2(source_file, target)
+            copied.add(relative_key)
+            copied_bytes += source_file.stat().st_size
+
+    return {
+        "sourceDirectories": source_directories,
+        "sourceFiles": len(copied),
+        "sourceBytes": copied_bytes,
+    }
+
+
+def patch_html5_video_cutscenes(engine: Path) -> None:
+    """Use the browser's native video element and expose a chart event for MP4 cutscenes."""
+    play_file = engine / "source" / "PlayState.hx"
+    source = play_file.read_text(encoding="utf-8")
+
+    start_marker = "\tpublic function startVideo(name:String)\n\t{"
+    end_marker = "\n\tfunction startAndEnd()"
+    if "HTML5 browser video cutscene handler" not in source:
+        start = source.find(start_marker)
+        end = source.find(end_marker, start + len(start_marker))
+        if start < 0 or end < 0:
+            raise RuntimeError("Could not locate PlayState.startVideo() for HTML5 cutscene playback.")
+
+        replacement = r"""
+	public function startVideo(name:String)
+	{
+		#if html5
+		// HTML5 browser video cutscene handler. Avoid hxCodec/libVLC because it
+		// is a native backend and cannot be linked into the JavaScript build.
+		inCutscene = true;
+
+		var videoName:String = name == null ? "" : name.trim();
+		if (videoName.length <= 0)
+		{
+			FlxG.log.warn("Video cutscene was requested without a filename.");
+			startAndEnd();
+			return;
+		}
+		if (!videoName.toLowerCase().endsWith(".mp4")) videoName += ".mp4";
+		if (!videoName.startsWith("assets/videos/")) videoName = "assets/videos/" + videoName;
+
+		var browserVideo:Dynamic = js.Browser.document.createElement("video");
+		var playbackFinished:Bool = false;
+		var resumeMusicAfterCutscene:Bool = FlxG.sound.music != null && FlxG.sound.music.playing;
+		if (resumeMusicAfterCutscene) FlxG.sound.music.pause();
+
+		var finishPlayback:Void->Void = null;
+		finishPlayback = function()
+		{
+			if (playbackFinished) return;
+			playbackFinished = true;
+
+			try
+			{
+				browserVideo.pause();
+				var videoParent:Dynamic = browserVideo.parentNode;
+				if (videoParent != null) videoParent.removeChild(browserVideo);
+			}
+			catch (error:Dynamic)
+			{
+				FlxG.log.warn("Could not fully clean up the HTML5 cutscene video element.");
+			}
+
+			if (resumeMusicAfterCutscene && !endingSong && FlxG.sound.music != null)
+				FlxG.sound.music.resume();
+
+			startAndEnd();
+		};
+
+		browserVideo.autoplay = true;
+		browserVideo.controls = false;
+		browserVideo.preload = "auto";
+		browserVideo.loop = false;
+		browserVideo.muted = false;
+		browserVideo.playsInline = true;
+		browserVideo.src = videoName;
+
+		browserVideo.style.position = "fixed";
+		browserVideo.style.left = "0";
+		browserVideo.style.top = "0";
+		browserVideo.style.width = "100vw";
+		browserVideo.style.height = "100vh";
+		browserVideo.style.objectFit = "contain";
+		browserVideo.style.backgroundColor = "#000";
+		browserVideo.style.zIndex = "2147483647";
+		browserVideo.style.pointerEvents = "auto";
+
+		browserVideo.addEventListener("ended", function(event:Dynamic)
+		{
+			finishPlayback();
+		});
+		browserVideo.addEventListener("error", function(event:Dynamic)
+		{
+			FlxG.log.warn("Could not load HTML5 video cutscene: " + videoName);
+			finishPlayback();
+		});
+		browserVideo.addEventListener("click", function(event:Dynamic)
+		{
+			// A click is a user gesture, allowing playback when the browser
+			// initially blocks autoplay because the video has audio.
+			try
+			{
+				browserVideo.play();
+			}
+			catch (error:Dynamic)
+			{
+				browserVideo.controls = true;
+			}
+		});
+
+		var pageBody:Dynamic = js.Browser.document.body;
+		if (pageBody == null)
+		{
+			FlxG.log.warn("Could not display HTML5 video cutscene: document body is unavailable.");
+			finishPlayback();
+			return;
+		}
+		pageBody.appendChild(browserVideo);
+
+		try
+		{
+			var playAttempt:Dynamic = browserVideo.play();
+			if (playAttempt != null)
+			{
+				var rejectHandler:Dynamic = Reflect.field(playAttempt, "catch");
+				if (rejectHandler != null)
+				{
+					Reflect.callMethod(playAttempt, rejectHandler, [function(error:Dynamic)
+					{
+						FlxG.log.warn("Browser blocked automatic cutscene playback; click the video to start it.");
+						browserVideo.controls = true;
+					}]);
+				}
+			}
+		}
+		catch (error:Dynamic)
+		{
+			FlxG.log.warn("Browser could not start the HTML5 video cutscene; use the video controls to continue.");
+			browserVideo.controls = true;
+		}
+		#elseif VIDEOS_ALLOWED
+		inCutscene = true;
+
+		var filepath:String = Paths.video(name);
+		#if sys
+		if(!FileSystem.exists(filepath))
+		#else
+		if(!OpenFlAssets.exists(filepath))
+		#end
+		{
+			FlxG.log.warn('Couldnt find video file: ' + name);
+			startAndEnd();
+			return;
+		}
+
+		var video:MP4Handler = new MP4Handler();
+		video.playVideo(filepath);
+		video.finishCallback = function()
+		{
+			startAndEnd();
+			return;
+		}
+		#else
+		FlxG.log.warn('Platform not supported!');
+		startAndEnd();
+		return;
+		#end
+	}
+""".trim();
+        source = source[:start] + replacement + source[end:];
+
+    if "HTML5 chart event: Play Video" not in source:
+        trigger_start = source.find("public function triggerEventNote(")
+        switch_marker = "\n\t\tswitch(eventName) {"
+        switch_position = source.find(switch_marker, trigger_start)
+        if trigger_start < 0 or switch_position < 0:
+            raise RuntimeError("Could not locate triggerEventNote() for the Play Video chart event.")
+
+        event_code = """
+		// HTML5 chart event: Play Video. value1 is the MP4 filename, with or without .mp4.
+		if (eventName != null && eventName.toLowerCase().trim() == "play video")
+		{
+			startVideo(value1);
+			return;
+		}
+"""
+        source = source[:switch_position] + event_code + source[switch_position:]
+
+    required = (
+        "HTML5 browser video cutscene handler",
+        "HTML5 chart event: Play Video",
+        'browserVideo.src = videoName;',
+    )
+    missing = [item for item in required if item not in source]
+    if missing:
+        raise RuntimeError("HTML5 video cutscene patch is incomplete: " + repr(missing))
+
+    play_file.write_text(source, encoding="utf-8")
+
+
 def stage_html5_shader_source_archive(game: Path, engine: Path) -> dict[str, int]:
     """Preserve every packaged shader directory outside Lime's runtime manifest.
 
@@ -1797,6 +2040,7 @@ def main() -> int:
     runtime_assets = game / "assets"
     mod = game / "mods"
     shader_archive_report = stage_html5_shader_source_archive(game, engine)
+    video_archive_report = stage_html5_video_assets(game, engine)
 
     # Restore the matching runtime assets, including data and shaders. The
     # original copy list omitted these folders, which can leave valid package
@@ -1980,9 +2224,11 @@ def main() -> int:
     patch_black_screen_diagnostics(engine)
     patch_botplay_pause_menu(engine)
     patch_chart_editor_optional_vocals(engine)
+    patch_html5_video_cutscenes(engine)
     shader_report = strip_unsupported_html5_shader_assets(engine)
     print("Unsupported HTML5 runtime shader assets removed: " + json.dumps(shader_report, sort_keys=True))
     print("Preserved shader source archive (not runtime-preloaded): " + json.dumps(shader_archive_report, sort_keys=True))
+    print("HTML5 MP4 cutscene assets: " + json.dumps(video_archive_report, sort_keys=True))
     converted = convert_ogg_files(engine)
     song_cleanup = keep_only_bloodbath(engine)
 
