@@ -938,6 +938,19 @@ def patch_south_stage(
             }
         }
 
+        if (curStage == 'south' && (note.noteType == 'Stan Note' || note.noteType == 'stan'))
+        {
+            // Stan is the player character for this chart. These notes are
+            // marked noAnimation so they must explicitly animate the active
+            // player sprite, including the stan r Change Character section.
+            var stanPlayerAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
+            if (boyfriend != null && boyfriend.animation.getByName(stanPlayerAnim) != null)
+            {
+                boyfriend.playAnim(stanPlayerAnim, true);
+                boyfriend.holdTimer = 0;
+            }
+        }
+
         if(!note.noAnimation) {"""
     if "var kylePlayerAnim:String" not in good_note_body:
         if good_note_marker not in good_note_body:
