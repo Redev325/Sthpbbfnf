@@ -510,13 +510,10 @@ def patch_south_stage(
 
 				var southBackground2Animated:BGSprite = new BGSprite('bg2', -1970, -1040, 1, 1, ['idle'], true);
 				// The static bg2 s image is 1920x1080; each bg2 atlas frame is
-				// 960x546. Scale the animated overlay to the same world-space size
-				// instead of leaving it at half width and height.
-				southBackground2.updateHitbox();
-				southBackground2Animated.scale.set(
-					southBackground2.width / southBackground2Animated.frameWidth,
-					southBackground2.height / southBackground2Animated.frameHeight
-				);
+				// 960x546. These factors make the animated overlay match the
+				// static layer's 5184x2916 world-space bounds. Keep literals here
+				// because the Python image-optimization pass adjusts these scales.
+				southBackground2Animated.scale.set(5.4, 5.3407);
 				southBackground2Animated.updateHitbox();
 				southBackground2Animated.alpha = 0;
 				add(southBackground2Animated);
