@@ -306,10 +306,10 @@ def patch_south_stage(
 	{
 		if (character == null || requestedAnimation == null) return false;
 		var animationName:String = requestedAnimation.trim();
-		for (candidateAnimation in character.animation.getAnimationList())
+		for (characterAnimation in character.animationsArray)
 		{
-			var candidate:String = candidateAnimation.name;
-			if (candidate.toLowerCase() == animationName.toLowerCase())
+			var candidate:String = characterAnimation.anim;
+			if (candidate != null && candidate.toLowerCase() == animationName.toLowerCase())
 			{
 				animationName = candidate;
 				break;
@@ -339,22 +339,12 @@ def patch_south_stage(
 		var stageSprite:BGSprite = southAnimatedObjects.get(normalizedKey);
 		if (stageSprite == null) return false;
 		var animationName:String = requestedAnimation == null ? "" : requestedAnimation.trim();
-		if (animationName.length > 0)
+		if (animationName.length > 0 && stageSprite.animation.getByName(animationName) == null)
 		{
-			for (candidateAnimation in stageSprite.animation.getAnimationList())
-			{
-				var candidate:String = candidateAnimation.name;
-				if (candidate.toLowerCase() == animationName.toLowerCase())
-				{
-					animationName = candidate;
-					break;
-				}
-			}
-			if (stageSprite.animation.getByName(animationName) == null)
-			{
-				trace('[Bloodbath sprite event] Missing stage animation "' + requestedAnimation + '" for ' + normalizedKey);
-				return false;
-			}
+			// BGSprite animation aliases are registered explicitly by the stage
+			// setup; this pinned Flixel build has no public animation-name iterator.
+			trace('[Bloodbath sprite event] Missing stage animation "' + requestedAnimation + '" for ' + normalizedKey);
+			return false;
 		}
 
 		if (isSouthBackgroundLayer(normalizedKey)) setSouthBackgroundLayer(normalizedKey, 0.35);
