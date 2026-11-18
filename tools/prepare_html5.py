@@ -929,25 +929,27 @@ def patch_change_character_visibility(engine: Path) -> None:
         ),
         (
             """if(!gfMap.exists(value2))
-\t\t\t\t\t\t\t\t\t{
-\t\t\t\t\t\t\t\t\t\taddCharacterToList(value2, charType);
-\t\t\t\t\t\t\t\t\t}
+\t\t\t\t\t\t\t\t{
+\t\t\t\t\t\t\t\t\taddCharacterToList(value2, charType);
+\t\t\t\t\t\t\t\t}
 
-\t\t\t\t\t\t\t\t\tvar lastAlpha:Float = gf.alpha;
-\t\t\t\t\t\t\t\t\tgf.alpha = 0.00001;
-\t\t\t\t\t\t\t\t\tgf = gfMap.get(value2);
-\t\t\t\t\t\t\t\t\tgf.alpha = lastAlpha;""",
+\t\t\t\t\t\t\t\tvar lastAlpha:Float = gf.alpha;
+\t\t\t\t\t\t\t\tgf.alpha = 0;
+\t\t\t\t\t\t\t\tgf.visible = false;
+\t\t\t\t\t\t\t\tgf = gfMap.get(value2);
+\t\t\t\t\t\t\t\tgf.visible = true;
+\t\t\t\t\t\t\t\tgf.alpha = lastAlpha;""",
             """if(!gfMap.exists(value2))
-\t\t\t\t\t\t\t\t\t{
-\t\t\t\t\t\t\t\t\t\taddCharacterToList(value2, charType);
-\t\t\t\t\t\t\t\t\t}
+\t\t\t\t\t\t\t\t{
+\t\t\t\t\t\t\t\t\taddCharacterToList(value2, charType);
+\t\t\t\t\t\t\t\t}
 
-\t\t\t\t\t\t\t\t\tvar lastAlpha:Float = gf.alpha;
-\t\t\t\t\t\t\t\t\tgf.alpha = 0;
+\t\t\t\t\t\t\t\tvar lastAlpha:Float = gf.alpha;
+\t\t\t\t\t\t\t\tgf.alpha = 0;
 \t\t\t\t\t\t\t\t\tgf.visible = false;
-\t\t\t\t\t\t\t\t\tgf = gfMap.get(value2);
+\t\t\t\t\t\t\t\tgf = gfMap.get(value2);
 \t\t\t\t\t\t\t\t\tgf.visible = true;
-\t\t\t\t\t\t\t\t\tgf.alpha = lastAlpha;""",
+\t\t\t\t\t\t\t\tgf.alpha = lastAlpha;""",
         ),
     ]
     for old, new in replacements:
