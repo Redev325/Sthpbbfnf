@@ -262,29 +262,42 @@ def patch_south_stage(
 	{
 		if (curStage != 'south' || southAnimatedObjects == null) return;
 		var normalizedKey:String = activeKey == null ? "" : activeKey.trim().toLowerCase();
+		if (normalizedKey == 'bg2 n') normalizedKey = 'bg2';
 		if (!isSouthBackgroundLayer(normalizedKey)) return;
 		if (Math.isNaN(duration) || duration < 0) duration = 0;
-		var backgroundKeys:Array<String> = ['bg', 'bg2', 'bg2 n', 'bg3', 'bg4'];
-		for (backgroundKey in backgroundKeys)
+
+		// bg2 is a composite: its still background and animated overlay must
+		// be visible together. Hiding either one makes the scene look empty.
+		var backgroundGroups:Array<Array<String>> = [
+			['bg'],
+			['bg2', 'bg2 n'],
+			['bg3'],
+			['bg4']
+		];
+		for (backgroundGroup in backgroundGroups)
 		{
-			var backgroundSprite:BGSprite = southAnimatedObjects.get(backgroundKey);
-			if (backgroundSprite == null) continue;
-			var targetAlpha:Float = backgroundKey == normalizedKey ? 1 : 0;
-			FlxTween.cancelTweensOf(backgroundSprite);
-			if (targetAlpha > 0.01) backgroundSprite.visible = true;
-			if (duration <= 0)
+			var groupIsActive:Bool = backgroundGroup.indexOf(normalizedKey) >= 0;
+			for (backgroundKey in backgroundGroup)
 			{
-				backgroundSprite.alpha = targetAlpha;
-				backgroundSprite.visible = targetAlpha > 0.01;
-			}
-			else
-			{
-				FlxTween.tween(backgroundSprite, {alpha: targetAlpha}, duration, {
-					ease: FlxEase.sineInOut,
-					onComplete: function(_:FlxTween) {
-						backgroundSprite.visible = targetAlpha > 0.01;
-					}
-				});
+				var backgroundSprite:BGSprite = southAnimatedObjects.get(backgroundKey);
+				if (backgroundSprite == null) continue;
+				var targetAlpha:Float = groupIsActive ? 1 : 0;
+				FlxTween.cancelTweensOf(backgroundSprite);
+				if (targetAlpha > 0.01) backgroundSprite.visible = true;
+				if (duration <= 0)
+				{
+					backgroundSprite.alpha = targetAlpha;
+					backgroundSprite.visible = targetAlpha > 0.01;
+				}
+				else
+				{
+					FlxTween.tween(backgroundSprite, {alpha: targetAlpha}, duration, {
+						ease: FlxEase.sineInOut,
+						onComplete: function(_:FlxTween) {
+							backgroundSprite.visible = targetAlpha > 0.01;
+						}
+					});
+				}
 			}
 		}
 	}
