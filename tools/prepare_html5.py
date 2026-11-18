@@ -741,7 +741,11 @@ def patch_south_stage(
 					southLightOverlay.alpha = 0;
 				case 1285:
 					setSouthBackgroundLayer('bg2', 0.55);
-					southLightOverlay2.alpha = 1;
+					// Bring the second scene's light up from a low alpha to make the
+					// 5:55-left Black effect land on the new background.
+					FlxTween.cancelTweensOf(southLightOverlay2);
+					southLightOverlay2.alpha = 0.22;
+					FlxTween.tween(southLightOverlay2, {alpha: 1}, 0.38, {ease: FlxEase.quadOut});
 					// Kyle's note section ends before this background transition.
 					// Remove both the extra Kyle character and his lingering stage animation.
 					hideSouthExtraKyles();
@@ -1068,6 +1072,21 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\tvar blackFlashDuration:Float = Std.parseFloat(value1);
 \t\t\t\t\tif (Math.isNaN(blackFlashDuration) || blackFlashDuration <= 0) blackFlashDuration = 1;
 \t\t\t\t\t// This desktop-only custom event is not included in the HTML5 export.\n\t\t\t\t\t// Do not emulate it with a fully opaque overlay: that creates the late-song\n\t\t\t\t\t// black blink immediately after the Bad Apple transition.\n\t\t\t\t\tif (southBlackFlashOverlay != null)\n\t\t\t\t\t{\n\t\t\t\t\t\tFlxTween.cancelTweensOf(southBlackFlashOverlay);\n\t\t\t\t\t\tsouthBlackFlashOverlay.alpha = 0;\n\t\t\t\t\t}
+\t\t\t\t}
+
+\t\t\tcase 'Black effect':
+\t\t\t\tif (curStage == 'south')
+\t\t\t\t{
+\t\t\t\t\t// The chart fires this custom event at 5:55 remaining,
+\t\t\t\t\t// immediately before the bg2 transition. Treat the value as
+\t\t\t\t\t// intensity and use one controlled flash instead of a long blackout.
+\t\t\t\t\tvar blackEffectStrength:Float = Std.parseFloat(value1);
+\t\t\t\t\tif (Math.isNaN(blackEffectStrength) || blackEffectStrength <= 0) blackEffectStrength = 3;
+\t\t\t\t\tvar blackEffectDuration:Float = blackEffectStrength * 0.25;
+\t\t\t\t\tif (blackEffectDuration > 0.9) blackEffectDuration = 0.9;
+\t\t\t\t\tif (blackEffectDuration < 0.35) blackEffectDuration = 0.35;
+\t\t\t\t\tflashSouthStageLight(blackEffectDuration);
+\t\t\t\t\tcamGame.flash(FlxColor.WHITE, blackEffectDuration, null, true);
 \t\t\t\t}
 
 \t\t\tcase 'Camera Flash' | 'Flash' | 'Flash Camera' | 'Flash Red':
