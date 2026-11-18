@@ -233,6 +233,7 @@ def patch_south_stage(
 	var southKyleCharacter:Character;
 	var southKyleCCharacter:Character;
 	var southKyleCorruptionStarted:Bool = false;
+	var southKyleCorruptionActive:Bool = false;
 	var badAppleWhiteBg:FlxSprite;
 	var badAppleSilhouetteActive:Bool = false;
 	var badAppleLastCameraSection:Int = -1;
@@ -285,6 +286,19 @@ def patch_south_stage(
 			southKyleCCharacter.visible = corrupted;
 		}
 		if (corrupted) hideSouthAngryKyle();
+	}
+
+	function updateSouthKyleCorruptionTimeline():Void
+	{
+		if (curStage != 'south' || !generatedMusic) return;
+
+		// The release chart's final lowercase "kyle" note section is the
+		// corrupted form's turn: it starts at 87,916.7 ms and ends when the
+		// following "Kyle Note" section begins at 100,083.3 ms.
+		var songPosition:Float = Conductor.songPosition;
+		var corruptedTurnActive:Bool = songPosition >= 87916.7 && songPosition < 100083.3;
+		if (corruptedTurnActive != southKyleCorruptionActive)
+			setSouthKyleCorruptionState(corruptedTurnActive);
 	}
 
 	function hideSouthExtraKyles():Void
@@ -1750,7 +1764,7 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
         source = source.replace(field_marker, fields, 1)
 
     update_marker = "\toverride public function update(elapsed:Float)\n\t{"
-    update_code = update_marker + "\n\t\tupdateBadAppleCameraFollow();\n\t\tupdateSouthOverlayRecovery();"
+    update_code = update_marker + "\n\t\tupdateBadAppleCameraFollow();\n\t\tupdateSouthOverlayRecovery();\n\t\tupdateSouthKyleCorruptionTimeline();"
     if "updateSouthOverlayRecovery();" not in source:
         if update_marker not in source:
             raise RuntimeError("Could not locate PlayState.update() for South overlay recovery.")
