@@ -178,6 +178,21 @@ jobs:
             fi
           done
 
+          # Psych's character selector reads this list through a dynamic URL.
+          # Ensure it exists at the exact path requested by Lime at runtime.
+          CHARACTER_LIST_SOURCE="engine/assets/preload/data/characterList.txt"
+          CHARACTER_LIST_TARGET="$WEB_DIR/assets/data/characterList.txt"
+          if [ ! -s "$CHARACTER_LIST_SOURCE" ]; then
+            echo "Required character list is missing from the Psych Engine source: $CHARACTER_LIST_SOURCE" >&2
+            exit 1
+          fi
+          mkdir -p "$WEB_DIR/assets/data"
+          cp -f "$CHARACTER_LIST_SOURCE" "$CHARACTER_LIST_TARGET"
+          if [ ! -s "$CHARACTER_LIST_TARGET" ]; then
+            echo "Required runtime asset is missing from the published site: assets/data/characterList.txt" >&2
+            exit 1
+          fi
+
           # Preserve the game's original shader sources as static files
           # outside Lime's generated preload manifest. HTML5 does not compile
           # Psych 0.6.3's desktop-only Lua shader API, so these files must not
