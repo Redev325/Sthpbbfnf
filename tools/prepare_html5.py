@@ -243,7 +243,7 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
     def sprite_scale(sprite_name: str) -> tuple[float, float]:
         pattern = re.compile(
             rf"(?m)^([ \t]*){re.escape(sprite_name)}\.scale\.set\(\s*"
-            rf"([-+0-9.eE]+)\s*,\s*([-+0-9.eE]+)\s*);"
+            rf"([-+0-9.eE]+)\s*,\s*([-+0-9.eE]+)\s*\);"
         )
         match = pattern.search(stage_code)
         if not match:
@@ -292,7 +292,7 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
 
         scale_pattern = re.compile(
             rf"(?m)^([ \t]*){re.escape(target_sprite)}\.scale\.set\(\s*"
-            rf"[-+0-9.eE]+\s*,\s*[-+0-9.eE]+\s*);"
+            rf"[-+0-9.eE]+\s*,\s*[-+0-9.eE]+\s*\);"
         )
         scale_match = scale_pattern.search(stage_code)
         if not scale_match:
