@@ -2648,8 +2648,7 @@ def patch_runtime_shader_global_initializers(source_name: str, shader_text: str)
 
     # Remove the invalid global declarations before finding the entry point.
     shader_text = (
-        shader_text[:first_function.start()]
-        + declaration_pattern.sub("", global_prefix)
+        declaration_pattern.sub("", global_prefix)
         + shader_text[first_function.start():]
     )
 
