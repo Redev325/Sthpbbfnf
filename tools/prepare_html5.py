@@ -353,6 +353,8 @@ def patch_south_stage(
 	var southKnownCharacterNames:Array<String> = __KNOWN_CHARACTER_NAMES__;
 	var southKyleCharacter:Character;
 	var southKyleCCharacter:Character;
+	var southCraigCharacter:Character;
+	var southCledyCharacter:Character;
 	var southKyleCorruptionStarted:Bool = false;
 	var southKyleCorruptionActive:Bool = false;
 	var badAppleWhiteBg:FlxSprite;
@@ -567,6 +569,9 @@ def patch_south_stage(
 			return playSouthCharacterAnimation(kyleTarget, requestedAnimation);
 		}
 
+		if (normalizedKey == 'craig') return playSouthCharacterAnimation(southCraigCharacter, requestedAnimation);
+		if (normalizedKey == 'cledy') return playSouthCharacterAnimation(southCledyCharacter, requestedAnimation);
+
 		var stageSpriteKey:String = normalizedKey;
 		if (normalizedKey == 'bg2' && requestedAnimation != null && requestedAnimation.trim().length > 0)
 			stageSpriteKey = 'bg2 n';
@@ -777,13 +782,15 @@ def patch_south_stage(
 				add(southOh);
 				southAnimatedObjects.set('oh', southOh);
 
-				var southCraig:BGSprite = new BGSprite('characters/craig', 1670, 400, 1, 1, ['oh'], true);
-				southCraig.animation.addByPrefix('anim', 'oh', 16, true);
-				southCraig.scale.set(0.9, 0.9);
-				southCraig.alpha = 0;
-				add(southCraig);
-				southAnimatedObjects.set('craig s', southCraig);
-				southAnimatedObjects.set('craig', southCraig);
+                // The original scripts create two different Craig sprites.
+                // south.lua's dormant stage prop is at (1700, 490); craig.lua's
+                // custom character is separately created at (1670, 400).
+                var southCraigStage:BGSprite = new BGSprite('characters/craig', 1700, 490, 1, 1, ['oh'], true);
+                southCraigStage.animation.addByPrefix('anim', 'oh', 16, true);
+                southCraigStage.scale.set(0.9, 0.9);
+                southCraigStage.alpha = 0;
+                add(southCraigStage);
+                southAnimatedObjects.set('craig s', southCraigStage);
 
 				// Native replacements for the extra Kyle characters created by
 				// kyle.lua and kyle c.lua in the desktop mod.
@@ -815,6 +822,36 @@ def patch_south_stage(
 				southKyleCharacter.animation.getByName('singUP').frameRate = 20;
 				southKyleCharacter.animation.getByName('singRIGHT').frameRate = 20;
 				add(southKyleCharacter);
+
+                // Restore both extra-character scripts as independent sprites
+                // using their exact Lua world positions, scales and offsets.
+                southCraigCharacter = new Character(1670, 400, 'craig');
+                southCraigCharacter.singDuration = 6;
+                southCraigCharacter.addOffset('idle', -10, -65);
+                southCraigCharacter.addOffset('singLEFT', 69, -96);
+                southCraigCharacter.addOffset('singDOWN', 25, -104);
+                southCraigCharacter.addOffset('singUP', 110, -43);
+                southCraigCharacter.addOffset('singRIGHT', -82, -70);
+                southCraigCharacter.animation.getByName('idle').frameRate = 17;
+                southCraigCharacter.animation.getByName('singLEFT').frameRate = 17;
+                southCraigCharacter.animation.getByName('singDOWN').frameRate = 17;
+                southCraigCharacter.animation.getByName('singUP').frameRate = 17;
+                southCraigCharacter.animation.getByName('singRIGHT').frameRate = 17;
+                add(southCraigCharacter);
+
+                southCledyCharacter = new Character(700, 220, 'cledy');
+                southCledyCharacter.singDuration = 6;
+                southCledyCharacter.addOffset('idle', -10, -65);
+                southCledyCharacter.addOffset('singLEFT', 77, -69);
+                southCledyCharacter.addOffset('singDOWN', -3, -109);
+                southCledyCharacter.addOffset('singUP', -15, -31);
+                southCledyCharacter.addOffset('singRIGHT', -81, -62);
+                southCledyCharacter.animation.getByName('idle').frameRate = 18;
+                southCledyCharacter.animation.getByName('singLEFT').frameRate = 18;
+                southCledyCharacter.animation.getByName('singDOWN').frameRate = 18;
+                southCledyCharacter.animation.getByName('singUP').frameRate = 18;
+                southCledyCharacter.animation.getByName('singRIGHT').frameRate = 18;
+                add(southCledyCharacter);
 
 				var southBlackbar:BGSprite = new BGSprite('blackbar', 0, 0);
 				southBlackbar.cameras = [camHUD];
@@ -886,7 +923,7 @@ def patch_south_stage(
         "southSnow": "nieve",
         "southKyle": "kyle s",
         "southOh": "oh",
-        "southCraig": "characters/craig",
+        "southCraigStage": "characters/craig",
         "southBlackbar": "blackbar",
     }
     resize_factors = image_report.get("scaleFactors", {})
@@ -929,6 +966,8 @@ def patch_south_stage(
     for sprite_name, image_name, lua_scale in (
         ("southKyleCharacter", "characters/kyle", 1.0),
         ("southKyleCCharacter", "characters/kyle c", 1.0),
+        ("southCraigCharacter", "characters/craig", 0.9),
+        ("southCledyCharacter", "characters/clyde", 1.9),
     ):
         factor = resize_factors.get(f"{image_name}.png", 1.0)
         if not isinstance(factor, (int, float)) or factor <= 0:
@@ -1010,6 +1049,14 @@ def patch_south_stage(
 						southKyleCCharacter.alpha = 0;
 						southKyleCCharacter.visible = false;
 					}
+                    if (southCraigCharacter != null) {
+                        southCraigCharacter.alpha = 0;
+                        southCraigCharacter.visible = false;
+                    }
+                    if (southCledyCharacter != null) {
+                        southCledyCharacter.alpha = 0;
+                        southCledyCharacter.visible = false;
+                    }
 				__ICON_CASES__
 			}
 		}
