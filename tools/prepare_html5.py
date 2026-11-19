@@ -2697,36 +2697,34 @@ def copy_south_runtime_shader_sources(mod: Path, engine: Path) -> dict[str, obje
                     # original shader uses the uniform AMT as its for-loop
                     # limit, so use a fixed 10-iteration loop and gate the
                     # original body with the same AMT condition.
-                    loop_header = re.compile(
-                        r"(?m)^([ \\t]*)for\\s*\\(\\s*float\\s+i\\s*=\\s*0\\.0\\s*;"
-                        r"\\s*i\\s*<\\s*10\\.0\\s*\\*\\s*AMT\\s*;"
-                        r"\\s*i\\s*\\+=\\s*1\\.0\\s*\\)\\s*\\{"
-                    )
-                    loop_match = loop_header.search(shader_text)
-                    if loop_match is not None:
-                        indent = loop_match.group(1)
-                        shader_text = (
-                            shader_text[:loop_match.start()]
-                            + indent + "for (int i = 0; i < 10; ++i) {\\n"
+                    original_loop = "for (float i = 0.0; i < 10.0 * AMT; i += 1.0) {"
+                    fixed_loop = "for (int i = 0; i < 10; ++i) {"
+                    if original_loop in shader_text:
+                        loop_at = shader_text.index(original_loop)
+                        line_start = shader_text.rfind("\\n", 0, loop_at) + 1
+                        indent = shader_text[line_start:loop_at]
+                        new_header = (
+                            indent + fixed_loop + "\\n"
                             + indent + "    if (float(i) < 10.0 * AMT) {"
-                            + shader_text[loop_match.end():]
                         )
-                        body_end = re.search(
-                            r"(?m)^([ \\t]*)}\\s*(?=\\r?\\n[ \\t]*//do slight offset on one entire channel)",
-                            shader_text[loop_match.start():]
+                        shader_text = (
+                            shader_text[:line_start]
+                            + new_header
+                            + shader_text[loop_at + len(original_loop):]
                         )
-                        if body_end is None:
+                        channel_comment = "//do slight offset on one entire channel"
+                        comment_at = shader_text.find(channel_comment, line_start)
+                        close_at = shader_text.rfind("\\n" + indent + "}", line_start, comment_at)
+                        if comment_at < 0 or close_at < 0:
                             raise RuntimeError(
                                 "Could not locate the end of the Glitchy.frag AMT loop body."
                             )
-                        insert_at = loop_match.start() + body_end.start()
-                        close_indent = body_end.group(1)
                         shader_text = (
-                            shader_text[:insert_at]
-                            + close_indent + "    }\\n"
-                            + shader_text[insert_at:]
+                            shader_text[:close_at]
+                            + "\\n" + indent + "    }"
+                            + shader_text[close_at:]
                         )
-                    elif "for (int i = 0; i < 10; ++i)" not in shader_text:
+                    elif fixed_loop not in shader_text:
                         raise RuntimeError(
                             "Could not locate the original variable-bound loop in Glitchy.frag."
                         )
