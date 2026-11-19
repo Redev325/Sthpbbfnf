@@ -2620,6 +2620,108 @@ def convert_ogg_files(engine: Path) -> int:
 
 
 
+def patch_runtime_shader_global_initializers(source_name: str, shader_text: str) -> str:
+    """Move runtime-dependent global vec2 initializers into shader entry points.
+
+    WebGL GLSL ES 1.00 rejects global initializers that depend on varyings or
+    uniforms. The old Shadertoy ports used these as convenient globals; in
+    HTML5 they must be local to main/mainImage. Helper functions that also use
+    the resolution receive it as an explicit parameter.
+    """
+    first_function = re.search(
+        r"(?m)^[ \t]*(?:void|float|vec[234]|mat[234])\s+\w+\s*\([^;{}]*\)\s*\{",
+        shader_text,
+    )
+    if first_function is None:
+        return shader_text
+
+    global_prefix = shader_text[:first_function.start()]
+    declaration_pattern = re.compile(
+        r"(?m)^[ \t]*(vec2)\s+(uv|fragCoord|iResolution|realUV|destCoord)\s*=\s*"
+        r"(openfl_TextureCoordv(?:\.xy)?|openfl_TextureCoordv\s*\*\s*openfl_TextureSize|openfl_TextureSize)\s*;\s*\n?"
+    )
+    declarations: list[tuple[str, str, str]] = []
+    for match in declaration_pattern.finditer(global_prefix):
+        declarations.append((match.group(1), match.group(2), match.group(3)))
+    if not declarations:
+        return shader_text
+
+    # Remove the invalid global declarations before finding the entry point.
+    shader_text = (
+        shader_text[:first_function.start()]
+        + declaration_pattern.sub("", global_prefix)
+        + shader_text[first_function.start():]
+    )
+
+    entry = re.search(
+        r"\bvoid\s+(?:main|mainImage)\s*\([^)]*\)\s*\{",
+        shader_text,
+    )
+    if entry is None:
+        raise RuntimeError(f"Could not find main/mainImage in {source_name} after removing globals.")
+
+    # Find the matching entry-point brace, so local declarations in helper
+    # functions do not make us incorrectly skip a required entry-point value.
+    depth = 1
+    cursor = entry.end()
+    while cursor < len(shader_text) and depth > 0:
+        if shader_text[cursor] == "{":
+            depth += 1
+        elif shader_text[cursor] == "}":
+            depth -= 1
+        cursor += 1
+    if depth != 0:
+        raise RuntimeError(f"Could not parse the entry-point body in {source_name}.")
+    main_body = shader_text[entry.end():cursor - 1]
+
+    local_declarations: list[str] = []
+    for value_type, variable_name, initializer in declarations:
+        if re.search(r"\b" + re.escape(value_type) + r"\s+" + re.escape(variable_name) + r"\s*=", main_body):
+            continue
+        local_declarations.append(f"{value_type} {variable_name} = {initializer};")
+
+    if local_declarations:
+        insertion = "\n    " + "\n    ".join(local_declarations) + "\n"
+        shader_text = shader_text[:entry.end()] + insertion + shader_text[entry.end():]
+
+    if source_name == "cross_hatch.frag":
+        shader_text = shader_text.replace(
+            "float lookup(vec2 p, float dx, float dy)",
+            "float lookup(vec2 p, float dx, float dy, vec2 resolution)",
+            1,
+        )
+        shader_text = shader_text.replace(
+            "(p.xy + vec2(dx * d, dy * d)) / iResolution.xy",
+            "(p.xy + vec2(dx * d, dy * d)) / resolution.xy",
+            1,
+        )
+        for dx, dy in (
+            ("-1.0", "-1.0"), ("-1.0", "0.0"), ("-1.0", "1.0"),
+            ("1.0", "-1.0"), ("1.0", "0.0"), ("1.0", "1.0"),
+            ("0.0", "-1.0"), ("0.0", "1.0"),
+        ):
+            old_call = f"lookup(p, {dx}, {dy})"
+            new_call = f"lookup(p, {dx}, {dy}, iResolution)"
+            shader_text = shader_text.replace(old_call, new_call)
+    elif source_name == "pc.frag":
+        shader_text = shader_text.replace(
+            "vec3 GetScreenPixelColor(vec2 ul)",
+            "vec3 GetScreenPixelColor(vec2 ul, vec2 resolution)",
+            1,
+        )
+        shader_text = shader_text.replace(
+            "1600.0/iResolution.x",
+            "1600.0/resolution.x",
+            1,
+        )
+        shader_text = shader_text.replace(
+            "GetScreenPixelColor(vec2(ul.x+i/iResolution.x,ul.y))",
+            "GetScreenPixelColor(vec2(ul.x+i/iResolution.x,ul.y), iResolution)",
+        )
+
+    return shader_text
+
+
 def copy_south_runtime_shader_sources(mod: Path, engine: Path) -> dict[str, object]:
     """Copy only the shader sources actually requested by the Bloodbath Lua scripts.
 
@@ -2728,6 +2830,11 @@ def copy_south_runtime_shader_sources(mod: Path, engine: Path) -> dict[str, obje
                         raise RuntimeError(
                             "Could not locate the original variable-bound loop in Glitchy.frag."
                         )
+
+                if extension == ".frag":
+                    shader_text = patch_runtime_shader_global_initializers(
+                        source_file.name, shader_text
+                    )
 
                 target_file = destination / source_file.name
                 target_file.write_text(shader_text, encoding="utf-8")
