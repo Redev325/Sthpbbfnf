@@ -922,6 +922,31 @@ def patch_south_stage(
                 count=1,
             )
 
+    # The original Kyle Lua scripts create ordinary sprites at scale 1.0.
+    # The HTML5 port uses Character objects (whose JSON scales are for normal
+    # gameplay characters), so override those scales to the Lua sprite size,
+    # compensating only for the PNG resize performed above.
+    for sprite_name, image_name, lua_scale in (
+        ("southKyleCharacter", "characters/kyle", 1.0),
+        ("southKyleCCharacter", "characters/kyle c", 1.0),
+    ):
+        factor = resize_factors.get(f"{image_name}.png", 1.0)
+        if not isinstance(factor, (int, float)) or factor <= 0:
+            raise RuntimeError(f"Invalid image resize factor for {image_name}: {factor!r}")
+        final_scale = lua_scale / float(factor)
+        declaration = re.compile(
+            rf"(?m)^([\\t ]*){re.escape(sprite_name)} = new Character\\([^\\n]*\\);$"
+        )
+        match = declaration.search(stage_code)
+        if not match:
+            raise RuntimeError(f"Could not find custom Kyle character declaration: {sprite_name}")
+        indent = match.group(1)
+        scale_code = (
+            f"\\n{indent}{sprite_name}.scale.set({final_scale:.4f}, {final_scale:.4f});"
+            f"\\n{indent}{sprite_name}.updateHitbox();"
+        )
+        stage_code = stage_code[:match.end()] + scale_code + stage_code[match.end():]
+
     # Align every South-stage lighting/overlay layer to its actual atlas frame.
     # This also re-derives the bg2 animation scale instead of relying on hand-tuned
     # constants, so future image optimization cannot silently shift the layers.
