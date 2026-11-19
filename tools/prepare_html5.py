@@ -206,6 +206,127 @@ def read_icon_changes(icon_manager_file: Path) -> list[tuple[int, str, str, str]
     return changes
 
 
+def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
+    """Match paired South-stage atlases and lighting layers in world space.
+
+    The lighting PNGs are higher-resolution exports than their animation
+    atlases. Applying the same numeric scale to both made several overlays
+    almost twice as large as the background frame they illuminate. Derive
+    each overlay scale from the actual Sparrow frame and PNG dimensions.
+    """
+    def asset_dimensions(asset_name: str, animated: bool) -> tuple[float, float]:
+        image_file = image_dir / f"{asset_name}.png"
+        if not image_file.is_file():
+            raise FileNotFoundError(f"South-stage alignment image is missing: {image_file}")
+
+        if animated:
+            atlas_file = image_file.with_suffix(".xml")
+            if not atlas_file.is_file():
+                raise FileNotFoundError(f"South-stage animation atlas is missing: {atlas_file}")
+            try:
+                root = ET.parse(atlas_file).getroot()
+            except ET.ParseError as error:
+                raise RuntimeError(f"Invalid South-stage animation atlas: {atlas_file}") from error
+            frame = root.find(".//SubTexture")
+            if frame is None:
+                raise RuntimeError(f"South-stage animation atlas has no SubTexture entries: {atlas_file}")
+            width = float(frame.get("frameWidth") or frame.get("width") or 0)
+            height = float(frame.get("frameHeight") or frame.get("height") or 0)
+        else:
+            with Image.open(image_file) as image:
+                width, height = map(float, image.size)
+
+        if width <= 0 or height <= 0:
+            raise RuntimeError(f"Invalid South-stage asset dimensions for {asset_name}: {width}x{height}")
+        return width, height
+
+    def sprite_scale(sprite_name: str) -> tuple[float, float]:
+        pattern = re.compile(
+            rf"(?m)^([\\t ]*){re.escape(sprite_name)}\\.scale\\.set\\(\\s*"
+            rf"([-+0-9.eE]+)\\s*,\\s*([-+0-9.eE]+)\\s*\\);"
+        )
+        match = pattern.search(stage_code)
+        if not match:
+            raise RuntimeError(f"Could not read South-stage scale for {sprite_name}.")
+        return float(match.group(2)), float(match.group(3))
+
+    def sprite_position(sprite_name: str) -> tuple[float, float]:
+        pattern = re.compile(
+            rf"(?m)^([\\t ]*)(?:var\\s+)?{re.escape(sprite_name)}"
+            rf"(?:\\s*:\\s*BGSprite)?\\s*=\\s*new BGSprite\\(\\s*['\\\"][^'\\\"]+['\\\"]\\s*,\\s*"
+            rf"([-+0-9.eE]+)\\s*,\\s*([-+0-9.eE]+)"
+        )
+        match = pattern.search(stage_code)
+        if not match:
+            raise RuntimeError(f"Could not read South-stage origin for {sprite_name}.")
+        return float(match.group(2)), float(match.group(3))
+
+    alignments = [
+        # Animated main layer -> its full-resolution illumination PNG.
+        ("southBackground", "bg", True, "southLightOverlay", "luzbg", False),
+        ("southBackground3", "bg3", True, "southLightOverlay3", "bg3luz", False),
+        ("southBackground4", "bg4", True, "southLightOverlay4", "bg4luz", False),
+        ("southBackground4", "bg4", True, "southLightOverlay42", "bg4luz2", False),
+        # The second scene's animated atlas, light, and snow all align to its
+        # full-resolution static background.
+        ("southBackground2", "bg2 s", False, "southBackground2Animated", "bg2", True),
+        ("southBackground2", "bg2 s", False, "southLightOverlay2", "bg2luz", False),
+        ("southBackground2", "bg2 s", False, "southSnow", "nieve", False),
+    ]
+
+    report = []
+    for base_sprite, base_asset, base_animated, target_sprite, target_asset, target_animated in alignments:
+        base_position = sprite_position(base_sprite)
+        target_position = sprite_position(target_sprite)
+        if base_position != target_position:
+            raise RuntimeError(
+                f"South-stage layer origins do not match: {base_sprite} {base_position} "
+                f"vs {target_sprite} {target_position}."
+            )
+
+        base_width, base_height = asset_dimensions(base_asset, base_animated)
+        target_width, target_height = asset_dimensions(target_asset, target_animated)
+        base_scale_x, base_scale_y = sprite_scale(base_sprite)
+        target_scale_x = base_width * base_scale_x / target_width
+        target_scale_y = base_height * base_scale_y / target_height
+
+        scale_pattern = re.compile(
+            rf"(?m)^([\\t ]*){re.escape(target_sprite)}\\.scale\\.set\\(\\s*"
+            rf"[-+0-9.eE]+\\s*,\\s*[-+0-9.eE]+\\s*\\);"
+        )
+        scale_match = scale_pattern.search(stage_code)
+        if not scale_match:
+            raise RuntimeError(f"Could not update South-stage scale for {target_sprite}.")
+        indent = scale_match.group(1)
+        scale_line = (
+            f"{indent}{target_sprite}.scale.set({target_scale_x:.6f}, {target_scale_y:.6f});"
+        )
+        stage_code = scale_pattern.sub(scale_line, stage_code, count=1)
+
+        # Recompute Flixel's draw/hitbox dimensions after the scale adjustment.
+        hitbox_pattern = re.compile(
+            rf"(?m)^{re.escape(indent)}{re.escape(target_sprite)}\\.updateHitbox\\(\\);$"
+        )
+        if not hitbox_pattern.search(stage_code):
+            stage_code = stage_code.replace(
+                scale_line,
+                scale_line + f"\\n{indent}{target_sprite}.updateHitbox();",
+                1,
+            )
+
+        report.append({
+            "base": base_sprite,
+            "target": target_sprite,
+            "baseAssetSize": [base_width, base_height],
+            "targetAssetSize": [target_width, target_height],
+            "scale": [round(target_scale_x, 6), round(target_scale_y, 6)],
+            "origin": list(base_position),
+        })
+
+    print("South-stage aligned layers: " + json.dumps(report, sort_keys=True))
+    return stage_code
+
+
 def patch_south_stage(
     engine: Path,
     image_report: dict[str, object],
@@ -539,11 +660,14 @@ def patch_south_stage(
 				add(southFogBack);
 				southAnimatedObjects.set('wow1', southFogBack);
 
-				var southVignette:BGSprite = new BGSprite('Vignette', -20, 0);
-				southVignette.cameras = [camOther];
-				southVignette.alpha = 0;
-				add(southVignette);
-				southAnimatedObjects.set('vignette', southVignette);
+				// The desktop stage contains two separate Vignette sprites:
+				// one slightly inset on the HUD camera, then a full-screen
+				// overlay on camOther. Do not merge their coordinates/cameras.
+				var southVignetteHud:BGSprite = new BGSprite('Vignette', -20, 0);
+				southVignetteHud.cameras = [camHUD];
+				southVignetteHud.alpha = 0;
+				add(southVignetteHud);
+				southAnimatedObjects.set('vignetteHud', southVignetteHud);
 
 				var southWhite:BGSprite = new BGSprite('white', -1700, -500);
 				southWhite.cameras = [camHUD];
@@ -730,12 +854,21 @@ def patch_south_stage(
 				add(southAnim3);
 				southAnimatedObjects.set('anim3', southAnim3);
 
+				// Match the second desktop Vignette instance: full-screen and
+				// anchored at the viewport origin on camOther.
+				var southVignette:BGSprite = new BGSprite('Vignette', 0, 0);
+				southVignette.cameras = [camOther];
+				southVignette.alpha = 0;
+				add(southVignette);
+				southAnimatedObjects.set('vignette', southVignette);
+
 			case 'stage': //Week 1"""
     # Increase each sprite's Haxe scale by the inverse of its PNG resize ratio.
     # This keeps stage layout/character size while using much smaller GPU textures.
     stage_sprite_assets = {
         "southSun": "sun",
         "southFogBack": "fog bg2",
+        "southVignetteHud": "Vignette",
         "southVignette": "Vignette",
         "southWhite": "white",
         "southFog": "fog",
@@ -788,6 +921,14 @@ def patch_south_stage(
                 stage_code,
                 count=1,
             )
+
+    # Align every South-stage lighting/overlay layer to its actual atlas frame.
+    # This also re-derives the bg2 animation scale instead of relying on hand-tuned
+    # constants, so future image optimization cannot silently shift the layers.
+    stage_code = align_south_stage_layer_scales(
+        stage_code,
+        engine / "assets" / "preload" / "images",
+    )
 
     if "Native HTML5 recreation of the South Park Bloodbath stage.lua" not in source:
         if marker not in source:
