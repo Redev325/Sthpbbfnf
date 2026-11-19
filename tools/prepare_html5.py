@@ -2701,10 +2701,10 @@ def copy_south_runtime_shader_sources(mod: Path, engine: Path) -> dict[str, obje
                     fixed_loop = "for (int i = 0; i < 10; ++i) {"
                     if original_loop in shader_text:
                         loop_at = shader_text.index(original_loop)
-                        line_start = shader_text.rfind("\\n", 0, loop_at) + 1
+                        line_start = shader_text.rfind("\n", 0, loop_at) + 1
                         indent = shader_text[line_start:loop_at]
                         new_header = (
-                            indent + fixed_loop + "\\n"
+                            indent + fixed_loop + "\n"
                             + indent + "    if (float(i) < 10.0 * AMT) {"
                         )
                         shader_text = (
@@ -2714,14 +2714,14 @@ def copy_south_runtime_shader_sources(mod: Path, engine: Path) -> dict[str, obje
                         )
                         channel_comment = "//do slight offset on one entire channel"
                         comment_at = shader_text.find(channel_comment, line_start)
-                        close_at = shader_text.rfind("\\n" + indent + "}", line_start, comment_at)
+                        close_at = shader_text.rfind("\n" + indent + "}", line_start, comment_at)
                         if comment_at < 0 or close_at < 0:
                             raise RuntimeError(
                                 "Could not locate the end of the Glitchy.frag AMT loop body."
                             )
                         shader_text = (
                             shader_text[:close_at]
-                            + "\\n" + indent + "    }"
+                            + "\n" + indent + "    }"
                             + shader_text[close_at:]
                         )
                     elif fixed_loop not in shader_text:
