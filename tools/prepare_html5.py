@@ -1371,12 +1371,23 @@ def patch_change_character_visibility(engine: Path) -> None:
 
         def replace_swap(match: re.Match[str]) -> str:
             indent = match.group("indent")
+            visible_line = f"{character}.visible = true;"
+            if character == "boyfriend":
+                # Only hide the incorrect Stan R character during the Kyle
+                # exchange. Do not hide the whole BF slot: the following
+                # Change Character event must show the next character normally.
+                visible_line = (
+                    "boyfriend.visible = !(curStage == 'south' "
+                    "&& boyfriend.curCharacter.toLowerCase() == 'stan r' "
+                    "&& Conductor.songPosition >= 69500 "
+                    "&& Conductor.songPosition < 87944.4445);"
+                )
             replacement = (
                 f"var lastAlpha:Float = {character}.alpha;\n"
                 f"{indent}{character}.alpha = 0;\n"
                 f"{indent}{character}.visible = false;\n"
                 f"{indent}{character} = {character_map}.get(value2);\n"
-                f"{indent}{character}.visible = true;"
+                f"{indent}{visible_line}"
             )
             if keep_last_alpha:
                 replacement += f"\n{indent}{character}.alpha = lastAlpha;"
@@ -1392,69 +1403,6 @@ def patch_change_character_visibility(engine: Path) -> None:
                 raise RuntimeError(
                     f"Could not safely patch the {character} Change Character visibility branch."
                 )
-
-    play_file.write_text(source, encoding="utf-8")
-
-
-def patch_hide_stan_during_kyle_section(engine: Path) -> None:
-    """Hide the BF-slot Stan sprite while Kyle is the on-stage focus section."""
-    play_file = engine / "source" / "PlayState.hx"
-    source = play_file.read_text(encoding="utf-8")
-
-    field_marker = "\tpublic var boyfriend:Boyfriend = null;"
-    field_addition = (
-        field_marker
-        + "\n\tvar southKyleFocusHidden:Bool = false;"
-        + "\n\tvar southKyleFocusSavedAlpha:Float = 1;"
-        + "\n\tvar southKyleFocusSavedVisible:Bool = true;"
-    )
-    if "var southKyleFocusHidden:Bool = false;" not in source:
-        if field_marker not in source:
-            raise RuntimeError("Could not locate the Boyfriend field for the Kyle-focus visibility fix.")
-        source = source.replace(field_marker, field_addition, 1)
-
-    function_marker = "\tfunction initSouthBloodbathShaders():Void"
-    visibility_function = """\tfunction updateSouthKyleFocusVisibility():Void
-\t{
-\t\tif (curStage != 'south' || boyfriend == null) return;
-
-\t\t// The chart's 69.5s-87.944s segment is Kyle's foreground exchange.
-\t\t// Its BF-slot Change Character events incorrectly place Stan behind Kyle.
-\t\t// Hide only that character sprite; notes, HUD, camera and stage sprites
-\t\t// continue normally. Restore the selected BF character at the next chart
-\t\t// character change so Stan can appear again in his later section.
-\t\tvar hideForKyleFocus:Bool = Conductor.songPosition >= 69500 && Conductor.songPosition < 87944.4445;
-\t\tif (hideForKyleFocus)
-\t\t{
-\t\t\tif (!southKyleFocusHidden)
-\t\t\t{
-\t\t\t\tsouthKyleFocusHidden = true;
-\t\t\t\tsouthKyleFocusSavedAlpha = boyfriend.alpha;
-\t\t\t\tsouthKyleFocusSavedVisible = boyfriend.visible;
-\t\t\t}
-\t\t\tboyfriend.alpha = 0;
-\t\t\tboyfriend.visible = false;
-\t\t}
-\t\telse if (southKyleFocusHidden)
-\t\t{
-\t\t\tboyfriend.alpha = southKyleFocusSavedAlpha;
-\t\t\tboyfriend.visible = southKyleFocusSavedVisible;
-\t\t\tsouthKyleFocusHidden = false;
-\t\t}
-\t}
-
-"""
-    if "function updateSouthKyleFocusVisibility():Void" not in source:
-        if function_marker not in source:
-            raise RuntimeError("Could not locate South stage PlayState helper insertion point for the Kyle-focus fix.")
-        source = source.replace(function_marker, visibility_function + function_marker, 1)
-
-    update_marker = "\t\tupdateSouthBloodbathShaders(elapsed);"
-    update_addition = update_marker + "\n\t\tupdateSouthKyleFocusVisibility();"
-    if "updateSouthKyleFocusVisibility();" not in source:
-        if update_marker not in source:
-            raise RuntimeError("Could not locate the HTML5 post-update hook for the Kyle-focus visibility fix.")
-        source = source.replace(update_marker, update_addition, 1)
 
     play_file.write_text(source, encoding="utf-8")
 
@@ -3930,7 +3878,6 @@ def main() -> int:
     patch_south_stage(engine, image_report, icon_changes, character_names)
     patch_south_runtime_shaders(engine)
     patch_change_character_visibility(engine)
-    patch_hide_stan_during_kyle_section(engine)
     patch_south_stage_fades(engine)
     patch_south_cinematic_bars(engine)
     patch_black_screen_diagnostics(engine)
