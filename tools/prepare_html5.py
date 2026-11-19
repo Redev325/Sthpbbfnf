@@ -134,7 +134,7 @@ def remove_unused_stan_v2_atlas(game_root: Path, image_dir: Path) -> list[str]:
                 source_text = source_file.read_text(encoding="utf-8", errors="ignore")
             except OSError:
                 continue
-            if re.search(r"stan\\s+v2", source_text, flags=re.IGNORECASE):
+            if "stan v2" in source_text.lower():
                 references.append(source_file.relative_to(game_root).as_posix())
 
     if references:
