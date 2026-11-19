@@ -2666,6 +2666,10 @@ def copy_south_runtime_shader_sources(mod: Path, engine: Path) -> dict[str, obje
                     "SobelEffect.frag": [
                         ("if (strength <= 0)", "if (strength <= 0.0)"),
                         ("(1/openfl_TextureSize.xy)", "(1.0/openfl_TextureSize.xy)"),
+                        ("(2*midLeft)", "(2.0*midLeft)"),
+                        ("(2*midRight)", "(2.0*midRight)"),
+                        ("(2*topMiddle)", "(2.0*topMiddle)"),
+                        ("(2*bottomMiddle)", "(2.0*bottomMiddle)"),
                     ],
                     "barrelblur.frag": [
                         ("sumcol.a / num_iter", "sumcol.a / float(num_iter)"),
