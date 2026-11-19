@@ -2691,6 +2691,46 @@ def copy_south_runtime_shader_sources(mod: Path, engine: Path) -> dict[str, obje
                 for old_expression, webgl_expression in compatibility_fixes.get(source_file.name, []):
                     if old_expression in shader_text:
                         shader_text = shader_text.replace(old_expression, webgl_expression)
+
+                if source_file.name == "Glitchy.frag":
+                    # GLSL ES 1.00 requires a compile-time loop bound. The
+                    # original shader uses the uniform AMT as its for-loop
+                    # limit, so use a fixed 10-iteration loop and gate the
+                    # original body with the same AMT condition.
+                    loop_header = re.compile(
+                        r"(?m)^([ \\t]*)for\\s*\\(\\s*float\\s+i\\s*=\\s*0\\.0\\s*;"
+                        r"\\s*i\\s*<\\s*10\\.0\\s*\\*\\s*AMT\\s*;"
+                        r"\\s*i\\s*\\+=\\s*1\\.0\\s*\\)\\s*\\{"
+                    )
+                    loop_match = loop_header.search(shader_text)
+                    if loop_match is not None:
+                        indent = loop_match.group(1)
+                        shader_text = (
+                            shader_text[:loop_match.start()]
+                            + indent + "for (int i = 0; i < 10; ++i) {\\n"
+                            + indent + "    if (float(i) < 10.0 * AMT) {"
+                            + shader_text[loop_match.end():]
+                        )
+                        body_end = re.search(
+                            r"(?m)^([ \\t]*)}\\s*(?=\\r?\\n[ \\t]*//do slight offset on one entire channel)",
+                            shader_text[loop_match.start():]
+                        )
+                        if body_end is None:
+                            raise RuntimeError(
+                                "Could not locate the end of the Glitchy.frag AMT loop body."
+                            )
+                        insert_at = loop_match.start() + body_end.start()
+                        close_indent = body_end.group(1)
+                        shader_text = (
+                            shader_text[:insert_at]
+                            + close_indent + "    }\\n"
+                            + shader_text[insert_at:]
+                        )
+                    elif "for (int i = 0; i < 10; ++i)" not in shader_text:
+                        raise RuntimeError(
+                            "Could not locate the original variable-bound loop in Glitchy.frag."
+                        )
+
                 target_file = destination / source_file.name
                 target_file.write_text(shader_text, encoding="utf-8")
                 copied.append(source_file.name)
