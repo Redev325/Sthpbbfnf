@@ -108,6 +108,54 @@ def patch_menu_background_fit(engine: Path) -> None:
         state_file.write_text(state, encoding="utf-8")
 
 
+def remove_unused_stan_v2_atlas(game_root: Path, image_dir: Path) -> list[str]:
+    """Exclude an orphan Stan atlas that the game never references.
+
+    The Windows package contains this extra PNG/XML pair in the general image
+    directory, so Lime adds it to the HTML5 default preload manifest. The
+    compiled game references the regular Stan and Stan R atlases instead.
+    Avoid an unnecessary request for this orphaned pair on static hosts.
+    """
+    reference_roots = [
+        game_root / "mods" / "data",
+        game_root / "mods" / "characters",
+        game_root / "mods" / "weeks",
+        game_root / "assets" / "data",
+    ]
+    text_extensions = {".lua", ".json", ".hx", ".hscript", ".txt"}
+    references = []
+    for root in reference_roots:
+        if not root.is_dir():
+            continue
+        for source_file in root.rglob("*"):
+            if not source_file.is_file() or source_file.suffix.lower() not in text_extensions:
+                continue
+            try:
+                source_text = source_file.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            if re.search(r"stan\\s+v2", source_text, flags=re.IGNORECASE):
+                references.append(source_file.relative_to(game_root).as_posix())
+
+    if references:
+        print(
+            "Keeping stan v2 atlas because package source references it: "
+            + json.dumps(references, sort_keys=True)
+        )
+        return []
+
+    removed = []
+    for extension in (".png", ".xml"):
+        atlas_file = image_dir / "characters" / f"stan v2{extension}"
+        if atlas_file.is_file():
+            atlas_file.unlink()
+            removed.append(atlas_file.relative_to(image_dir).as_posix())
+
+    if removed:
+        print("Removed unreferenced Stan atlas from HTML5 preload: " + json.dumps(removed))
+    return removed
+
+
 def copy_json_tree(source: Path, destination: Path) -> int:
     copied = 0
     if not source.is_dir():
@@ -3660,6 +3708,7 @@ def main() -> int:
     # Embed every non-script resource folder from the mod, not just JSON files.
     # This preserves atlases, XML/animation metadata, text data and other sidecars.
     copy_tree(mod / "images", engine / "assets" / "preload" / "images")
+    remove_unused_stan_v2_atlas(game, engine / "assets" / "preload" / "images")
     custom_menu_art_report = install_custom_menu_art(
         Path(__file__).resolve().parents[1],
         engine / "assets" / "preload" / "images",
