@@ -935,15 +935,15 @@ def patch_south_stage(
             raise RuntimeError(f"Invalid image resize factor for {image_name}: {factor!r}")
         final_scale = lua_scale / float(factor)
         declaration = re.compile(
-            rf"(?m)^([\\t ]*){re.escape(sprite_name)} = new Character\\([^\\n]*\\);$"
+            rf"(?m)^([ \t]*){re.escape(sprite_name)} = new Character\([^\n]*\);$"
         )
         match = declaration.search(stage_code)
         if not match:
             raise RuntimeError(f"Could not find custom Kyle character declaration: {sprite_name}")
         indent = match.group(1)
         scale_code = (
-            f"\\n{indent}{sprite_name}.scale.set({final_scale:.4f}, {final_scale:.4f});"
-            f"\\n{indent}{sprite_name}.updateHitbox();"
+            f"\n{indent}{sprite_name}.scale.set({final_scale:.4f}, {final_scale:.4f});"
+            f"\n{indent}{sprite_name}.updateHitbox();"
         )
         stage_code = stage_code[:match.end()] + scale_code + stage_code[match.end():]
 
