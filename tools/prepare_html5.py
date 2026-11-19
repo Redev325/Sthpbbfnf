@@ -62,6 +62,52 @@ def install_custom_menu_art(repository_root: Path, image_dir: Path) -> dict[str,
     return artwork
 
 
+def patch_menu_background_fit(engine: Path) -> None:
+    """Fit the custom 16:9 menu art to the actual game viewport on every menu screen."""
+    main_file = engine / "source" / "MainMenuState.hx"
+    main = main_file.read_text(encoding="utf-8")
+    main_replacements = {
+        "bg.setGraphicSize(Std.int(bg.width * 1.175));":
+            "bg.setGraphicSize(FlxG.width, FlxG.height);",
+        "magenta.setGraphicSize(Std.int(magenta.width * 1.175));":
+            "magenta.setGraphicSize(FlxG.width, FlxG.height);",
+    }
+    for old, new in main_replacements.items():
+        if old in main:
+            main = main.replace(old, new, 1)
+        elif new not in main:
+            raise RuntimeError(f"Could not locate MainMenuState background sizing line: {old}")
+    main_file.write_text(main, encoding="utf-8")
+
+    achievements_file = engine / "source" / "AchievementsMenuState.hx"
+    achievements = achievements_file.read_text(encoding="utf-8")
+    old_achievement_size = "menuBG.setGraphicSize(Std.int(menuBG.width * 1.1));"
+    new_achievement_size = "menuBG.setGraphicSize(FlxG.width, FlxG.height);"
+    if old_achievement_size in achievements:
+        achievements = achievements.replace(old_achievement_size, new_achievement_size, 1)
+    elif new_achievement_size not in achievements:
+        raise RuntimeError("Could not locate AchievementsMenuState background sizing line.")
+    achievements_file.write_text(achievements, encoding="utf-8")
+
+    # These screens use menuDesat without scaling. Explicitly fit it to the
+    # logical game viewport so all four custom variants share one full-screen
+    # framing, including browser windows with a non-native size.
+    for state_name in ("FreeplayState.hx", "CreditsState.hx", "ModsMenuState.hx"):
+        state_file = engine / "source" / state_name
+        state = state_file.read_text(encoding="utf-8")
+        load_line = "bg = new FlxSprite().loadGraphic(Paths.image('menuDesat'));"
+        fit_lines = (
+            load_line
+            + "\n\t\tbg.setGraphicSize(FlxG.width, FlxG.height);"
+            + "\n\t\tbg.updateHitbox();"
+        )
+        if load_line in state:
+            state = state.replace(load_line, fit_lines, 1)
+        elif "bg.setGraphicSize(FlxG.width, FlxG.height);" not in state:
+            raise RuntimeError(f"Could not locate {state_name} menu background.")
+        state_file.write_text(state, encoding="utf-8")
+
+
 def copy_json_tree(source: Path, destination: Path) -> int:
     copied = 0
     if not source.is_dir():
@@ -1275,6 +1321,69 @@ def patch_change_character_visibility(engine: Path) -> None:
                 raise RuntimeError(
                     f"Could not safely patch the {character} Change Character visibility branch."
                 )
+
+    play_file.write_text(source, encoding="utf-8")
+
+
+def patch_hide_stan_during_kyle_section(engine: Path) -> None:
+    """Hide the BF-slot Stan sprite while Kyle is the on-stage focus section."""
+    play_file = engine / "source" / "PlayState.hx"
+    source = play_file.read_text(encoding="utf-8")
+
+    field_marker = "\tpublic var boyfriend:Boyfriend = null;"
+    field_addition = (
+        field_marker
+        + "\n\tvar southKyleFocusHidden:Bool = false;"
+        + "\n\tvar southKyleFocusSavedAlpha:Float = 1;"
+        + "\n\tvar southKyleFocusSavedVisible:Bool = true;"
+    )
+    if "var southKyleFocusHidden:Bool = false;" not in source:
+        if field_marker not in source:
+            raise RuntimeError("Could not locate the Boyfriend field for the Kyle-focus visibility fix.")
+        source = source.replace(field_marker, field_addition, 1)
+
+    function_marker = "\tfunction applySouthHealthIcon(iconName:String, leftHex:String, rightHex:String):Void"
+    visibility_function = """\tfunction updateSouthKyleFocusVisibility():Void
+\t{
+\t\tif (curStage != 'south' || boyfriend == null) return;
+
+\t\t// The chart's 69.5s-87.944s segment is Kyle's foreground exchange.
+\t\t// Its BF-slot Change Character events incorrectly place Stan behind Kyle.
+\t\t// Hide only that character sprite; notes, HUD, camera and stage sprites
+\t\t// continue normally. Restore the selected BF character at the next chart
+\t\t// character change so Stan can appear again in his later section.
+\t\tvar hideForKyleFocus:Bool = Conductor.songPosition >= 69500 && Conductor.songPosition < 87944.4445;
+\t\tif (hideForKyleFocus)
+\t\t{
+\t\t\tif (!southKyleFocusHidden)
+\t\t\t{
+\t\t\t\tsouthKyleFocusHidden = true;
+\t\t\t\tsouthKyleFocusSavedAlpha = boyfriend.alpha;
+\t\t\t\tsouthKyleFocusSavedVisible = boyfriend.visible;
+\t\t\t}
+\t\t\tboyfriend.alpha = 0;
+\t\t\tboyfriend.visible = false;
+\t\t}
+\t\telse if (southKyleFocusHidden)
+\t\t{
+\t\t\tboyfriend.alpha = southKyleFocusSavedAlpha;
+\t\t\tboyfriend.visible = southKyleFocusSavedVisible;
+\t\t\tsouthKyleFocusHidden = false;
+\t\t}
+\t}
+
+"""
+    if "function updateSouthKyleFocusVisibility():Void" not in source:
+        if function_marker not in source:
+            raise RuntimeError("Could not locate South stage PlayState helper insertion point for the Kyle-focus fix.")
+        source = source.replace(function_marker, visibility_function + function_marker, 1)
+
+    update_marker = "\t\tupdateSouthBloodbathShaders(elapsed);"
+    update_addition = update_marker + "\n\t\tupdateSouthKyleFocusVisibility();"
+    if "updateSouthKyleFocusVisibility();" not in source:
+        if update_marker not in source:
+            raise RuntimeError("Could not locate the HTML5 post-update hook for the Kyle-focus visibility fix.")
+        source = source.replace(update_marker, update_addition, 1)
 
     play_file.write_text(source, encoding="utf-8")
 
@@ -3596,6 +3705,7 @@ def main() -> int:
 
     # Remove unrelated stock-week libraries and resize oversized browser textures.
     patch_project(engine)
+    patch_menu_background_fit(engine)
     image_report = optimize_browser_images(
         engine / "assets" / "preload" / "images",
         max_dimension=2048,
@@ -3748,6 +3858,7 @@ def main() -> int:
     patch_south_stage(engine, image_report, icon_changes, character_names)
     patch_south_runtime_shaders(engine)
     patch_change_character_visibility(engine)
+    patch_hide_stan_during_kyle_section(engine)
     patch_south_stage_fades(engine)
     patch_south_cinematic_bars(engine)
     patch_black_screen_diagnostics(engine)
