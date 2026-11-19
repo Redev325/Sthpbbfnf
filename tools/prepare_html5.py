@@ -26,6 +26,42 @@ def copy_tree(source: Path, destination: Path) -> None:
         shutil.copytree(source, destination, dirs_exist_ok=True)
 
 
+def install_custom_menu_art(repository_root: Path, image_dir: Path) -> dict[str, str]:
+    """Install the repository's custom menu backgrounds at Psych's expected paths."""
+    artwork = {
+        "menu.png": "menuBG.png",
+        "menublue.png": "menuBGBlue.png",
+        "menudesat.png": "menuDesat.png",
+        "menumagenta.png": "menuBGMagenta.png",
+    }
+    image_dir.mkdir(parents=True, exist_ok=True)
+    for source_name, target_name in artwork.items():
+        source_file = repository_root / source_name
+        if not source_file.is_file():
+            raise FileNotFoundError(
+                f"Custom menu artwork is missing from the repository: {source_file}"
+            )
+        try:
+            with Image.open(source_file) as image:
+                if image.format != "PNG":
+                    raise RuntimeError(
+                        f"Custom menu artwork must be a PNG image: {source_file}"
+                    )
+                image.verify()
+        except Exception as error:
+            raise RuntimeError(
+                f"Could not validate custom menu artwork {source_file}: {error}"
+            ) from error
+
+        target_file = image_dir / target_name
+        shutil.copy2(source_file, target_file)
+        if not target_file.is_file() or target_file.stat().st_size == 0:
+            raise RuntimeError(
+                f"Custom menu artwork was not copied to the engine: {target_file}"
+            )
+    return artwork
+
+
 def copy_json_tree(source: Path, destination: Path) -> int:
     copied = 0
     if not source.is_dir():
@@ -3515,6 +3551,10 @@ def main() -> int:
     # Embed every non-script resource folder from the mod, not just JSON files.
     # This preserves atlases, XML/animation metadata, text data and other sidecars.
     copy_tree(mod / "images", engine / "assets" / "preload" / "images")
+    custom_menu_art_report = install_custom_menu_art(
+        Path(__file__).resolve().parents[1],
+        engine / "assets" / "preload" / "images",
+    )
     copy_tree(mod / "characters", engine / "assets" / "preload" / "characters")
     copy_tree(mod / "stages", engine / "assets" / "preload" / "stages")
 
@@ -3728,6 +3768,7 @@ def main() -> int:
     print("Bloodbath-only cleanup: " + json.dumps(song_cleanup, sort_keys=True))
     print(f"Removed unused stock character definitions from the preload manifest: {removed_character_definitions}")
     print("Browser image optimization: " + json.dumps(image_report, sort_keys=True))
+    print("Custom main-menu artwork installed: " + json.dumps(custom_menu_art_report, sort_keys=True))
     print("Graphics memory optimization: character atlases capped at 1280px; stage art remains capped at 2048px.")
     print(f"Embedded engine assets: {asset_bytes:,} bytes")
     print("HTML5 limitations: desktop Lua scripts/custom events are not executed by this first browser build.")
