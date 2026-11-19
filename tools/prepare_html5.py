@@ -108,6 +108,29 @@ def patch_menu_background_fit(engine: Path) -> None:
         state_file.write_text(state, encoding="utf-8")
 
 
+    # The purple Options screen and its child pages each construct their own
+    # menuDesat background, separate from Freeplay/Credits/Mods.
+    for state_name in (
+        "options/OptionsState.hx",
+        "options/BaseOptionsMenu.hx",
+        "options/NotesSubState.hx",
+        "options/ControlsSubState.hx",
+    ):
+        state_file = engine / "source" / state_name
+        state = state_file.read_text(encoding="utf-8")
+        load_line = "var bg:FlxSprite = new FlxSprite().loadGraphic(Paths.image('menuDesat'));"
+        fit_lines = (
+            load_line
+            + "\\n\\t\\tbg.setGraphicSize(FlxG.width, FlxG.height);"
+            + "\\n\\t\\tbg.updateHitbox();"
+        )
+        if load_line in state:
+            state = state.replace(load_line, fit_lines, 1)
+        elif "bg.setGraphicSize(FlxG.width, FlxG.height);" not in state:
+            raise RuntimeError(f"Could not locate purple Options background in {state_name}.")
+        state_file.write_text(state, encoding="utf-8")
+
+
 def remove_unused_stan_v2_atlas(game_root: Path, image_dir: Path) -> list[str]:
     """Exclude an orphan Stan atlas that the game never references.
 
