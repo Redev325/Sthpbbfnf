@@ -777,7 +777,7 @@ def patch_south_stage(
 				add(southOh);
 				southAnimatedObjects.set('oh', southOh);
 
-				var southCraig:BGSprite = new BGSprite('characters/craig', 1700, 490, 1, 1, ['oh'], true);
+				var southCraig:BGSprite = new BGSprite('characters/craig', 1670, 400, 1, 1, ['oh'], true);
 				southCraig.animation.addByPrefix('anim', 'oh', 16, true);
 				southCraig.scale.set(0.9, 0.9);
 				southCraig.alpha = 0;
