@@ -242,8 +242,8 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
 
     def sprite_scale(sprite_name: str) -> tuple[float, float]:
         pattern = re.compile(
-            rf"(?m)^([\\t ]*){re.escape(sprite_name)}\\.scale\\.set\\(\\s*"
-            rf"([-+0-9.eE]+)\\s*,\\s*([-+0-9.eE]+)\\s*\\);"
+            rf"(?m)^([ \t]*){re.escape(sprite_name)}\.scale\.set\(\s*"
+            rf"([-+0-9.eE]+)\s*,\s*([-+0-9.eE]+)\s*);"
         )
         match = pattern.search(stage_code)
         if not match:
@@ -252,9 +252,9 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
 
     def sprite_position(sprite_name: str) -> tuple[float, float]:
         pattern = re.compile(
-            rf"(?m)^([\\t ]*)(?:var\\s+)?{re.escape(sprite_name)}"
-            rf"(?:\\s*:\\s*BGSprite)?\\s*=\\s*new BGSprite\\(\\s*['\\\"][^'\\\"]+['\\\"]\\s*,\\s*"
-            rf"([-+0-9.eE]+)\\s*,\\s*([-+0-9.eE]+)"
+            rf"(?m)^([ \t]*)(?:var\s+)?{re.escape(sprite_name)}"
+            rf"(?:\s*:\s*BGSprite)?\s*=\s*new BGSprite\(\s*['\"][^'\"]+['\"]\s*,\s*"
+            rf"([-+0-9.eE]+)\s*,\s*([-+0-9.eE]+)"
         )
         match = pattern.search(stage_code)
         if not match:
@@ -291,8 +291,8 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
         target_scale_y = base_height * base_scale_y / target_height
 
         scale_pattern = re.compile(
-            rf"(?m)^([\\t ]*){re.escape(target_sprite)}\\.scale\\.set\\(\\s*"
-            rf"[-+0-9.eE]+\\s*,\\s*[-+0-9.eE]+\\s*\\);"
+            rf"(?m)^([ \t]*){re.escape(target_sprite)}\.scale\.set\(\s*"
+            rf"[-+0-9.eE]+\s*,\s*[-+0-9.eE]+\s*);"
         )
         scale_match = scale_pattern.search(stage_code)
         if not scale_match:
@@ -305,12 +305,12 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
 
         # Recompute Flixel's draw/hitbox dimensions after the scale adjustment.
         hitbox_pattern = re.compile(
-            rf"(?m)^{re.escape(indent)}{re.escape(target_sprite)}\\.updateHitbox\\(\\);$"
+            rf"(?m)^{re.escape(indent)}{re.escape(target_sprite)}\.updateHitbox\(\);$"
         )
         if not hitbox_pattern.search(stage_code):
             stage_code = stage_code.replace(
                 scale_line,
-                scale_line + f"\\n{indent}{target_sprite}.updateHitbox();",
+                scale_line + f"\n{indent}{target_sprite}.updateHitbox();",
                 1,
             )
 
