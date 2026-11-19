@@ -121,8 +121,8 @@ def patch_menu_background_fit(engine: Path) -> None:
         load_line = "var bg:FlxSprite = new FlxSprite().loadGraphic(Paths.image('menuDesat'));"
         fit_lines = (
             load_line
-            + "\n\t\\tbg.setGraphicSize(FlxG.width, FlxG.height);"
-            + "\n\t\\tbg.updateHitbox();"
+            + "\n\t\tbg.setGraphicSize(FlxG.width, FlxG.height);"
+            + "\n\t\tbg.updateHitbox();"
         )
         if load_line in state:
             state = state.replace(load_line, fit_lines, 1)
