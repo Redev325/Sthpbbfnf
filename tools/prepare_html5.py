@@ -1342,7 +1342,7 @@ def patch_hide_stan_during_kyle_section(engine: Path) -> None:
             raise RuntimeError("Could not locate the Boyfriend field for the Kyle-focus visibility fix.")
         source = source.replace(field_marker, field_addition, 1)
 
-    function_marker = "\tfunction applySouthHealthIcon(iconName:String, leftHex:String, rightHex:String):Void"
+    function_marker = "\tfunction initSouthBloodbathShaders():Void"
     visibility_function = """\tfunction updateSouthKyleFocusVisibility():Void
 \t{
 \t\tif (curStage != 'south' || boyfriend == null) return;
