@@ -519,6 +519,23 @@ def patch_south_stage(
 	var southCameraBoyfriendY:Float = 540;
 	var southCameraDadOverride:Bool = false;
 	var southCameraBoyfriendOverride:Bool = false;
+	var southCameraSystemEnabled:Bool = false;
+	var southCameraRotationEnabled:Bool = false;
+	var southCameraBfOffset:Float = 60;
+	var southCameraDadOffset:Float = 60;
+	var southCameraDadOffset2:Float = 0;
+	var southSmoothCameraEnabled:Bool = true;
+	var southSmoothCameraZoomEnabled:Bool = true;
+	var southSmoothCameraIntensity:Float = 0.6;
+	var southSmoothCameraInitialized:Bool = false;
+	var southSmoothCamScrollX:Float = 0;
+	var southSmoothCamScrollY:Float = 0;
+	var southSmoothRealCamScrollX:Float = 0;
+	var southSmoothRealCamScrollY:Float = 0;
+	var southSmoothCamZoom:Float = 1;
+	var southSmoothRealCamZoom:Float = 1;
+	var southCameraAngleTween:FlxTween;
+	var southCameraAngleTarget:Float = 0;
 
 	function fitSouthCutsceneOverlay(sprite:BGSprite):Void
 	{
@@ -1434,6 +1451,145 @@ def patch_south_stage_fades(engine: Path) -> None:
         )
 
     function_marker = "\tfunction applySouthHealthIcon(iconName:String, leftHex:String, rightHex:String):Void"
+
+    camera_functions = """\tfunction southCameraAnimationName(character:Character):String
+\t{
+\t\tif (character == null || character.animation == null || character.animation.curAnim == null) return "";
+\t\treturn character.animation.curAnim.name.toUpperCase();
+\t}
+
+\tfunction southCameraAnimationIs(animationName:String, direction:String):Bool
+\t{
+\t\treturn animationName != null && animationName.indexOf("SING" + direction) == 0;
+\t}
+
+\tfunction setSouthCameraAngle(targetAngle:Float):Void
+\t{
+\t\tif (camGame == null) return;
+\t\tif (!southCameraRotationEnabled) targetAngle = 0;
+\t\tif (southCameraAngleTween != null && Math.abs(southCameraAngleTarget - targetAngle) < 0.001) return;
+\t\tif (southCameraAngleTween == null && Math.abs(camGame.angle - targetAngle) < 0.05)
+\t\t{
+\t\t\tsouthCameraAngleTarget = targetAngle;
+\t\t\treturn;
+\t\t}
+\t\tif (southCameraAngleTween != null)
+\t\t{
+\t\t\tsouthCameraAngleTween.cancel();
+\t\t\tsouthCameraAngleTween = null;
+\t\t}
+\t\tsouthCameraAngleTarget = targetAngle;
+\t\tsouthCameraAngleTween = FlxTween.tween(camGame, {angle: targetAngle}, 0.2, {
+\t\t\tease: FlxEase.linear,
+\t\t\tonComplete: function(_:FlxTween) { southCameraAngleTween = null; }
+\t\t});
+\t}
+
+\tfunction updateSouthScriptedCameraFollow():Void
+\t{
+\t\tif (curStage != 'south' || !generatedMusic || SONG == null || SONG.notes == null
+\t\t\t|| curSection < 0 || curSection >= SONG.notes.length || camFollow == null) return;
+\t\tif (badAppleSilhouetteActive)
+\t\t{
+\t\t\tif (!southCameraRotationEnabled) setSouthCameraAngle(0);
+\t\t\treturn;
+\t\t}
+\t\tvar section = SONG.notes[curSection];
+\t\tif (section == null) return;
+\t\tvar targetX:Float = section.mustHitSection ? southCameraBoyfriendX : southCameraDadX;
+\t\tvar targetY:Float = section.mustHitSection ? southCameraBoyfriendY : southCameraDadY;
+\t\tvar targetAngle:Float = 0;
+\t\tif (southCameraSystemEnabled)
+\t\t{
+\t\t\tif (!section.mustHitSection && section.gfSection)
+\t\t\t{
+\t\t\t\tsetSouthCameraAngle(0);
+\t\t\t\treturn;
+\t\t\t}
+\t\t\tvar mainAnim:String = southCameraAnimationName(section.mustHitSection ? boyfriend : dad);
+\t\t\tvar gfAnim:String = southCameraAnimationName(gf);
+\t\t\tif (southCameraAnimationIs(mainAnim, "LEFT") || southCameraAnimationIs(gfAnim, "LEFT"))
+\t\t\t{
+\t\t\t\ttargetX += section.mustHitSection ? -southCameraBfOffset : -southCameraDadOffset - southCameraDadOffset2;
+\t\t\t\ttargetAngle = 5;
+\t\t\t}
+\t\t\telse if (southCameraAnimationIs(mainAnim, "RIGHT") || southCameraAnimationIs(gfAnim, "RIGHT"))
+\t\t\t{
+\t\t\t\ttargetX += section.mustHitSection ? southCameraBfOffset : southCameraDadOffset + southCameraDadOffset2;
+\t\t\t\ttargetAngle = -5;
+\t\t\t}
+\t\t\telse if (southCameraAnimationIs(mainAnim, "UP") || southCameraAnimationIs(gfAnim, "UP"))
+\t\t\t\ttargetY -= section.mustHitSection ? southCameraBfOffset : southCameraDadOffset;
+\t\t\telse if (southCameraAnimationIs(mainAnim, "DOWN") || southCameraAnimationIs(gfAnim, "DOWN"))
+\t\t\t\ttargetY += section.mustHitSection ? southCameraBfOffset : southCameraDadOffset;
+\t\t}
+\t\tcamFollow.set(targetX, targetY);
+\t\tsetSouthCameraAngle(targetAngle);
+\t}
+
+\tfunction initializeSouthSmoothCameraState():Void
+\t{
+\t\tif (southSmoothCameraInitialized || curStage != 'south' || camFollowPos == null || camGame == null) return;
+\t\tsouthSmoothCamScrollX = camFollowPos.x;
+\t\tsouthSmoothCamScrollY = camFollowPos.y;
+\t\tsouthSmoothRealCamScrollX = camFollowPos.x;
+\t\tsouthSmoothRealCamScrollY = camFollowPos.y;
+\t\tsouthSmoothCamZoom = camGame.zoom;
+\t\tsouthSmoothRealCamZoom = camGame.zoom;
+\t\tsouthSmoothCameraInitialized = true;
+\t}
+
+\tfunction restoreSouthSmoothCameraFrame():Void
+\t{
+\t\tif (curStage != 'south' || camFollowPos == null || camGame == null) return;
+\t\tinitializeSouthSmoothCameraState();
+\t\tif (!southSmoothCameraInitialized || !southSmoothCameraEnabled) return;
+\t\tcamFollowPos.x -= southSmoothCamScrollX - southSmoothRealCamScrollX;
+\t\tcamFollowPos.y -= southSmoothCamScrollY - southSmoothRealCamScrollY;
+\t\tcamGame.zoom -= southSmoothCamZoom - southSmoothRealCamZoom;
+\t}
+
+\tfunction updateSouthSmoothCameraPost(elapsed:Float):Void
+\t{
+\t\tif (curStage != 'south' || camFollowPos == null || camGame == null) return;
+\t\tinitializeSouthSmoothCameraState();
+\t\tif (!southSmoothCameraInitialized) return;
+\t\tvar realScrollX:Float = camFollowPos.x;
+\t\tvar realScrollY:Float = camFollowPos.y;
+\t\tvar realZoom:Float = camGame.zoom;
+\t\tif (southSmoothCameraEnabled)
+\t\t{
+\t\t\tvar intensity:Float = southSmoothCameraIntensity;
+\t\t\tif (Math.isNaN(intensity) || intensity <= 0) intensity = 0.6;
+\t\t\tvar smoothFactor:Float = (1 / intensity) + 1;
+\t\t\tvar followSpeed:Float = cameraSpeed;
+\t\t\tif (Math.isNaN(followSpeed) || followSpeed <= 0) followSpeed = 1;
+\t\t\tvar followLerp:Float = elapsed * 2.4 * smoothFactor * followSpeed;
+\t\t\tif (followLerp < 0) followLerp = 0;
+\t\t\tif (followLerp > 1) followLerp = 1;
+\t\t\tsouthSmoothCamScrollX += (realScrollX - southSmoothCamScrollX) * followLerp;
+\t\t\tsouthSmoothCamScrollY += (realScrollY - southSmoothCamScrollY) * followLerp;
+\t\t\tcamFollowPos.set(southSmoothCamScrollX, southSmoothCamScrollY);
+\t\t\tif (southSmoothCameraZoomEnabled)
+\t\t\t{
+\t\t\t\tvar zoomDecay:Float = camZoomingDecay;
+\t\t\t\tif (Math.isNaN(zoomDecay) || zoomDecay < 0) zoomDecay = 1;
+\t\t\t\tvar zoomLerp:Float = elapsed * 3.125 * zoomDecay * smoothFactor;
+\t\t\t\tif (zoomLerp < 0) zoomLerp = 0;
+\t\t\t\tif (zoomLerp > 1) zoomLerp = 1;
+\t\t\t\tsouthSmoothCamZoom += (realZoom - southSmoothCamZoom) * zoomLerp;
+\t\t\t}
+\t\t\telse southSmoothCamZoom = realZoom;
+\t\t\tcamGame.zoom = southSmoothCamZoom;
+\t\t}
+\t\tsouthSmoothRealCamScrollX = realScrollX;
+\t\tsouthSmoothRealCamScrollY = realScrollY;
+\t\tsouthSmoothRealCamZoom = realZoom;
+\t}
+
+"""
+    if "function updateSouthScriptedCameraFollow():Void" not in source:
+        source = source.replace(function_marker, camera_functions + function_marker, 1)
     zoom_function = """\tfunction applySouthCameraZoom(zoomValue:Float):Void
 \t{
 \t\tif (Math.isNaN(zoomValue) || zoomValue <= 0 || zoomValue > 4) return;
@@ -1613,6 +1769,69 @@ case 'badapplelol':
 \t\t\t\t\t}
 \t\t\t\t}
 
+
+
+			case 'aMechi':
+				if (curStage == 'south')
+				{
+					var cameraSystemValue:String = value1 == null ? "" : value1.toLowerCase().trim();
+					if (cameraSystemValue == 'on') southCameraSystemEnabled = true;
+					else if (cameraSystemValue == 'off') southCameraSystemEnabled = false;
+					else if (cameraSystemValue == '') southCameraSystemEnabled = !southCameraSystemEnabled;
+				}
+			case 'arotation':
+				if (curStage == 'south')
+				{
+					var rotationValue:String = value1 == null ? "" : value1.toLowerCase().trim();
+					if (rotationValue == 'on') southCameraRotationEnabled = true;
+					else if (rotationValue == 'off') southCameraRotationEnabled = false;
+					else if (rotationValue == '') southCameraRotationEnabled = !southCameraRotationEnabled;
+					if (!southCameraRotationEnabled) setSouthCameraAngle(0);
+				}
+			case 'camOfs':
+				if (curStage == 'south')
+				{
+					var dadOffset:Float = value1 == null || value1.trim() == "" ? 60 : Std.parseFloat(value1);
+					var bfOffset:Float = value2 == null || value2.trim() == "" ? 60 : Std.parseFloat(value2);
+					if (!Math.isNaN(dadOffset)) southCameraDadOffset = dadOffset;
+					if (!Math.isNaN(bfOffset)) southCameraBfOffset = bfOffset;
+				}
+			case 'acam smooth cfg':
+				if (curStage == 'south')
+				{
+					var smoothConfig:String = value1 == null ? "" : value1.toLowerCase().trim();
+					if (smoothConfig == 'on') southSmoothCameraEnabled = true;
+					else if (smoothConfig == 'off') southSmoothCameraEnabled = false;
+					if (smoothConfig.indexOf(',') >= 0)
+					{
+						if (smoothConfig.indexOf('on') >= 0) southSmoothCameraZoomEnabled = true;
+						else if (smoothConfig.indexOf('off') >= 0) southSmoothCameraZoomEnabled = false;
+					}
+					var smoothIntensity:Float = value2 == null || value2.trim() == "" ? 0.6 : Std.parseFloat(value2);
+					if (!Math.isNaN(smoothIntensity) && smoothIntensity > 0 && smoothIntensity <= 5)
+						southSmoothCameraIntensity = smoothIntensity;
+					if (smoothConfig == 'on' && camFollowPos != null && camGame != null)
+					{
+						southSmoothCamScrollX = camFollowPos.x;
+						southSmoothCamScrollY = camFollowPos.y;
+						southSmoothRealCamScrollX = camFollowPos.x;
+						southSmoothRealCamScrollY = camFollowPos.y;
+						southSmoothCamZoom = camGame.zoom;
+						southSmoothRealCamZoom = camGame.zoom;
+						southSmoothCameraInitialized = true;
+					}
+				}
+			case 'South Smooth Add Camera Zoom':
+				if (curStage == 'south' && camGame != null && ClientPrefs.camZooms && camGame.zoom < 1.35)
+				{
+					var addGameZoom:Float = Std.parseFloat(value1);
+					var addHudZoom:Float = Std.parseFloat(value2);
+					if (Math.isNaN(addGameZoom)) addGameZoom = 0.015;
+					if (Math.isNaN(addHudZoom)) addHudZoom = 0.03;
+					camGame.zoom += addGameZoom;
+					if (camHUD != null) camHUD.zoom += addHudZoom;
+				}
+
 			case 'aofisetiBF' | 'ofisetiBF' | 'aofisetiBF-fest':
 				if (curStage == 'south')
 				{
@@ -1620,8 +1839,13 @@ case 'badapplelol':
 					var newBoyfriendCameraY:Float = Std.parseFloat(value2);
 					if (!Math.isNaN(newBoyfriendCameraX)) southCameraBoyfriendX = newBoyfriendCameraX;
 					if (!Math.isNaN(newBoyfriendCameraY)) southCameraBoyfriendY = newBoyfriendCameraY;
-\t\t\t\t\t\tsouthCameraBoyfriendOverride = !Math.isNaN(newBoyfriendCameraX) && !Math.isNaN(newBoyfriendCameraY);
-					moveCameraSection();
+					southCameraBoyfriendOverride = !Math.isNaN(newBoyfriendCameraX) && !Math.isNaN(newBoyfriendCameraY);
+					if (eventName.toLowerCase() == 'aofisetibf-fest' && southCameraBoyfriendOverride)
+					{
+						camFollow.set(newBoyfriendCameraX, newBoyfriendCameraY);
+						if (camFollowPos != null) camFollowPos.set(newBoyfriendCameraX, newBoyfriendCameraY);
+						if (camGame != null) camGame.scroll.set(newBoyfriendCameraX, newBoyfriendCameraY);
+					}
 				}
 
 			case 'aofisetiDad' | 'ofisetiDad' | 'aofisetiDad-fest':
@@ -1631,8 +1855,13 @@ case 'badapplelol':
 					var newDadCameraY:Float = Std.parseFloat(value2);
 					if (!Math.isNaN(newDadCameraX)) southCameraDadX = newDadCameraX;
 					if (!Math.isNaN(newDadCameraY)) southCameraDadY = newDadCameraY;
-\t\t\t\t\t\tsouthCameraDadOverride = !Math.isNaN(newDadCameraX) && !Math.isNaN(newDadCameraY);
-					moveCameraSection();
+					southCameraDadOverride = !Math.isNaN(newDadCameraX) && !Math.isNaN(newDadCameraY);
+					if (eventName.toLowerCase() == 'aofisetidad-fest' && southCameraDadOverride)
+					{
+						camFollow.set(newDadCameraX, newDadCameraY);
+						if (camFollowPos != null) camFollowPos.set(newDadCameraX, newDadCameraY);
+						if (camGame != null) camGame.scroll.set(newDadCameraX, newDadCameraY);
+					}
 				}
 
 			case 'aCamaraZoom' | 'aCamaraZoom1' | 'aCamaraZoom3':
@@ -2166,7 +2395,24 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
         source = source.replace(field_marker, fields, 1)
 
     update_marker = "\toverride public function update(elapsed:Float)\n\t{"
-    update_code = update_marker + "\n\t\tupdateBadAppleCameraFollow();\n\t\tupdateSouthOverlayRecovery();\n\t\tupdateSouthKyleCorruptionTimeline();"
+    camera_update_marker = "\t\tcallOnLuas('onUpdatePost', [elapsed]);"
+    if "updateSouthScriptedCameraFollow();" not in source:
+        if source.count(camera_update_marker) != 1:
+            raise RuntimeError("Could not locate the onUpdatePost point for the Bloodbath camera controller.")
+        source = source.replace(
+            camera_update_marker,
+            "\t\tupdateSouthScriptedCameraFollow();\n" + camera_update_marker,
+            1,
+        )
+    if "updateSouthSmoothCameraPost(elapsed);" not in source:
+        if source.count(camera_update_marker) != 1:
+            raise RuntimeError("Could not locate the onUpdatePost point for Bloodbath smooth camera.")
+        source = source.replace(
+            camera_update_marker,
+            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);",
+            1,
+        )
+    update_code = update_marker + "\n\t\trestoreSouthSmoothCameraFrame();\n\t\tupdateBadAppleCameraFollow();\n\t\tupdateSouthOverlayRecovery();\n\t\tupdateSouthKyleCorruptionTimeline();"
     if "updateSouthOverlayRecovery();" not in source:
         if update_marker not in source:
             raise RuntimeError("Could not locate PlayState.update() for South overlay recovery.")
@@ -2193,8 +2439,15 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\t\tcase "bitto's zoom event": eventName = "Bitto's zoom event";
 \t\t\tcase 'set property': eventName = 'Set Property';
 \t\t\tcase 'acamera_target': eventName = 'acamera_target';
-\t\t\tcase 'aofisetibf' | 'ofisetibf' | 'aofisetibf-fest': eventName = 'aofisetiBF';
-\t\t\tcase 'aofisetidad' | 'ofisetidad' | 'aofisetidad-fest': eventName = 'aofisetiDad';
+\t\t\tcase 'amechi': eventName = 'aMechi';
+\t\t\tcase 'arotation': eventName = 'arotation';
+\t\t\tcase 'camofs': eventName = 'camOfs';
+\t\t\tcase 'acam smooth cfg': eventName = 'acam smooth cfg';
+\t\t\tcase 'aofisetibf-fest': eventName = 'aofisetiBF-fest';
+\t\t\tcase 'aofisetidad-fest': eventName = 'aofisetiDad-fest';
+\t\t\tcase 'aofisetibf' | 'ofisetibf': eventName = 'aofisetiBF';
+\t\t\tcase 'aofisetidad' | 'ofisetidad': eventName = 'aofisetiDad';
+\t\t\tcase 'add camera zoom': eventName = 'South Smooth Add Camera Zoom';
 \t\t\tcase 'play video': eventName = 'Play Video';
 \t\t}
 \t\tblackDiagnosticLastEvent = eventName + " [" + value1 + " | " + value2 + "]";
