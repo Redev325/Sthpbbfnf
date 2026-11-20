@@ -1389,6 +1389,17 @@ def patch_change_character_visibility(engine: Path) -> None:
                 f"{indent}{character} = {character_map}.get(value2);\n"
                 f"{indent}{visible_line}"
             )
+            if character == "boyfriend":
+                # The BF group retains every previously used character. Hide
+                # every inactive member after a swap so an earlier Stan sprite
+                # cannot remain drawn over the newly selected Jimmy character.
+                # Respect the specific Stan R visibility rule for the Kyle section.
+                replacement += (
+                    f"\n{indent}for (member in boyfriendGroup.members)"
+                    f"\n{indent}{{"
+                    f"\n{indent}\tif (member != null) member.visible = (member == boyfriend) && boyfriend.visible;"
+                    f"\n{indent}}}"
+                )
             if keep_last_alpha:
                 replacement += f"\n{indent}{character}.alpha = lastAlpha;"
             return replacement
