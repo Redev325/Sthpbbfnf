@@ -517,7 +517,8 @@ def patch_south_stage(
 	var southCameraDadY:Float = 400;
 	var southCameraBoyfriendX:Float = 1200;
 	var southCameraBoyfriendY:Float = 540;
-	var southCameraVerticalOffset:Float = 35;
+	var southCameraVerticalOffset:Float = 50;
+\tvar southCameraKennyLeftOffset:Float = 100;
 	var southCameraDadOverride:Bool = false;
 	var southCameraBoyfriendOverride:Bool = false;
 	var southCameraSystemEnabled:Bool = false;
@@ -1499,6 +1500,8 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\tif (section == null) return;
 \t\tvar targetX:Float = section.mustHitSection ? southCameraBoyfriendX : southCameraDadX;
 \t\tvar targetY:Float = section.mustHitSection ? southCameraBoyfriendY : southCameraDadY;
+\t\tif (!section.mustHitSection && !section.gfSection && dad != null && StringTools.contains(dad.curCharacter.toLowerCase(), "kenny"))
+\t\t\ttargetX -= southCameraKennyLeftOffset;
 \t\tvar targetAngle:Float = 0;
 \t\tif (southCameraSystemEnabled)
 \t\t{
