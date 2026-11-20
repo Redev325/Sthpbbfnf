@@ -517,6 +517,7 @@ def patch_south_stage(
 	var southCameraDadY:Float = 400;
 	var southCameraBoyfriendX:Float = 1200;
 	var southCameraBoyfriendY:Float = 540;
+	var southCameraVerticalOffset:Float = 35;
 	var southCameraDadOverride:Bool = false;
 	var southCameraBoyfriendOverride:Bool = false;
 	var southCameraSystemEnabled:Bool = false;
@@ -1523,6 +1524,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\telse if (southCameraAnimationIs(mainAnim, "DOWN") || southCameraAnimationIs(gfAnim, "DOWN"))
 \t\t\t\ttargetY += section.mustHitSection ? southCameraBfOffset : southCameraDadOffset;
 \t\t}
+\t\ttargetY -= southCameraVerticalOffset;
 \t\tcamFollow.set(targetX, targetY);
 \t\tsetSouthCameraAngle(targetAngle);
 \t}
@@ -1842,9 +1844,9 @@ case 'badapplelol':
 					southCameraBoyfriendOverride = !Math.isNaN(newBoyfriendCameraX) && !Math.isNaN(newBoyfriendCameraY);
 					if (eventName.toLowerCase() == 'aofisetibf-fest' && southCameraBoyfriendOverride)
 					{
-						camFollow.set(newBoyfriendCameraX, newBoyfriendCameraY);
-						if (camFollowPos != null) camFollowPos.setPosition(newBoyfriendCameraX, newBoyfriendCameraY);
-						if (camGame != null) camGame.scroll.set(newBoyfriendCameraX, newBoyfriendCameraY);
+						camFollow.set(newBoyfriendCameraX, newBoyfriendCameraY - southCameraVerticalOffset);
+						if (camFollowPos != null) camFollowPos.setPosition(newBoyfriendCameraX, newBoyfriendCameraY - southCameraVerticalOffset);
+						if (camGame != null) camGame.scroll.set(newBoyfriendCameraX, newBoyfriendCameraY - southCameraVerticalOffset);
 					}
 				}
 
@@ -1858,9 +1860,9 @@ case 'badapplelol':
 					southCameraDadOverride = !Math.isNaN(newDadCameraX) && !Math.isNaN(newDadCameraY);
 					if (eventName.toLowerCase() == 'aofisetidad-fest' && southCameraDadOverride)
 					{
-						camFollow.set(newDadCameraX, newDadCameraY);
-						if (camFollowPos != null) camFollowPos.setPosition(newDadCameraX, newDadCameraY);
-						if (camGame != null) camGame.scroll.set(newDadCameraX, newDadCameraY);
+						camFollow.set(newDadCameraX, newDadCameraY - southCameraVerticalOffset);
+						if (camFollowPos != null) camFollowPos.setPosition(newDadCameraX, newDadCameraY - southCameraVerticalOffset);
+						if (camGame != null) camGame.scroll.set(newDadCameraX, newDadCameraY - southCameraVerticalOffset);
 					}
 				}
 
@@ -2005,7 +2007,7 @@ if (southCameraZoomTween != null) southCameraZoomTween.cancel();
 						isCameraOnForcedPos = true;
 						camFollow.set(
 							targetCharacter.getMidpoint().x + targetCharacter.cameraPosition[0],
-							targetCharacter.getMidpoint().y + targetCharacter.cameraPosition[1]
+							targetCharacter.getMidpoint().y + targetCharacter.cameraPosition[1] - southCameraVerticalOffset
 						);
 					}
 				}
@@ -2043,7 +2045,7 @@ case 'Camera Follow Pos':"""
 \t\t\t\t{
 \t\t\t\t\tcamFollow.set(gf.getMidpoint().x, gf.getMidpoint().y);
 \t\t\t\t\tcamFollow.x += gf.cameraPosition[0] + girlfriendCameraOffset[0];
-\t\t\t\t\tcamFollow.y += gf.cameraPosition[1] + girlfriendCameraOffset[1];
+\t\t\t\t\tcamFollow.y += gf.cameraPosition[1] + girlfriendCameraOffset[1] - southCameraVerticalOffset;
 \t\t\t\t\ttweenCamIn();
 \t\t\t\t}
 \t\t\t\telse if (SONG.notes[curSection].mustHitSection)
