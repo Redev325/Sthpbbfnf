@@ -518,7 +518,7 @@ def patch_south_stage(
 	var southCameraBoyfriendX:Float = 1200;
 	var southCameraBoyfriendY:Float = 540;
 	var southCameraVerticalOffset:Float = 50;
-\tvar southCameraKennyLeftOffset:Float = 100;
+	var southCameraKennyLeftOffset:Float = 100;
 	var southCameraDadOverride:Bool = false;
 	var southCameraBoyfriendOverride:Bool = false;
 	var southCameraSystemEnabled:Bool = false;
