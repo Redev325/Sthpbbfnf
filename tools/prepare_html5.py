@@ -1523,7 +1523,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\telse if (southCameraAnimationIs(mainAnim, "DOWN") || southCameraAnimationIs(gfAnim, "DOWN"))
 \t\t\t\ttargetY += section.mustHitSection ? southCameraBfOffset : southCameraDadOffset;
 \t\t}
-\t\tcamFollow.setPosition(targetX, targetY);
+\t\tcamFollow.set(targetX, targetY);
 \t\tsetSouthCameraAngle(targetAngle);
 \t}
 
@@ -1842,7 +1842,7 @@ case 'badapplelol':
 					southCameraBoyfriendOverride = !Math.isNaN(newBoyfriendCameraX) && !Math.isNaN(newBoyfriendCameraY);
 					if (eventName.toLowerCase() == 'aofisetibf-fest' && southCameraBoyfriendOverride)
 					{
-						camFollow.setPosition(newBoyfriendCameraX, newBoyfriendCameraY);
+						camFollow.set(newBoyfriendCameraX, newBoyfriendCameraY);
 						if (camFollowPos != null) camFollowPos.setPosition(newBoyfriendCameraX, newBoyfriendCameraY);
 						if (camGame != null) camGame.scroll.set(newBoyfriendCameraX, newBoyfriendCameraY);
 					}
@@ -1858,7 +1858,7 @@ case 'badapplelol':
 					southCameraDadOverride = !Math.isNaN(newDadCameraX) && !Math.isNaN(newDadCameraY);
 					if (eventName.toLowerCase() == 'aofisetidad-fest' && southCameraDadOverride)
 					{
-						camFollow.setPosition(newDadCameraX, newDadCameraY);
+						camFollow.set(newDadCameraX, newDadCameraY);
 						if (camFollowPos != null) camFollowPos.setPosition(newDadCameraX, newDadCameraY);
 						if (camGame != null) camGame.scroll.set(newDadCameraX, newDadCameraY);
 					}
@@ -2003,7 +2003,7 @@ if (southCameraZoomTween != null) southCameraZoomTween.cancel();
 					if (targetCharacter != null && camFollow != null)
 					{
 						isCameraOnForcedPos = true;
-						camFollow.setPosition(
+						camFollow.set(
 							targetCharacter.getMidpoint().x + targetCharacter.cameraPosition[0],
 							targetCharacter.getMidpoint().y + targetCharacter.cameraPosition[1]
 						);
@@ -2041,7 +2041,7 @@ case 'Camera Follow Pos':"""
 \t\t\t\t// Charted aofiseti points override those targets only when supplied.
 \t\t\t\tif (gf != null && SONG.notes[curSection].gfSection)
 \t\t\t\t{
-\t\t\t\t\tcamFollow.setPosition(gf.getMidpoint().x, gf.getMidpoint().y);
+\t\t\t\t\tcamFollow.set(gf.getMidpoint().x, gf.getMidpoint().y);
 \t\t\t\t\tcamFollow.x += gf.cameraPosition[0] + girlfriendCameraOffset[0];
 \t\t\t\t\tcamFollow.y += gf.cameraPosition[1] + girlfriendCameraOffset[1];
 \t\t\t\t\ttweenCamIn();
@@ -2049,14 +2049,14 @@ case 'Camera Follow Pos':"""
 \t\t\t\telse if (SONG.notes[curSection].mustHitSection)
 \t\t\t\t{
 \t\t\t\t\tif (southCameraBoyfriendOverride)
-\t\t\t\t\t\tcamFollow.setPosition(southCameraBoyfriendX, southCameraBoyfriendY);
+\t\t\t\t\t\tcamFollow.set(southCameraBoyfriendX, southCameraBoyfriendY);
 \t\t\t\t\telse
 \t\t\t\t\t\tmoveCamera(false);
 \t\t\t\t}
 \t\t\t\telse
 \t\t\t\t{
 \t\t\t\t\tif (southCameraDadOverride)
-\t\t\t\t\t\tcamFollow.setPosition(southCameraDadX, southCameraDadY);
+\t\t\t\t\t\tcamFollow.set(southCameraDadX, southCameraDadY);
 \t\t\t\t\telse
 \t\t\t\t\t\tmoveCamera(true);
 \t\t\t\t}
