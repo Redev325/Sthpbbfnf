@@ -443,6 +443,15 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
         target_scale_x = base_width * base_scale_x / target_width
         target_scale_y = base_height * base_scale_y / target_height
 
+        # Kenny's corrupted atlas frame is an exact half-resolution export of
+        # the clean playground artwork (feature registration confirms 2x in
+        # both axes, with no translation). Its 546px frame canvas includes
+        # extra vertical canvas beyond the 540px image content, so matching
+        # total frame heights compresses the artwork. Match the clean artwork
+        # scale using the width ratio on both axes instead.
+        if target_sprite == "southBackground2Animated":
+            target_scale_y = target_scale_x
+
         scale_pattern = re.compile(
             rf"(?m)^([ \t]*){re.escape(target_sprite)}\.scale\.set\(\s*"
             rf"[-+0-9.eE]+\s*,\s*[-+0-9.eE]+\s*\);"
@@ -997,10 +1006,10 @@ def patch_south_stage(
 				southAnimatedObjects.set('bg2', southBackground2);
 
 				var southBackground2Animated:BGSprite = new BGSprite('bg2', -1970, -1040, 1, 1, ['idle'], true);
-				// The static bg2 s image is 1920x1080; each bg2 atlas frame is
-				// 960x546. These factors make the animated overlay match the
-				// static layer's 5184x2916 world-space bounds. Keep literals here
-				// because the Python image-optimization pass adjusts these scales.
+				// The corrupted bg2 artwork matches the clean bg2 s artwork at
+				// exactly 2x in both axes. Its 960x546 frame has extra canvas
+				// height, so match artwork scale rather than total frame bounds.
+				// The Python optimizer later compensates for the atlas resize.
 				southBackground2Animated.scale.set(5.4, 5.3407);
 				// Keep the same default sprite origin as the clean bg2 s still.
 				// updateHitbox() changes the atlas offset and makes this layer
