@@ -718,7 +718,7 @@ def patch_south_stage(
 		southKennyBackgroundMode = nextMode;
 
 		// Swap instantly while visible. Only fade in when the map was hidden.
-		if (wasVisible)
+		if (wasVisible && startingAlpha >= 0.99)
 		{
 			background.alpha = startingAlpha;
 		}
@@ -728,7 +728,7 @@ def patch_south_stage(
 		}
 		else
 		{
-			background.alpha = 0;
+			background.alpha = startingAlpha;
 			FlxTween.tween(background, {alpha: 1}, duration, {ease: FlxEase.sineInOut});
 		}
 	}
