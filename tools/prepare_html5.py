@@ -443,14 +443,6 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
         target_scale_x = base_width * base_scale_x / target_width
         target_scale_y = base_height * base_scale_y / target_height
 
-        # Kenny's corrupted atlas frame is an exact half-resolution export of
-        # the clean playground artwork (feature registration confirms 2x in
-        # both axes, with no translation). Its 546px frame canvas includes
-        # extra vertical canvas beyond the 540px image content, so matching
-        # total frame heights compresses the artwork. Match the clean artwork
-        # scale using the width ratio on both axes instead.
-        if target_sprite == "southBackground2Animated":
-            target_scale_y = target_scale_x
 
         scale_pattern = re.compile(
             rf"(?m)^([ \t]*){re.escape(target_sprite)}\.scale\.set\(\s*"
