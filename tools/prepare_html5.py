@@ -710,7 +710,7 @@ def patch_south_stage(
 		{
 			background.loadGraphic(Paths.image('bg2 s'));
 			background.active = false;
-			background.y = -1010; // Clean playground sits 30 stage pixels lower.
+			background.y = -995; // Clean playground sits 45 stage pixels lower.
 			background.scale.set(2.7, 2.7);
 		}
 
