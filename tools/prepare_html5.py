@@ -663,76 +663,54 @@ def patch_south_stage(
 
 		var nextMode:Int = !enabled ? 0 : (corrupted ? 2 : 1);
 		if (southKennyBackgroundMode == nextMode) return;
+		southKennyBackgroundMode = nextMode;
 
-		// Both Kenny forms use the same BGSprite instance. Its world position
-		// and scroll factor stay fixed; scale only accounts for source resolution.
-		var background:BGSprite = southAnimatedObjects.get('bg2');
-		if (background == null) return;
+		// Keep the clean and corrupted images as separate layers. The chart
+		// addresses bg2 and bg2 n independently for fades and animations.
+		// Both use the same world-space top-left and matching artwork scale.
+		var cleanBackground:BGSprite = southAnimatedObjects.get('bg2');
+		var corruptedBackground:BGSprite = southAnimatedObjects.get('bg2 n');
+		var cleanTarget:Float = nextMode == 1 ? 1 : 0;
+		var corruptedTarget:Float = nextMode == 2 ? 1 : 0;
 
-		var startingAlpha:Float = background.alpha;
-		var wasVisible:Bool = background.visible && startingAlpha > 0.01;
-		FlxTween.cancelTweensOf(background);
-
-		if (nextMode == 0)
+		if (cleanBackground != null)
 		{
-			southKennyBackgroundMode = 0;
+			FlxTween.cancelTweensOf(cleanBackground);
+			if (cleanTarget > 0.01) cleanBackground.visible = true;
 			if (duration <= 0)
 			{
-				background.alpha = 0;
-				background.visible = false;
+				cleanBackground.alpha = cleanTarget;
+				cleanBackground.visible = cleanTarget > 0.01;
 			}
 			else
 			{
-				background.visible = true;
-				FlxTween.tween(background, {alpha: 0}, duration, {
+				FlxTween.tween(cleanBackground, {alpha: cleanTarget}, duration, {
 					ease: FlxEase.sineInOut,
 					onComplete: function(_:FlxTween) {
-						background.visible = false;
+						cleanBackground.visible = cleanTarget > 0.01;
 					}
 				});
 			}
-			return;
 		}
 
-		// Replace the graphic on the existing sprite instead of crossfading
-		// two independently positioned sprites.
-		background.animation.destroyAnimations();
-		if (nextMode == 2)
+		if (corruptedBackground != null)
 		{
-			background.frames = Paths.getSparrowAtlas('bg2');
-			background.animation.addByPrefix('idle', 'idle', 24, true);
-			background.animation.play('idle', true);
-			background.active = true;
-			background.scale.set(5.4, 5.4);
-		}
-		else
-		{
-			background.loadGraphic(Paths.image('bg2 s'));
-			background.active = false;
-			background.scale.set(2.7, 2.7);
-		}
-
-		// Both versions depict the same playground; only the graphic changes.
-		background.y = -1040;
-
-		background.offset.set(0, 0);
-		background.origin.set(0, 0);
-		background.visible = true;
-		southKennyBackgroundMode = nextMode;
-
-		// Swap instantly while visible. Only fade in when the map was hidden.
-		if (wasVisible && startingAlpha >= 0.99)
-		{
-			background.alpha = startingAlpha;
-		}
-		else if (duration <= 0)
-		{
-			background.alpha = 1;
-		}
-		else
-		{
-			background.alpha = startingAlpha;
-			FlxTween.tween(background, {alpha: 1}, duration, {ease: FlxEase.sineInOut});
+			FlxTween.cancelTweensOf(corruptedBackground);
+			if (corruptedTarget > 0.01) corruptedBackground.visible = true;
+			if (duration <= 0)
+			{
+				corruptedBackground.alpha = corruptedTarget;
+				corruptedBackground.visible = corruptedTarget > 0.01;
+			}
+			else
+			{
+				FlxTween.tween(corruptedBackground, {alpha: corruptedTarget}, duration, {
+					ease: FlxEase.sineInOut,
+					onComplete: function(_:FlxTween) {
+						corruptedBackground.visible = corruptedTarget > 0.01;
+					}
+				});
+			}
 		}
 	}
 
@@ -789,10 +767,13 @@ def patch_south_stage(
 	{
 		if (curStage != 'south' || !generatedMusic || Conductor.songPosition < 107083
 			|| Conductor.songPosition >= 202750 || southAnimatedObjects == null) return;
-		var background:BGSprite = southAnimatedObjects.get('bg2');
+		var cleanBackground:BGSprite = southAnimatedObjects.get('bg2');
+		var corruptedBackground:BGSprite = southAnimatedObjects.get('bg2 n');
 		// Mode 0 means the chart intentionally hid the playground. Do not let
 		// the per-frame Kenny form check turn it back on during its fade-out.
-		if (southKennyBackgroundMode <= 0 || background == null || background.alpha <= 0.01) return;
+		if (southKennyBackgroundMode <= 0
+			|| (cleanBackground == null || cleanBackground.alpha <= 0.01)
+				&& (corruptedBackground == null || corruptedBackground.alpha <= 0.01)) return;
 
 		var monsterForm:Bool = dad != null && dad.curCharacter != null
 			&& dad.curCharacter.toLowerCase() == 'kenny c';
@@ -1008,16 +989,20 @@ def patch_south_stage(
 				add(southLightOverlay42);
 				southAnimatedObjects.set('bgluz42', southLightOverlay42);
 
-				// One persistent playground sprite is reused for both Kenny forms.
-				// Its world position stays fixed; scale only follows the source resolution.
+				// Keep both Kenny playground images as separate chart-addressable
+				// sprites. Their world position is identical; only the artwork
+				// source and source-resolution scale differ.
 				var southBackground2:BGSprite = new BGSprite('bg2 s', -1970, -1040);
 				southBackground2.scale.set(2.7, 2.7);
-				southBackground2.offset.set(0, 0);
-				southBackground2.origin.set(0, 0);
 				southBackground2.alpha = 0;
 				add(southBackground2);
 				southAnimatedObjects.set('bg2', southBackground2);
-				southAnimatedObjects.set('bg2 n', southBackground2);
+
+				var southBackground2Animated:BGSprite = new BGSprite('bg2', -1970, -1040, 1, 1, ['idle'], true);
+				southBackground2Animated.scale.set(5.4, 5.4);
+				southBackground2Animated.alpha = 0;
+				add(southBackground2Animated);
+				southAnimatedObjects.set('bg2 n', southBackground2Animated);
 
 				southLightOverlay2 = new BGSprite('bg2luz', -1970, -1040);
 				southLightOverlay2.scale.set(2.7, 2.7);
