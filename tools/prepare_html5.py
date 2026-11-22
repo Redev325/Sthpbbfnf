@@ -1009,6 +1009,8 @@ def patch_south_stage(
                 southCraigCharacter.animation.getByName('singDOWN').frameRate = 17;
                 southCraigCharacter.animation.getByName('singUP').frameRate = 17;
                 southCraigCharacter.animation.getByName('singRIGHT').frameRate = 17;
+                southCraigCharacter.alpha = 0;
+                southCraigCharacter.visible = false;
                 add(southCraigCharacter);
 
                 southCledyCharacter = new Character(700, 220, 'cledy');
@@ -1023,6 +1025,8 @@ def patch_south_stage(
                 southCledyCharacter.animation.getByName('singDOWN').frameRate = 18;
                 southCledyCharacter.animation.getByName('singUP').frameRate = 18;
                 southCledyCharacter.animation.getByName('singRIGHT').frameRate = 18;
+                southCledyCharacter.alpha = 0;
+                southCledyCharacter.visible = false;
                 add(southCledyCharacter);
 
 				var southBlackbar:BGSprite = new BGSprite('blackbar', 0, 0);
@@ -1288,6 +1292,19 @@ def patch_south_stage(
             }
         }
 
+        if (curStage == 'south' && (note.noteType == 'Clyde Note' || note.noteType == 'Craig Note'))
+        {
+            var extraOpponentCharacter:Character = note.noteType == 'Clyde Note' ? southCledyCharacter : southCraigCharacter;
+            var extraOpponentAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
+            if (extraOpponentCharacter != null && extraOpponentCharacter.animation.getByName(extraOpponentAnim) != null)
+            {
+                extraOpponentCharacter.visible = true;
+                extraOpponentCharacter.alpha = 1;
+                extraOpponentCharacter.playAnim(extraOpponentAnim, true);
+                extraOpponentCharacter.holdTimer = 0;
+            }
+        }
+
         if(note.noteType == 'Hey!' && dad.animOffsets.exists('hey')) {"""
     if "var kyleTarget:Character" not in source:
         if note_marker not in source:
@@ -1320,6 +1337,19 @@ def patch_south_stage(
             {
                 southKyleCCharacter.playAnim(kylePlayerAnim, true);
                 southKyleCCharacter.holdTimer = 0;
+            }
+        }
+
+        if (curStage == 'south' && (note.noteType == 'Clyde Note' || note.noteType == 'Craig Note'))
+        {
+            var extraPlayerCharacter:Character = note.noteType == 'Clyde Note' ? southCledyCharacter : southCraigCharacter;
+            var extraPlayerAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
+            if (extraPlayerCharacter != null && extraPlayerCharacter.animation.getByName(extraPlayerAnim) != null)
+            {
+                extraPlayerCharacter.visible = true;
+                extraPlayerCharacter.alpha = 1;
+                extraPlayerCharacter.playAnim(extraPlayerAnim, true);
+                extraPlayerCharacter.holdTimer = 0;
             }
         }
 
@@ -1653,7 +1683,12 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\tif (curStage == 'south')
 \t\t\t\t{
 \t\t\t\t\tvar fadeKey:String = value1 == null ? "" : value1.toLowerCase();
-\t\t\t\t\tvar fadeSprite:BGSprite = southAnimatedObjects.get(fadeKey);
+\t\t\t\t\tvar fadeSprite:FlxSprite = southAnimatedObjects.get(fadeKey);
+\t\t\t\t\tif (fadeSprite == null)
+\t\t\t\t\t{
+\t\t\t\t\t\tif (fadeKey == 'craig') fadeSprite = southCraigCharacter;
+\t\t\t\t\telse if (fadeKey == 'cledy' || fadeKey == 'clyde') fadeSprite = southCledyCharacter;
+\t\t\t\t}
 
 \t\t\t\t\tif (fadeSprite != null)
 \t\t\t\t\t{
@@ -2113,7 +2148,87 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\t\t|| (flashAlpha > 0.02 && flashColor == FlxColor.BLACK);
 \t}
 
-\tfunction recoverLateBlackout():Void
+	function hideInactiveSouthCharacterGroups():Void
+	{
+		if (curStage != 'south') return;
+		if (boyfriendGroup != null)
+		{
+			for (member in boyfriendGroup.members)
+				if (member != null && member != boyfriend)
+				{
+					member.alpha = 0;
+					member.visible = false;
+				}
+		}
+		if (dadGroup != null)
+		{
+			for (member in dadGroup.members)
+				if (member != null && member != dad)
+				{
+					member.alpha = 0;
+					member.visible = false;
+				}
+		}
+		if (gfGroup != null)
+		{
+			for (member in gfGroup.members)
+				if (member != null && member != gf)
+				{
+					member.alpha = 0;
+					member.visible = false;
+				}
+		}
+	}
+
+	function updateSouthThirdPartCharacters():Void
+	{
+		if (curStage != 'south' || !generatedMusic) return;
+		var songMs:Float = Conductor.songPosition;
+
+		// Clyde's custom-note sequence runs from 3:28.083 to 4:13.417.
+		// Keep the sprite present only through that section and its final sing hold.
+		if (southCledyCharacter != null)
+		{
+			var clydeActive:Bool = songMs >= 208083 && songMs < 254600;
+			southCledyCharacter.alpha = clydeActive ? 1 : 0;
+			southCledyCharacter.visible = clydeActive;
+		}
+
+		// Craig enters on his first custom-note sequence and is faded by the
+		// chart's "afadeout craig" event at 5:06.417.
+		if (southCraigCharacter != null)
+		{
+			if (songMs < 212083 || songMs >= 307900)
+			{
+				southCraigCharacter.alpha = 0;
+				southCraigCharacter.visible = false;
+			}
+			else if (songMs < 306417)
+			{
+				southCraigCharacter.alpha = 1;
+				southCraigCharacter.visible = true;
+			}
+		}
+	}
+
+	function hideFinishedSouthCutsceneOverlays():Void
+	{
+		if (curStage != 'south' || southAnimatedObjects == null) return;
+		for (overlayKey in ['anim', 'anim2', 'anim2 c', 'anim3'])
+		{
+			var overlay:BGSprite = southAnimatedObjects.get(overlayKey);
+			if (overlay == null || !overlay.visible || overlay.animation == null || overlay.animation.curAnim == null)
+				continue;
+			if (!overlay.animation.curAnim.looped && overlay.animation.curAnim.finished)
+			{
+				FlxTween.cancelTweensOf(overlay);
+				overlay.alpha = 0;
+				overlay.visible = false;
+			}
+		}
+	}
+
+	function recoverLateBlackout():Void
 \t{
 \t\tvar songMs:Float = Conductor.songPosition;
 \t\t// Keep the watchdog active from the reported 5:56 blackout until the end.
@@ -2390,6 +2505,9 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 
 \tfunction updateSouthOverlayRecovery():Void
 \t{
+\t\thideInactiveSouthCharacterGroups();
+\t\tupdateSouthThirdPartCharacters();
+\t\thideFinishedSouthCutsceneOverlays();
 \t\tupdateSouthBlackDiagnosticPanel();
 \t\trecoverLateBlackout();
 \t}
