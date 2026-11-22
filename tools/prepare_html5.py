@@ -718,17 +718,21 @@ def patch_south_stage(
 	{
 		if (curStage != 'south' || southAnimatedObjects == null) return;
 		var normalizedKey:String = activeKey == null ? "" : activeKey.trim().toLowerCase();
-		if (normalizedKey == 'bg2 n') normalizedKey = 'bg2';
 		if (!isSouthBackgroundLayer(normalizedKey)) return;
 		if (Math.isNaN(duration) || duration < 0) duration = 0;
 
 		// Kenny's human-form playground uses the uploaded clean playground
 		// image (the mod's full-resolution bg2 s). When Kenny returns to
 		// kenny c, swap to the corrupted bg2 atlas at the identical position.
-		var kennyBackgroundIsActive:Bool = normalizedKey == 'bg2';
-		var kennyMonsterForm:Bool = dad != null && dad.curCharacter != null
-			&& dad.curCharacter.toLowerCase() == 'kenny c';
-		setSouthKennyBackground(kennyBackgroundIsActive, kennyMonsterForm, duration);
+		// The chart addresses the clean and corrupted Kenny backgrounds as
+		// independent layers. Do not infer the artwork from the current character:
+		// preserve the exact layer requested by each chart event.
+		if (normalizedKey == 'bg2')
+			setSouthKennyBackground(true, false, duration);
+		else if (normalizedKey == 'bg2 n')
+			setSouthKennyBackground(true, true, duration);
+		else
+			setSouthKennyBackground(false, false, duration);
 
 		var backgroundGroups:Array<Array<String>> = [
 			['bg'],
@@ -999,7 +1003,7 @@ def patch_south_stage(
 				southAnimatedObjects.set('bg2', southBackground2);
 
 				var southBackground2Animated:BGSprite = new BGSprite('bg2', -1970, -1040, 1, 1, ['idle'], true);
-				southBackground2Animated.scale.set(5.4, 5.4);
+				southBackground2Animated.scale.set(2.7, 2.7);
 				southBackground2Animated.alpha = 0;
 				add(southBackground2Animated);
 				southAnimatedObjects.set('bg2 n', southBackground2Animated);
