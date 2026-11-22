@@ -2160,6 +2160,20 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 					member.visible = false;
 				}
 		}
+		// Sweep cached BF map entries as well as the display group. This
+		// explicitly clears old Stan R instances held by boyfriendMap.
+		if (boyfriendMap != null)
+		{
+			for (characterName in boyfriendMap.keys())
+			{
+				var mappedBoyfriend:Boyfriend = boyfriendMap.get(characterName);
+				if (mappedBoyfriend != null && mappedBoyfriend != boyfriend)
+				{
+					mappedBoyfriend.alpha = 0;
+					mappedBoyfriend.visible = false;
+				}
+			}
+		}
 		if (dadGroup != null)
 		{
 			for (member in dadGroup.members)
@@ -2184,6 +2198,26 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 	{
 		if (curStage != 'south' || !generatedMusic) return;
 		var songMs:Float = Conductor.songPosition;
+
+		// The chart changes BF to Jimmy W at 106333.333 ms, then to Jimmy
+		// at 149250 ms. Enforce this exact first handoff if the event misses.
+		if (songMs >= 106333.333 && songMs < 149250 && boyfriend != null
+			&& boyfriend.curCharacter.toLowerCase() != 'jimmy w')
+		{
+			if (!boyfriendMap.exists('jimmy w')) addCharacterToList('jimmy w', 0);
+			var chartJimmyW:Boyfriend = boyfriendMap.get('jimmy w');
+			if (chartJimmyW != null)
+			{
+				boyfriend.alpha = 0;
+				boyfriend.visible = false;
+				boyfriend = chartJimmyW;
+				boyfriend.alpha = 1;
+				boyfriend.visible = true;
+				boyfriend.holdTimer = 0;
+				if (iconP1 != null) iconP1.changeIcon(boyfriend.healthIcon);
+				setOnLuas('boyfriendName', boyfriend.curCharacter);
+			}
+		}
 
 		// Clyde's custom-note sequence runs from 3:28.083 to 4:13.417.
 		// Keep the sprite present only through that section and its final sing hold.
@@ -2505,8 +2539,8 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 
 \tfunction updateSouthOverlayRecovery():Void
 \t{
-\t\thideInactiveSouthCharacterGroups();
 \t\tupdateSouthThirdPartCharacters();
+\t\thideInactiveSouthCharacterGroups();
 \t\thideFinishedSouthCutsceneOverlays();
 \t\tupdateSouthBlackDiagnosticPanel();
 \t\trecoverLateBlackout();
