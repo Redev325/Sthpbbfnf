@@ -703,16 +703,17 @@ def patch_south_stage(
 			background.animation.addByPrefix('idle', 'idle', 24, true);
 			background.animation.play('idle', true);
 			background.active = true;
-			background.y = -1040;
 			background.scale.set(5.4, 5.4);
 		}
 		else
 		{
 			background.loadGraphic(Paths.image('bg2 s'));
 			background.active = false;
-			background.y = -995; // Clean playground sits 45 stage pixels lower.
 			background.scale.set(2.7, 2.7);
 		}
+
+		// Both versions depict the same playground; only the graphic changes.
+		background.y = -1040;
 
 		background.offset.set(0, 0);
 		background.origin.set(0, 0);
