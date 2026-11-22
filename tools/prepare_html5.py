@@ -420,8 +420,11 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
         ("southBackground3", "bg3", True, "southLightOverlay3", "bg3luz", False),
         ("southBackground4", "bg4", True, "southLightOverlay4", "bg4luz", False),
         ("southBackground4", "bg4", True, "southLightOverlay42", "bg4luz2", False),
-        # The second scene's animated atlas, light, and snow all align to its
-        # full-resolution static background.
+        # The corrupted playground is an animation atlas whose individual
+        # frames are half the clean image's width. Derive its scale from the
+        # clean background so both forms occupy the same world-space area.
+        ("southBackground2", "bg2 s", False, "southBackground2Animated", "bg2", True),
+        # The lighting and snow overlays align to the clean full-resolution image.
         ("southBackground2", "bg2 s", False, "southLightOverlay2", "bg2luz", False),
         ("southBackground2", "bg2 s", False, "southSnow", "nieve", False),
     ]
@@ -478,6 +481,40 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
 
     print("South-stage aligned layers: " + json.dumps(report, sort_keys=True))
     return stage_code
+
+
+def patch_south_playground_character_positions(character_dir: Path) -> dict[str, list[int]]:
+    """Keep the Kenny/Jimmy/Timmy playground forms aligned across swaps."""
+    positions = {
+        # Move both Kenny playground forms slightly right without changing
+        # their vertical placement or the later kenny c f finale.
+        "kenny s": [60, 70],
+        "kenny c": [-360, -50],
+        # Jimmy and Timmy already share the same authored anchor in both forms.
+        "jimmy w": [48, 90],
+        "jimmy": [48, 90],
+        "jimmy c": [48, 90],
+        "timmy w": [288, -57],
+        "timmy c": [288, -57],
+    }
+
+    applied: dict[str, list[int]] = {}
+    for character_name, position in positions.items():
+        character_file = character_dir / f"{character_name}.json"
+        if not character_file.is_file():
+            raise FileNotFoundError(
+                f"Missing playground character definition: {character_file}"
+            )
+        character_data = json.loads(character_file.read_text(encoding="utf-8"))
+        if character_data.get("position") != position:
+            character_data["position"] = position
+            character_file.write_text(
+                json.dumps(character_data, ensure_ascii=False, separators=(",", ":")),
+                encoding="utf-8",
+            )
+        applied[character_name] = position
+
+    return applied
 
 
 def patch_south_stage(
@@ -1244,8 +1281,8 @@ def patch_south_stage(
         )
         stage_code = stage_code[:match.end()] + scale_code + stage_code[match.end():]
 
-    # Align the remaining South-stage lighting/overlay layers to their image
-    # dimensions. Kenny's playground no longer has two independent sprites.
+    # Align the playground's separate clean/corrupted layers and the
+    # remaining South-stage lighting overlays to their actual frame dimensions.
     stage_code = align_south_stage_layer_scales(
         stage_code,
         engine / "assets" / "preload" / "images",
@@ -4383,6 +4420,9 @@ def main() -> int:
                 json.dumps(character_data, ensure_ascii=False, separators=(",", ":")),
                 encoding="utf-8",
             )
+
+    playground_positions = patch_south_playground_character_positions(character_dir)
+    print("South playground character positions: " + json.dumps(playground_positions, sort_keys=True))
 
     icon_changes = read_icon_changes(mod / "data" / "bloodbath" / "IconManager.lua")
     patch_note_types(engine)
