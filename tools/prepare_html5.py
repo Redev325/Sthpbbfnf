@@ -664,8 +664,8 @@ def patch_south_stage(
 		var nextMode:Int = !enabled ? 0 : (corrupted ? 2 : 1);
 		if (southKennyBackgroundMode == nextMode) return;
 
-		// Both Kenny forms use the same BGSprite instance. Only its graphic
-		// source changes; the world position and scroll factor stay untouched.
+		// Both Kenny forms use the same BGSprite instance. Its world position
+		// and scroll factor stay fixed; scale only accounts for source resolution.
 		var background:BGSprite = southAnimatedObjects.get('bg2');
 		if (background == null) return;
 
@@ -1006,7 +1006,7 @@ def patch_south_stage(
 				southAnimatedObjects.set('bgluz42', southLightOverlay42);
 
 				// One persistent playground sprite is reused for both Kenny forms.
-				// Its transform never changes; only the image/animation is replaced.
+				// Its world position stays fixed; scale only follows the source resolution.
 				var southBackground2:BGSprite = new BGSprite('bg2 s', -1970, -1040);
 				southBackground2.scale.set(2.7, 2.7);
 				southBackground2.offset.set(0, 0);
