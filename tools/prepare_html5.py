@@ -785,8 +785,9 @@ def patch_south_stage(
 		if (curStage != 'south' || !generatedMusic || Conductor.songPosition < 107083
 			|| Conductor.songPosition >= 202750 || southAnimatedObjects == null) return;
 		var background:BGSprite = southAnimatedObjects.get('bg2');
-		// Wait until the second playground background has actually been activated.
-		if (background == null || background.alpha <= 0.01) return;
+		// Mode 0 means the chart intentionally hid the playground. Do not let
+		// the per-frame Kenny form check turn it back on during its fade-out.
+		if (southKennyBackgroundMode <= 0 || background == null || background.alpha <= 0.01) return;
 
 		var monsterForm:Bool = dad != null && dad.curCharacter != null
 			&& dad.curCharacter.toLowerCase() == 'kenny c';
