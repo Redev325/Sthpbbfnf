@@ -702,11 +702,13 @@ def patch_south_stage(
 			background.frames = Paths.getSparrowAtlas('bg2');
 			background.animation.addByPrefix('idle', 'idle', 24, true);
 			background.animation.play('idle', true);
+			background.active = true;
 			background.scale.set(5.4, 5.4);
 		}
 		else
 		{
 			background.loadGraphic(Paths.image('bg2 s'));
+			background.active = false;
 			background.scale.set(2.7, 2.7);
 		}
 
