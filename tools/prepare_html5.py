@@ -422,7 +422,6 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
         ("southBackground4", "bg4", True, "southLightOverlay42", "bg4luz2", False),
         # The second scene's animated atlas, light, and snow all align to its
         # full-resolution static background.
-        ("southBackground2", "bg2 s", False, "southBackground2Animated", "bg2", True),
         ("southBackground2", "bg2 s", False, "southLightOverlay2", "bg2luz", False),
         ("southBackground2", "bg2 s", False, "southSnow", "nieve", False),
     ]
@@ -457,20 +456,16 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
         )
         stage_code = scale_pattern.sub(scale_line, stage_code, count=1)
 
-        # Recompute hitbox dimensions for ordinary stage overlays. Kenny's
-        # corrupted bg2 atlas is paired with a static image that keeps the
-        # default sprite origin; updateHitbox() changes the atlas offset and
-        # visibly shifts it relative to the clean image, so leave that one alone.
-        if target_sprite != "southBackground2Animated":
-            hitbox_pattern = re.compile(
-                rf"(?m)^{re.escape(indent)}{re.escape(target_sprite)}\.updateHitbox\(\);$"
+        # Recompute Flixel's draw/hitbox dimensions after the scale adjustment.
+        hitbox_pattern = re.compile(
+            rf"(?m)^{re.escape(indent)}{re.escape(target_sprite)}\.updateHitbox\(\);$"
+        )
+        if not hitbox_pattern.search(stage_code):
+            stage_code = stage_code.replace(
+                scale_line,
+                scale_line + f"\n{indent}{target_sprite}.updateHitbox();",
+                1,
             )
-            if not hitbox_pattern.search(stage_code):
-                stage_code = stage_code.replace(
-                    scale_line,
-                    scale_line + f"\n{indent}{target_sprite}.updateHitbox();",
-                    1,
-                )
 
         report.append({
             "base": base_sprite,
@@ -668,53 +663,71 @@ def patch_south_stage(
 
 		var nextMode:Int = !enabled ? 0 : (corrupted ? 2 : 1);
 		if (southKennyBackgroundMode == nextMode) return;
-		southKennyBackgroundMode = nextMode;
 
-		// The clean bg2 s still and corrupted bg2 atlas occupy the same stage
-		// coordinates. Crossfade between them; never display both together.
-		var cleanBackground:BGSprite = southAnimatedObjects.get('bg2');
-		var corruptedBackground:BGSprite = southAnimatedObjects.get('bg2 n');
-		var cleanTarget:Float = nextMode == 1 ? 1 : 0;
-		var corruptedTarget:Float = nextMode == 2 ? 1 : 0;
+		// Both Kenny forms use the same BGSprite instance. Only its graphic
+		// source changes; the world position and scroll factor stay untouched.
+		var background:BGSprite = southAnimatedObjects.get('bg2');
+		if (background == null) return;
 
-		if (cleanBackground != null)
+		var startingAlpha:Float = background.alpha;
+		var wasVisible:Bool = background.visible && startingAlpha > 0.01;
+		FlxTween.cancelTweensOf(background);
+
+		if (nextMode == 0)
 		{
-			FlxTween.cancelTweensOf(cleanBackground);
-			if (cleanTarget > 0.01) cleanBackground.visible = true;
+			southKennyBackgroundMode = 0;
 			if (duration <= 0)
 			{
-				cleanBackground.alpha = cleanTarget;
-				cleanBackground.visible = cleanTarget > 0.01;
+				background.alpha = 0;
+				background.visible = false;
 			}
 			else
 			{
-				FlxTween.tween(cleanBackground, {alpha: cleanTarget}, duration, {
+				background.visible = true;
+				FlxTween.tween(background, {alpha: 0}, duration, {
 					ease: FlxEase.sineInOut,
 					onComplete: function(_:FlxTween) {
-						cleanBackground.visible = cleanTarget > 0.01;
+						background.visible = false;
 					}
 				});
 			}
+			return;
 		}
 
-		if (corruptedBackground != null)
+		// Replace the graphic on the existing sprite instead of crossfading
+		// two independently positioned sprites.
+		background.animation.destroyAnimations();
+		if (nextMode == 2)
 		{
-			FlxTween.cancelTweensOf(corruptedBackground);
-			if (corruptedTarget > 0.01) corruptedBackground.visible = true;
-			if (duration <= 0)
-			{
-				corruptedBackground.alpha = corruptedTarget;
-				corruptedBackground.visible = corruptedTarget > 0.01;
-			}
-			else
-			{
-				FlxTween.tween(corruptedBackground, {alpha: corruptedTarget}, duration, {
-					ease: FlxEase.sineInOut,
-					onComplete: function(_:FlxTween) {
-						corruptedBackground.visible = corruptedTarget > 0.01;
-					}
-				});
-			}
+			background.frames = Paths.getSparrowAtlas('bg2');
+			background.animation.addByPrefix('idle', 'idle', 24, true);
+			background.animation.play('idle', true);
+			background.scale.set(5.4, 5.4);
+		}
+		else
+		{
+			background.loadGraphic(Paths.image('bg2 s'));
+			background.scale.set(2.7, 2.7);
+		}
+
+		background.offset.set(0, 0);
+		background.origin.set(0, 0);
+		background.visible = true;
+		southKennyBackgroundMode = nextMode;
+
+		// Swap instantly while visible. Only fade in when the map was hidden.
+		if (wasVisible)
+		{
+			background.alpha = startingAlpha;
+		}
+		else if (duration <= 0)
+		{
+			background.alpha = 1;
+		}
+		else
+		{
+			background.alpha = 0;
+			FlxTween.tween(background, {alpha: 1}, duration, {ease: FlxEase.sineInOut});
 		}
 	}
 
@@ -771,11 +784,9 @@ def patch_south_stage(
 	{
 		if (curStage != 'south' || !generatedMusic || Conductor.songPosition < 107083
 			|| Conductor.songPosition >= 202750 || southAnimatedObjects == null) return;
-		var cleanBackground:BGSprite = southAnimatedObjects.get('bg2');
-		var corruptedBackground:BGSprite = southAnimatedObjects.get('bg2 n');
+		var background:BGSprite = southAnimatedObjects.get('bg2');
 		// Wait until the second playground background has actually been activated.
-		if ((cleanBackground == null || cleanBackground.alpha <= 0.01)
-			&& (corruptedBackground == null || corruptedBackground.alpha <= 0.01)) return;
+		if (background == null || background.alpha <= 0.01) return;
 
 		var monsterForm:Bool = dad != null && dad.curCharacter != null
 			&& dad.curCharacter.toLowerCase() == 'kenny c';
@@ -991,24 +1002,16 @@ def patch_south_stage(
 				add(southLightOverlay42);
 				southAnimatedObjects.set('bgluz42', southLightOverlay42);
 
+				// One persistent playground sprite is reused for both Kenny forms.
+				// Its transform never changes; only the image/animation is replaced.
 				var southBackground2:BGSprite = new BGSprite('bg2 s', -1970, -1040);
 				southBackground2.scale.set(2.7, 2.7);
+				southBackground2.offset.set(0, 0);
+				southBackground2.origin.set(0, 0);
 				southBackground2.alpha = 0;
 				add(southBackground2);
 				southAnimatedObjects.set('bg2', southBackground2);
-
-				var southBackground2Animated:BGSprite = new BGSprite('bg2', -1970, -1040, 1, 1, ['idle'], true);
-				// The corrupted bg2 artwork matches the clean bg2 s artwork at
-				// exactly 2x in both axes. Its 960x546 frame has extra canvas
-				// height, so match artwork scale rather than total frame bounds.
-				// The Python optimizer later compensates for the atlas resize.
-				southBackground2Animated.scale.set(5.4, 5.3407);
-				// Keep the same default sprite origin as the clean bg2 s still.
-				// updateHitbox() changes the atlas offset and makes this layer
-				// appear shifted even though its stage position and bounds match.
-				southBackground2Animated.alpha = 0;
-				add(southBackground2Animated);
-				southAnimatedObjects.set('bg2 n', southBackground2Animated);
+				southAnimatedObjects.set('bg2 n', southBackground2);
 
 				southLightOverlay2 = new BGSprite('bg2luz', -1970, -1040);
 				southLightOverlay2.scale.set(2.7, 2.7);
@@ -1179,7 +1182,6 @@ def patch_south_stage(
         "southLightOverlay4": "bg4luz",
         "southLightOverlay42": "bg4luz2",
         "southBackground2": "bg2 s",
-        "southBackground2Animated": "bg2",
         "southLightOverlay2": "bg2luz",
         "southSnow": "nieve",
         "southKyle": "kyle s",
@@ -1247,9 +1249,8 @@ def patch_south_stage(
         )
         stage_code = stage_code[:match.end()] + scale_code + stage_code[match.end():]
 
-    # Align every South-stage lighting/overlay layer to its actual atlas frame.
-    # This also re-derives the bg2 animation scale instead of relying on hand-tuned
-    # constants, so future image optimization cannot silently shift the layers.
+    # Align the remaining South-stage lighting/overlay layers to their image
+    # dimensions. Kenny's playground no longer has two independent sprites.
     stage_code = align_south_stage_layer_scales(
         stage_code,
         engine / "assets" / "preload" / "images",
