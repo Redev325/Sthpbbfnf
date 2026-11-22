@@ -456,16 +456,20 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
         )
         stage_code = scale_pattern.sub(scale_line, stage_code, count=1)
 
-        # Recompute Flixel's draw/hitbox dimensions after the scale adjustment.
-        hitbox_pattern = re.compile(
-            rf"(?m)^{re.escape(indent)}{re.escape(target_sprite)}\.updateHitbox\(\);$"
-        )
-        if not hitbox_pattern.search(stage_code):
-            stage_code = stage_code.replace(
-                scale_line,
-                scale_line + f"\n{indent}{target_sprite}.updateHitbox();",
-                1,
+        # Recompute hitbox dimensions for ordinary stage overlays. Kenny's
+        # corrupted bg2 atlas is paired with a static image that keeps the
+        # default sprite origin; updateHitbox() changes the atlas offset and
+        # visibly shifts it relative to the clean image, so leave that one alone.
+        if target_sprite != "southBackground2Animated":
+            hitbox_pattern = re.compile(
+                rf"(?m)^{re.escape(indent)}{re.escape(target_sprite)}\\.updateHitbox\\(\\);$"
             )
+            if not hitbox_pattern.search(stage_code):
+                stage_code = stage_code.replace(
+                    scale_line,
+                    scale_line + f"\\n{indent}{target_sprite}.updateHitbox();",
+                    1,
+                )
 
         report.append({
             "base": base_sprite,
@@ -998,7 +1002,9 @@ def patch_south_stage(
 				// static layer's 5184x2916 world-space bounds. Keep literals here
 				// because the Python image-optimization pass adjusts these scales.
 				southBackground2Animated.scale.set(5.4, 5.3407);
-				southBackground2Animated.updateHitbox();
+				// Keep the same default sprite origin as the clean bg2 s still.
+				// updateHitbox() changes the atlas offset and makes this layer
+				// appear shifted even though its stage position and bounds match.
 				southBackground2Animated.alpha = 0;
 				add(southBackground2Animated);
 				southAnimatedObjects.set('bg2 n', southBackground2Animated);
