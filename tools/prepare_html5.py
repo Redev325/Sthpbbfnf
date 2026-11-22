@@ -462,12 +462,12 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
         # visibly shifts it relative to the clean image, so leave that one alone.
         if target_sprite != "southBackground2Animated":
             hitbox_pattern = re.compile(
-                rf"(?m)^{re.escape(indent)}{re.escape(target_sprite)}\\.updateHitbox\\(\\);$"
+                rf"(?m)^{re.escape(indent)}{re.escape(target_sprite)}\.updateHitbox\(\);$"
             )
             if not hitbox_pattern.search(stage_code):
                 stage_code = stage_code.replace(
                     scale_line,
-                    scale_line + f"\\n{indent}{target_sprite}.updateHitbox();",
+                    scale_line + f"\n{indent}{target_sprite}.updateHitbox();",
                     1,
                 )
 
