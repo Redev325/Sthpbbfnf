@@ -317,128 +317,6 @@ def optimize_browser_images(
     }
 
 
-def character_idle_art_bounds(
-    character_data: dict[str, object],
-    image_dir: Path,
-) -> tuple[float, float, float, float]:
-    """Return the visible idle-frame bounds in the character's source coordinates."""
-    image_name = str(character_data.get("image", "")).strip()
-    if not image_name:
-        raise RuntimeError("Kenny character definition has no image field.")
-
-    image_file = image_dir / f"{image_name}.png"
-    atlas_file = image_dir / f"{image_name}.xml"
-    if not image_file.is_file() or not atlas_file.is_file():
-        raise FileNotFoundError(
-            f"Missing Kenny idle-frame assets: {image_file} / {atlas_file}"
-        )
-
-    try:
-        atlas = ET.parse(atlas_file).getroot()
-    except ET.ParseError as error:
-        raise RuntimeError(f"Invalid Kenny character atlas: {atlas_file}") from error
-
-    idle_frames = [
-        frame for frame in atlas.findall(".//SubTexture")
-        if re.match(r"^idle\d*$", frame.get("name", ""), re.IGNORECASE)
-    ]
-    if not idle_frames:
-        raise RuntimeError(f"No idle frames were found in {atlas_file}.")
-    idle_frames.sort(
-        key=lambda frame: int(re.search(r"(\d+)$", frame.get("name", "0")).group(1))
-        if re.search(r"(\d+)$", frame.get("name", "")) else 0
-    )
-    frame = idle_frames[0]
-
-    frame_x = int(float(frame.get("x", "0")))
-    frame_y = int(float(frame.get("y", "0")))
-    frame_width = int(float(frame.get("width", "0")))
-    frame_height = int(float(frame.get("height", "0")))
-    if frame_width <= 0 or frame_height <= 0:
-        raise RuntimeError(f"Invalid first Kenny idle frame in {atlas_file}.")
-
-    with Image.open(image_file) as sheet:
-        rgba = sheet.convert("RGBA")
-        crop = rgba.crop((
-            frame_x,
-            frame_y,
-            frame_x + frame_width,
-            frame_y + frame_height,
-        ))
-        alpha_bounds = crop.getchannel("A").getbbox()
-
-    if alpha_bounds is None:
-        raise RuntimeError(f"The first Kenny idle frame is fully transparent: {atlas_file}")
-
-    # Sparrow may trim a frame and retain the original canvas via frameX/Y.
-    trim_x = -float(frame.get("frameX", "0"))
-    trim_y = -float(frame.get("frameY", "0"))
-    left = trim_x + alpha_bounds[0]
-    top = trim_y + alpha_bounds[1]
-    right = trim_x + alpha_bounds[2]
-    bottom = trim_y + alpha_bounds[3]
-    return left, top, right, bottom
-
-
-def align_kenny_corruption_character(engine: Path) -> dict[str, object]:
-    """Place corrupted Kenny on the same visible center and foot line as Kenny S."""
-    character_dir = engine / "assets" / "preload" / "characters"
-    image_dir = engine / "assets" / "preload" / "images"
-    human_file = character_dir / "kenny s.json"
-    corrupted_file = character_dir / "kenny c.json"
-    if not human_file.is_file() or not corrupted_file.is_file():
-        raise FileNotFoundError(
-            f"Missing Kenny form definitions: {human_file} / {corrupted_file}"
-        )
-
-    human = json.loads(human_file.read_text(encoding="utf-8"))
-    corrupted = json.loads(corrupted_file.read_text(encoding="utf-8"))
-    human_position = human.get("position", [0, 0])
-    corrupted_position_before = corrupted.get("position", [0, 0])
-    if len(human_position) < 2 or len(corrupted_position_before) < 2:
-        raise RuntimeError("Kenny form position arrays must each contain X and Y.")
-
-    human_scale = float(human.get("scale", 1.0))
-    corrupted_scale = float(corrupted.get("scale", 1.0))
-    if human_scale <= 0 or corrupted_scale <= 0:
-        raise RuntimeError("Kenny form scales must be positive.")
-
-    human_bounds = character_idle_art_bounds(human, image_dir)
-    corrupted_bounds = character_idle_art_bounds(corrupted, image_dir)
-    human_left, human_top, human_right, human_bottom = human_bounds
-    monster_left, monster_top, monster_right, monster_bottom = corrupted_bounds
-
-    # Character.position is the idle sprite's top-left world anchor. Match
-    # the visible artwork's horizontal center and bottom edge, not atlas sizes.
-    human_center_x = (human_left + human_right) * 0.5
-    monster_center_x = (monster_left + monster_right) * 0.5
-    human_world_center_x = float(human_position[0]) + human_center_x * human_scale
-    human_world_bottom_y = float(human_position[1]) + human_bottom * human_scale
-
-    corrected_x = human_world_center_x - monster_center_x * corrupted_scale
-    corrected_y = human_world_bottom_y - monster_bottom * corrupted_scale
-    corrected_position = [round(corrected_x, 2), round(corrected_y, 2)]
-
-    corrupted["position"] = corrected_position
-    corrupted_file.write_text(
-        json.dumps(corrupted, ensure_ascii=False, separators=(",", ":")),
-        encoding="utf-8",
-    )
-
-    return {
-        "humanPosition": [round(float(v), 2) for v in human_position[:2]],
-        "corruptedPositionBefore": [
-            round(float(v), 2) for v in corrupted_position_before[:2]
-        ],
-        "corruptedPositionAfter": corrected_position,
-        "humanScale": human_scale,
-        "corruptedScale": corrupted_scale,
-        "humanIdleBounds": [round(v, 2) for v in human_bounds],
-        "corruptedIdleBounds": [round(v, 2) for v in corrupted_bounds],
-        "alignment": "visible center + foot baseline",
-    }
-
-
 def patch_note_types(engine: Path) -> None:
     note_file = engine / "source" / "Note.hx"
     source = note_file.read_text(encoding="utf-8")
@@ -1744,8 +1622,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\tif (section == null) return;
 \t\tvar targetX:Float = section.mustHitSection ? southCameraBoyfriendX : southCameraDadX;
 \t\tvar targetY:Float = section.mustHitSection ? southCameraBoyfriendY : southCameraDadY;
-\t\tif (!section.mustHitSection && !section.gfSection && dad != null && StringTools.contains(dad.curCharacter.toLowerCase(), "kenny"))
-\t\t\ttargetX -= southCameraKennyLeftOffset;
+\t\t// Kenny is loaded during the opening setup, so character identity alone\n\t\t// cannot identify his actual spotlight. Use the charted Kenny windows.\n\t\tvar songTime:Float = Conductor.songPosition;\n\t\tvar isKennySpotlight:Bool = (songTime >= 106833.333 && songTime < 201750)\n\t\t\t|| songTime >= 309500;\n\t\tif (isKennySpotlight && !section.mustHitSection && !section.gfSection)\n\t\t\ttargetX -= southCameraKennyLeftOffset;
 \t\tvar targetAngle:Float = 0;
 \t\tif (southCameraSystemEnabled)
 \t\t{
@@ -4517,9 +4394,6 @@ def main() -> int:
                 json.dumps(character_data, ensure_ascii=False, separators=(",", ":")),
                 encoding="utf-8",
             )
-
-    kenny_alignment_report = align_kenny_corruption_character(engine)
-    print("Kenny character form alignment: " + json.dumps(kenny_alignment_report, sort_keys=True))
 
     icon_changes = read_icon_changes(mod / "data" / "bloodbath" / "IconManager.lua")
     patch_note_types(engine)
