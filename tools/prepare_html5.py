@@ -504,6 +504,7 @@ def patch_south_stage(
 	var southLightOverlay42:BGSprite;
 	var southAnimatedObjects:Map<String, BGSprite> = new Map();
 	var southKnownCharacterNames:Array<String> = __KNOWN_CHARACTER_NAMES__;
+	var southKennyBackgroundMode:Int = -1;
 	var southKyleCharacter:Character;
 	var southKyleCCharacter:Character;
 	var southCraigCharacter:Character;
@@ -655,6 +656,63 @@ def patch_south_stage(
 		return key == 'bg' || key == 'bg2' || key == 'bg2 n' || key == 'bg3' || key == 'bg4';
 	}
 
+	function setSouthKennyBackground(enabled:Bool, corrupted:Bool, duration:Float):Void
+	{
+		if (curStage != 'south' || southAnimatedObjects == null) return;
+		if (Math.isNaN(duration) || duration < 0) duration = 0;
+
+		var nextMode:Int = !enabled ? 0 : (corrupted ? 2 : 1);
+		if (southKennyBackgroundMode == nextMode) return;
+		southKennyBackgroundMode = nextMode;
+
+		// The clean bg2 s still and corrupted bg2 atlas occupy the same stage
+		// coordinates. Crossfade between them; never display both together.
+		var cleanBackground:BGSprite = southAnimatedObjects.get('bg2');
+		var corruptedBackground:BGSprite = southAnimatedObjects.get('bg2 n');
+		var cleanTarget:Float = nextMode == 1 ? 1 : 0;
+		var corruptedTarget:Float = nextMode == 2 ? 1 : 0;
+
+		if (cleanBackground != null)
+		{
+			FlxTween.cancelTweensOf(cleanBackground);
+			if (cleanTarget > 0.01) cleanBackground.visible = true;
+			if (duration <= 0)
+			{
+				cleanBackground.alpha = cleanTarget;
+				cleanBackground.visible = cleanTarget > 0.01;
+			}
+			else
+			{
+				FlxTween.tween(cleanBackground, {alpha: cleanTarget}, duration, {
+					ease: FlxEase.sineInOut,
+					onComplete: function(_:FlxTween) {
+						cleanBackground.visible = cleanTarget > 0.01;
+					}
+				});
+			}
+		}
+
+		if (corruptedBackground != null)
+		{
+			FlxTween.cancelTweensOf(corruptedBackground);
+			if (corruptedTarget > 0.01) corruptedBackground.visible = true;
+			if (duration <= 0)
+			{
+				corruptedBackground.alpha = corruptedTarget;
+				corruptedBackground.visible = corruptedTarget > 0.01;
+			}
+			else
+			{
+				FlxTween.tween(corruptedBackground, {alpha: corruptedTarget}, duration, {
+					ease: FlxEase.sineInOut,
+					onComplete: function(_:FlxTween) {
+						corruptedBackground.visible = corruptedTarget > 0.01;
+					}
+				});
+			}
+		}
+	}
+
 	function setSouthBackgroundLayer(activeKey:String, duration:Float):Void
 	{
 		if (curStage != 'south' || southAnimatedObjects == null) return;
@@ -663,11 +721,16 @@ def patch_south_stage(
 		if (!isSouthBackgroundLayer(normalizedKey)) return;
 		if (Math.isNaN(duration) || duration < 0) duration = 0;
 
-		// bg2 is a composite: its still background and animated overlay must
-		// be visible together. Hiding either one makes the scene look empty.
+		// Kenny's human-form playground uses the uploaded clean playground
+		// image (the mod's full-resolution bg2 s). When Kenny returns to
+		// kenny c, swap to the corrupted bg2 atlas at the identical position.
+		var kennyBackgroundIsActive:Bool = normalizedKey == 'bg2';
+		var kennyMonsterForm:Bool = dad != null && dad.curCharacter != null
+			&& dad.curCharacter.toLowerCase() == 'kenny c';
+		setSouthKennyBackground(kennyBackgroundIsActive, kennyMonsterForm, duration);
+
 		var backgroundGroups:Array<Array<String>> = [
 			['bg'],
-			['bg2', 'bg2 n'],
 			['bg3'],
 			['bg4']
 		];
@@ -697,6 +760,21 @@ def patch_south_stage(
 				}
 			}
 		}
+	}
+
+	function updateSouthKennyFormBackground():Void
+	{
+		if (curStage != 'south' || !generatedMusic || Conductor.songPosition < 107083
+			|| Conductor.songPosition >= 202750 || southAnimatedObjects == null) return;
+		var cleanBackground:BGSprite = southAnimatedObjects.get('bg2');
+		var corruptedBackground:BGSprite = southAnimatedObjects.get('bg2 n');
+		// Wait until the second playground background has actually been activated.
+		if ((cleanBackground == null || cleanBackground.alpha <= 0.01)
+			&& (corruptedBackground == null || corruptedBackground.alpha <= 0.01)) return;
+
+		var monsterForm:Bool = dad != null && dad.curCharacter != null
+			&& dad.curCharacter.toLowerCase() == 'kenny c';
+		setSouthKennyBackground(true, monsterForm, 0.55);
 	}
 
 	function playSouthCharacterAnimation(character:Character, requestedAnimation:String):Bool
@@ -2199,18 +2277,27 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 		if (curStage != 'south' || !generatedMusic) return;
 		var songMs:Float = Conductor.songPosition;
 
-		// The chart changes BF to Jimmy W at 106333.333 ms, then to Jimmy
-		// at 149250 ms. Enforce this exact first handoff if the event misses.
-		if (songMs >= 106333.333 && songMs < 149250 && boyfriend != null
-			&& boyfriend.curCharacter.toLowerCase() != 'jimmy w')
+		// Keep each Jimmy state aligned with the chart's exact Change Character
+		// intervals: Jimmy W -> Jimmy -> slightly corrupted Jimmy C.
+		var requiredJimmyCharacter:String = null;
+		if (songMs >= 106333.333 && songMs < 149250)
+			requiredJimmyCharacter = 'jimmy w';
+		else if (songMs >= 149250 && songMs < 160083.333)
+			requiredJimmyCharacter = 'jimmy';
+		else if (songMs >= 160083.333 && songMs < 202250)
+			requiredJimmyCharacter = 'jimmy c';
+
+		if (requiredJimmyCharacter != null && boyfriend != null
+			&& boyfriend.curCharacter.toLowerCase() != requiredJimmyCharacter)
 		{
-			if (!boyfriendMap.exists('jimmy w')) addCharacterToList('jimmy w', 0);
-			var chartJimmyW:Boyfriend = boyfriendMap.get('jimmy w');
-			if (chartJimmyW != null)
+			if (!boyfriendMap.exists(requiredJimmyCharacter))
+				addCharacterToList(requiredJimmyCharacter, 0);
+			var chartJimmyCharacter:Boyfriend = boyfriendMap.get(requiredJimmyCharacter);
+			if (chartJimmyCharacter != null)
 			{
 				boyfriend.alpha = 0;
 				boyfriend.visible = false;
-				boyfriend = chartJimmyW;
+				boyfriend = chartJimmyCharacter;
 				boyfriend.alpha = 1;
 				boyfriend.visible = true;
 				boyfriend.holdTimer = 0;
@@ -2540,6 +2627,7 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \tfunction updateSouthOverlayRecovery():Void
 \t{
 \t\tupdateSouthThirdPartCharacters();
+\t\tupdateSouthKennyFormBackground();
 \t\thideInactiveSouthCharacterGroups();
 \t\thideFinishedSouthCutsceneOverlays();
 \t\tupdateSouthBlackDiagnosticPanel();
