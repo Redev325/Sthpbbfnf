@@ -739,8 +739,8 @@ def patch_south_stage(
 			background.animation.addByPrefix('idle', 'idle', 24, true);
 			background.animation.play('idle', true);
 			background.active = true;
-			background.x = -1970;
-			background.y = -1040;
+			background.x = -1960; // Match the clean playground background's exact world position.
+			background.y = -1005;
 			background.scale.set(5.4, 5.4);
 		}
 		else
