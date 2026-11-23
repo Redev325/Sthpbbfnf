@@ -747,8 +747,8 @@ def patch_south_stage(
 		{
 			background.loadGraphic(Paths.image('bg2 s'));
 			background.active = false;
-			background.x = -1980; // Move the clean first background slightly left.
-			background.y = -1005; // Move it slightly up without changing its scale.
+			background.x = -1960; // Move the clean first background slightly right.
+			background.y = -1005; // Keep the small upward adjustment.
 			background.scale.set(2.7, 2.7);
 		}
 
