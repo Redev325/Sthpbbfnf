@@ -420,11 +420,13 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
         ("southBackground3", "bg3", True, "southLightOverlay3", "bg3luz", False),
         ("southBackground4", "bg4", True, "southLightOverlay4", "bg4luz", False),
         ("southBackground4", "bg4", True, "southLightOverlay42", "bg4luz2", False),
-        # The corrupted playground is an animation atlas whose individual
-        # frames are half the clean image's width. Derive its scale from the
-        # clean background so both forms occupy the same world-space area.
-        ("southBackground2", "bg2 s", False, "southBackground2Animated", "bg2", True),
-        # The lighting and snow overlays align to the clean full-resolution image.
+        # The corrupted Kenny playground is the correctly framed reference.
+        # Keep its authored scale and size the clean pre-corruption image to
+        # its animation-frame dimensions, rather than enlarging the corrupted
+        # scene to fit the clean image.
+        ("southBackground2Animated", "bg2", True, "southBackground2", "bg2 s", False),
+        # The lighting and snow overlays align with the clean image after it
+        # has been fitted to the corrupted scene's world-space footprint.
         ("southBackground2", "bg2 s", False, "southLightOverlay2", "bg2luz", False),
         ("southBackground2", "bg2 s", False, "southSnow", "nieve", False),
     ]
@@ -1281,8 +1283,8 @@ def patch_south_stage(
         )
         stage_code = stage_code[:match.end()] + scale_code + stage_code[match.end():]
 
-    # Align the playground's separate clean/corrupted layers and the
-    # remaining South-stage lighting overlays to their actual frame dimensions.
+    # Use the corrupted playground as the master frame and fit the clean
+    # pre-corruption background plus its lighting overlays to that framing.
     stage_code = align_south_stage_layer_scales(
         stage_code,
         engine / "assets" / "preload" / "images",
