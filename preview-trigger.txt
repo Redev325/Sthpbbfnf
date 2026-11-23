@@ -1,1 +1,1 @@
-Generate an inspectable low-resolution preview of example.png on the isolated example-preview branch.
+Generate source alignment diagnostics, including the user's reference and real bg2 source frames. Trigger 2.
