@@ -1,0 +1,49 @@
+name: Create compressed reference preview
+
+on:
+  push:
+    branches: [example-preview]
+    paths:
+      - preview-trigger.txt
+
+permissions:
+  contents: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out reference branch
+        uses: actions/checkout@v4
+        with:
+          ref: example-preview
+
+      - name: Create small JPEG preview
+        run: |
+          python3 -m pip install --user Pillow
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+
+          source = Path("example.png")
+          target = Path("example-preview.jpg")
+          if not source.is_file():
+              raise SystemExit("example.png is missing from the preview branch")
+
+          with Image.open(source) as image:
+              image = image.convert("RGB")
+              image.thumbnail((960, 540), Image.Resampling.LANCZOS)
+              image.save(target, "JPEG", quality=78, optimize=True)
+
+          if target.stat().st_size >= 900_000:
+              raise SystemExit("Preview is too large for the GitHub contents API")
+          print(f"Created {target} ({target.stat().st_size} bytes)")
+          PY
+
+      - name: Commit preview to this isolated branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add example-preview.jpg
+          git commit -m "Create compressed reference preview"
+          git push origin HEAD:example-preview
