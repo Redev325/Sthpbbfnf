@@ -739,6 +739,7 @@ def patch_south_stage(
 			background.animation.addByPrefix('idle', 'idle', 24, true);
 			background.animation.play('idle', true);
 			background.active = true;
+			background.x = -1970;
 			background.y = -1040;
 			background.scale.set(5.4, 5.4);
 		}
@@ -746,7 +747,8 @@ def patch_south_stage(
 		{
 			background.loadGraphic(Paths.image('bg2 s'));
 			background.active = false;
-			background.y = -995; // Clean playground sits 45 stage pixels lower.
+			background.x = -1980; // Move the clean first background slightly left.
+			background.y = -1005; // Move it slightly up without changing its scale.
 			background.scale.set(2.7, 2.7);
 		}
 
