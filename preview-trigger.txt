@@ -1,1 +1,1 @@
-Generate source alignment diagnostics, including the user's reference and real bg2 source frames. Trigger 2.
+Run 3: generate source alignment diagnostics with scale 2.7 and scale 5.4 composites.
