@@ -1,0 +1,1 @@
+Generate an inspectable low-resolution preview of example.png on the isolated example-preview branch.
