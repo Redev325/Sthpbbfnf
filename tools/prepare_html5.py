@@ -739,16 +739,16 @@ def patch_south_stage(
 			background.animation.addByPrefix('idle', 'idle', 24, true);
 			background.animation.play('idle', true);
 			background.active = true;
-			background.x = -1970; // Match the original south.lua playground placement.
-			background.y = -1040;
-			background.scale.set(2.7, 2.7);
+			background.x = -1960; // Restore the prior corrupted background position.
+			background.y = -1005;
+			background.scale.set(5.4, 5.4);
 		}
 		else
 		{
 			background.loadGraphic(Paths.image('bg2 s'));
 			background.active = false;
-			background.x = -1970; // Restore the original south.lua playground placement.
-			background.y = -1040;
+			background.x = -1960; // Restore the prior clean background position.
+			background.y = -1005;
 			background.scale.set(2.7, 2.7);
 		}
 
