@@ -1032,29 +1032,31 @@ def patch_south_stage(
 				add(southLightOverlay42);
 				southAnimatedObjects.set('bgluz42', southLightOverlay42);
 
+				// Shift the whole playground stack down to cover the viewport's lower edge.
+				// The previous -1040 Y origin left a visible black strip at the bottom.
 				// Keep both Kenny playground images as separate chart-addressable
 				// sprites. Their world position is identical; only the artwork
 				// source and source-resolution scale differ.
-				var southBackground2:BGSprite = new BGSprite('bg2 s', -1970, -1040);
+				var southBackground2:BGSprite = new BGSprite('bg2 s', -1970, -700);
 				southBackground2.scale.set(2.7, 2.7);
 				southBackground2.alpha = 0;
 				add(southBackground2);
 				southAnimatedObjects.set('bg2', southBackground2);
 
-				var southBackground2Animated:BGSprite = new BGSprite('bg2', -1970, -1040, 1, 1, ['idle'], true);
+				var southBackground2Animated:BGSprite = new BGSprite('bg2', -1970, -700, 1, 1, ['idle'], true);
 				southBackground2Animated.scale.set(2.7, 2.7);
 				southBackground2Animated.alpha = 0;
 				add(southBackground2Animated);
 				southAnimatedObjects.set('bg2 n', southBackground2Animated);
 
-				southLightOverlay2 = new BGSprite('bg2luz', -1970, -1040);
+				southLightOverlay2 = new BGSprite('bg2luz', -1970, -700);
 				southLightOverlay2.scale.set(2.7, 2.7);
 				southLightOverlay2.flipX = true;
 				southLightOverlay2.alpha = 0;
 				add(southLightOverlay2);
 				southAnimatedObjects.set('bgluz2', southLightOverlay2);
 
-				var southSnow:BGSprite = new BGSprite('nieve', -1970, -1040);
+				var southSnow:BGSprite = new BGSprite('nieve', -1970, -700);
 				southSnow.scale.set(2.7, 2.7);
 				southSnow.alpha = 0;
 				add(southSnow);
