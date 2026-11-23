@@ -18,32 +18,98 @@ jobs:
         with:
           ref: example-preview
 
-      - name: Create small JPEG preview
+      - name: Install image tooling
+        run: python3 -m pip install --user Pillow
+
+      - name: Create compressed example and source-asset previews
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          python3 -m pip install --user Pillow
+          gh release download v1.0.0 --repo "$GITHUB_REPOSITORY" \
+            --pattern "fnf.bloodbath.RTX.fix.zip" --dir "$RUNNER_TEMP"
           python3 - <<'PY'
-          from PIL import Image
           from pathlib import Path
+          from zipfile import ZipFile
+          from PIL import Image, ImageDraw
+          import xml.etree.ElementTree as ET
+          import io, json, os
 
-          source = Path("example.png")
-          target = Path("example-preview.jpg")
-          if not source.is_file():
-              raise SystemExit("example.png is missing from the preview branch")
+          repo = Path(".")
+          example = Image.open(repo / "example.png").convert("RGB")
+          example.thumbnail((960, 540), Image.Resampling.LANCZOS)
+          example.save("example-preview.jpg", "JPEG", quality=78, optimize=True)
 
-          with Image.open(source) as image:
-              image = image.convert("RGB")
-              image.thumbnail((960, 540), Image.Resampling.LANCZOS)
-              image.save(target, "JPEG", quality=78, optimize=True)
+          archive = Path(os.environ["RUNNER_TEMP"]) / "fnf.bloodbath.RTX.fix.zip"
+          with ZipFile(archive) as zf:
+              names = zf.namelist()
+              selected = {}
+              for wanted in ("bg2 s.png", "bg2.png", "bg2.xml", "south.lua"):
+                  matches = [n for n in names if Path(n).name.lower() == wanted.lower()]
+                  if matches:
+                      selected[wanted] = matches[0]
+              print("SOURCE MEMBERS: " + json.dumps(selected, indent=2))
+              if "bg2 s.png" not in selected or "bg2.png" not in selected or "bg2.xml" not in selected:
+                  raise SystemExit("Could not locate both playground images and the bg2 animation atlas XML.")
+              clean = Image.open(io.BytesIO(zf.read(selected["bg2 s.png"]))).convert("RGBA")
+              atlas = Image.open(io.BytesIO(zf.read(selected["bg2.png"]))).convert("RGBA")
+              xml_root = ET.fromstring(zf.read(selected["bg2.xml"]))
+              frame = xml_root.find(".//SubTexture")
+              if frame is None:
+                  raise SystemExit("No SubTexture entry in bg2.xml")
+              attrs = {k: frame.get(k) for k in ("name","x","y","width","height","frameX","frameY","frameWidth","frameHeight")}
+              print("FIRST FRAME: " + json.dumps(attrs, sort_keys=True))
+              x, y = int(frame.get("x","0")), int(frame.get("y","0"))
+              w, h = int(frame.get("width","0")), int(frame.get("height","0"))
+              fw = int(frame.get("frameWidth") or w)
+              fh = int(frame.get("frameHeight") or h)
+              fx, fy = int(frame.get("frameX") or 0), int(frame.get("frameY") or 0)
+              crop = atlas.crop((x,y,x+w,y+h))
+              logical = Image.new("RGBA", (fw,fh), (0,0,0,0))
+              logical.alpha_composite(crop, (max(0,-fx), max(0,-fy)))
+              logical.save("corrupted-first-frame.png")
+              clean.save("clean-source.png")
 
-          if target.stat().st_size >= 900_000:
-              raise SystemExit("Preview is too large for the GitHub contents API")
-          print(f"Created {target} ({target.stat().st_size} bytes)")
+              # Render each layer using the exact source scales used by the game.
+              clean_size = (round(clean.width*2.7), round(clean.height*2.7))
+              corrupt_size = (round(fw*5.4), round(fh*5.4))
+              canvas_size = (max(clean_size[0],corrupt_size[0]), max(clean_size[1],corrupt_size[1]))
+              clean_render = clean.resize(clean_size, Image.Resampling.LANCZOS)
+              corrupt_render = logical.resize(corrupt_size, Image.Resampling.LANCZOS)
+              overlay = Image.new("RGBA", canvas_size, (0,0,0,0))
+              overlay.alpha_composite(clean_render, (0,0))
+              faded = corrupt_render.copy()
+              faded.putalpha(faded.getchannel("A").point(lambda a: round(a*0.45)))
+              overlay.alpha_composite(faded, (0,0))
+              overlay.convert("RGB").save("source-overlay.jpg", "JPEG", quality=78, optimize=True)
+
+              # A diagnostic sheet shows the author's supplied example, both source frames,
+              # and a true-scale overlay to compare composition and frame canvas margins.
+              panels = []
+              for image in (example, clean.convert("RGB"), logical.convert("RGB"), overlay.convert("RGB")):
+                  image = image.copy()
+                  image.thumbnail((640,360), Image.Resampling.LANCZOS)
+                  panels.append(image)
+              sheet = Image.new("RGB",(1280,760),(24,24,24))
+              draw = ImageDraw.Draw(sheet)
+              labels = ["USER EXAMPLE", "CLEAN bg2 s", "CORRUPTED bg2 FIRST FRAME", "COMPOSITE: clean x2.7 + atlas x5.4"]
+              for idx,(im,label) in enumerate(zip(panels,labels)):
+                  col, row = idx%2, idx//2
+                  ox, oy = col*640, row*380
+                  draw.text((ox+12,oy+10),label,fill=(255,255,255))
+                  sheet.paste(im,(ox,oy+28))
+              sheet.save("source-alignment-diagnostics.jpg","JPEG",quality=82,optimize=True)
+
+          for name in ("example-preview.jpg","source-overlay.jpg","source-alignment-diagnostics.jpg"):
+              size=Path(name).stat().st_size
+              print(f"{name}: {size} bytes")
+              if size > 900_000:
+                  raise SystemExit(f"{name} too large for preview retrieval")
           PY
 
-      - name: Commit preview to this isolated branch
+      - name: Commit previews to isolated branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add example-preview.jpg
-          git commit -m "Create compressed reference preview"
+          git add example-preview.jpg source-overlay.jpg source-alignment-diagnostics.jpg clean-source.png corrupted-first-frame.png
+          git commit -m "Create source background alignment diagnostics"
           git push origin HEAD:example-preview
