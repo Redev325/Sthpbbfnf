@@ -32,11 +32,10 @@ jobs:
           from zipfile import ZipFile
           from PIL import Image, ImageDraw
           import xml.etree.ElementTree as ET
-          import io, json, os
+          import io, json, os, re
 
-          repo = Path(".")
-          example = Image.open(repo / "example.png").convert("RGB")
-          example.thumbnail((960, 540), Image.Resampling.LANCZOS)
+          example = Image.open("example.png").convert("RGB")
+          example.thumbnail((640,360), Image.Resampling.LANCZOS)
           example.save("example-preview.jpg", "JPEG", quality=78, optimize=True)
 
           archive = Path(os.environ["RUNNER_TEMP"]) / "fnf.bloodbath.RTX.fix.zip"
@@ -48,16 +47,27 @@ jobs:
                   if matches:
                       selected[wanted] = matches[0]
               print("SOURCE MEMBERS: " + json.dumps(selected, indent=2))
-              if "bg2 s.png" not in selected or "bg2.png" not in selected or "bg2.xml" not in selected:
-                  raise SystemExit("Could not locate both playground images and the bg2 animation atlas XML.")
+              if not all(k in selected for k in ("bg2 s.png","bg2.png","bg2.xml","south.lua")):
+                  raise SystemExit("Could not locate all playground sources in the release ZIP.")
+
               clean = Image.open(io.BytesIO(zf.read(selected["bg2 s.png"]))).convert("RGBA")
               atlas = Image.open(io.BytesIO(zf.read(selected["bg2.png"]))).convert("RGBA")
-              xml_root = ET.fromstring(zf.read(selected["bg2.xml"]))
-              frame = xml_root.find(".//SubTexture")
-              if frame is None:
-                  raise SystemExit("No SubTexture entry in bg2.xml")
+              xml_bytes = zf.read(selected["bg2.xml"])
+              xml_root = ET.fromstring(xml_bytes)
+              frames = xml_root.findall(".//SubTexture")
+              if not frames:
+                  raise SystemExit("No SubTexture entries in bg2.xml")
+              frame = frames[0]
               attrs = {k: frame.get(k) for k in ("name","x","y","width","height","frameX","frameY","frameWidth","frameHeight")}
+              print("CLEAN SIZE: " + str(clean.size))
+              print("ATLAS SIZE: " + str(atlas.size))
               print("FIRST FRAME: " + json.dumps(attrs, sort_keys=True))
+              print("FRAME COUNT: " + str(len(frames)))
+              stage = zf.read(selected["south.lua"]).decode("utf-8", "replace")
+              stage_lines = [line.strip() for line in stage.splitlines()
+                             if re.search(r"bg2|kenny", line, re.I)]
+              print("SOUTH.LUA RELEVANT LINES:\n" + "\n".join(stage_lines[:100]))
+
               x, y = int(frame.get("x","0")), int(frame.get("y","0"))
               w, h = int(frame.get("width","0")), int(frame.get("height","0"))
               fw = int(frame.get("frameWidth") or w)
@@ -66,40 +76,51 @@ jobs:
               crop = atlas.crop((x,y,x+w,y+h))
               logical = Image.new("RGBA", (fw,fh), (0,0,0,0))
               logical.alpha_composite(crop, (max(0,-fx), max(0,-fy)))
-              logical.save("corrupted-first-frame.png")
-              clean.save("clean-source.png")
 
-              # Render each layer using the exact source scales used by the game.
+              # Render the two sources at game-world scales, then shrink only
+              # after compositing so previews remain small but proportions stay exact.
               clean_size = (round(clean.width*2.7), round(clean.height*2.7))
-              corrupt_size = (round(fw*5.4), round(fh*5.4))
-              canvas_size = (max(clean_size[0],corrupt_size[0]), max(clean_size[1],corrupt_size[1]))
               clean_render = clean.resize(clean_size, Image.Resampling.LANCZOS)
-              corrupt_render = logical.resize(corrupt_size, Image.Resampling.LANCZOS)
-              overlay = Image.new("RGBA", canvas_size, (0,0,0,0))
-              overlay.alpha_composite(clean_render, (0,0))
-              faded = corrupt_render.copy()
-              faded.putalpha(faded.getchannel("A").point(lambda a: round(a*0.45)))
-              overlay.alpha_composite(faded, (0,0))
-              overlay.convert("RGB").save("source-overlay.jpg", "JPEG", quality=78, optimize=True)
+              options = []
+              for corruption_scale, label in ((2.7,"MATCH SCALE 2.7"),(5.4,"OLD SCALE 5.4")):
+                  corrupt_size = (round(fw*corruption_scale), round(fh*corruption_scale))
+                  canvas_size = (max(clean_size[0],corrupt_size[0]), max(clean_size[1],corrupt_size[1]))
+                  overlay = Image.new("RGBA", canvas_size, (0,0,0,0))
+                  overlay.alpha_composite(clean_render, (0,0))
+                  corrupt_render = logical.resize(corrupt_size, Image.Resampling.LANCZOS)
+                  faded = corrupt_render.copy()
+                  faded.putalpha(faded.getchannel("A").point(lambda a: round(a*0.45)))
+                  overlay.alpha_composite(faded,(0,0))
+                  overlay = overlay.convert("RGB")
+                  overlay.thumbnail((640,360),Image.Resampling.LANCZOS)
+                  options.append((label,overlay))
 
-              # A diagnostic sheet shows the author's supplied example, both source frames,
-              # and a true-scale overlay to compare composition and frame canvas margins.
-              panels = []
-              for image in (example, clean.convert("RGB"), logical.convert("RGB"), overlay.convert("RGB")):
-                  image = image.copy()
-                  image.thumbnail((640,360), Image.Resampling.LANCZOS)
-                  panels.append(image)
-              sheet = Image.new("RGB",(1280,760),(24,24,24))
-              draw = ImageDraw.Draw(sheet)
-              labels = ["USER EXAMPLE", "CLEAN bg2 s", "CORRUPTED bg2 FIRST FRAME", "COMPOSITE: clean x2.7 + atlas x5.4"]
-              for idx,(im,label) in enumerate(zip(panels,labels)):
-                  col, row = idx%2, idx//2
-                  ox, oy = col*640, row*380
-                  draw.text((ox+12,oy+10),label,fill=(255,255,255))
-                  sheet.paste(im,(ox,oy+28))
-              sheet.save("source-alignment-diagnostics.jpg","JPEG",quality=82,optimize=True)
+              def thumb(img):
+                  img=img.copy()
+                  img.thumbnail((640,360),Image.Resampling.LANCZOS)
+                  return img.convert("RGB")
 
-          for name in ("example-preview.jpg","source-overlay.jpg","source-alignment-diagnostics.jpg"):
+              clean_thumb=thumb(clean)
+              corrupt_thumb=thumb(logical)
+              sheet=Image.new("RGB",(1280,1140),(22,22,22))
+              draw=ImageDraw.Draw(sheet)
+              cells=[
+                  ("USER EXAMPLE",thumb(example)),
+                  ("CLEAN SOURCE: bg2 s",clean_thumb),
+                  ("CORRUPTED FIRST ATLAS FRAME",corrupt_thumb),
+                  options[0],
+                  options[1],
+              ]
+              for idx,(label,img) in enumerate(cells):
+                  col,row=idx%2,idx//2
+                  ox,oy=col*640,row*380
+                  draw.text((ox+12,oy+8),label,fill=(255,255,255))
+                  sheet.paste(img,(ox,oy+26))
+              sheet.save("source-alignment-diagnostics.jpg","JPEG",quality=75,optimize=True)
+              options[0][1].save("overlay-scale-2_7.jpg","JPEG",quality=78,optimize=True)
+              options[1][1].save("overlay-scale-5_4.jpg","JPEG",quality=78,optimize=True)
+
+          for name in ("example-preview.jpg","source-alignment-diagnostics.jpg","overlay-scale-2_7.jpg","overlay-scale-5_4.jpg"):
               size=Path(name).stat().st_size
               print(f"{name}: {size} bytes")
               if size > 900_000:
@@ -110,6 +131,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add example-preview.jpg source-overlay.jpg source-alignment-diagnostics.jpg clean-source.png corrupted-first-frame.png
-          git commit -m "Create source background alignment diagnostics"
+          git add example-preview.jpg source-alignment-diagnostics.jpg overlay-scale-2_7.jpg overlay-scale-5_4.jpg
+          git commit -m "Create source background scale comparison"
           git push origin HEAD:example-preview
