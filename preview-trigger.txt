@@ -1,1 +1,1 @@
-Retry matchup timeline extraction with simplified Lua matcher.
+Dump Clyde, Craig, IconManager and South stage scripts for exact matchup fixes.
