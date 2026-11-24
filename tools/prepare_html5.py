@@ -2352,20 +2352,50 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 		}
 	}
 
-	function hideDuplicateSouthClydeGroup(group:Dynamic):Void
-\t{
-\t\tif (group == null) return;
-\t\tfor (member in group.members)
-\t\t{
-\t\t\tif (member == null || member == southCledyCharacter || member.curCharacter == null) continue;
-\t\t\tvar memberId:String = member.curCharacter.toLowerCase();
-\t\t\tif (memberId == 'cledy' || memberId == 'clyde')
-\t\t\t{
-\t\t\t\tmember.alpha = 0;
-\t\t\t\tmember.visible = false;
-\t\t\t}
-\t\t}
-\t}
+	function hideDuplicateSouthClydeCharacters():Void
+\\t{
+\\t\\t// Use the typed Psych character groups directly. Iterating a Dynamic
+\\t\\t// group reference is rejected by Haxe during the HTML5 compile.
+\\t\\tif (boyfriendGroup != null)
+\\t\\t{
+\\t\\t\\tfor (member in boyfriendGroup.members)
+\\t\\t\\t{
+\\t\\t\\t\\tif (member == null || member.curCharacter == null) continue;
+\\t\\t\\t\\tvar memberId:String = member.curCharacter.toLowerCase();
+\\t\\t\\t\\tif (memberId == 'cledy' || memberId == 'clyde')
+\\t\\t\\t\\t{
+\\t\\t\\t\\t\\tmember.alpha = 0;
+\\t\\t\\t\\t\\tmember.visible = false;
+\\t\\t\\t\\t}
+\\t\\t\\t}
+\\t\\t}
+\\t\\tif (dadGroup != null)
+\\t\\t{
+\\t\\t\\tfor (member in dadGroup.members)
+\\t\\t\\t{
+\\t\\t\\t\\tif (member == null || member.curCharacter == null) continue;
+\\t\\t\\t\\tvar memberId:String = member.curCharacter.toLowerCase();
+\\t\\t\\t\\tif (memberId == 'cledy' || memberId == 'clyde')
+\\t\\t\\t\\t{
+\\t\\t\\t\\t\\tmember.alpha = 0;
+\\t\\t\\t\\t\\tmember.visible = false;
+\\t\\t\\t\\t}
+\\t\\t\\t}
+\\t\\t}
+\\t\\tif (gfGroup != null)
+\\t\\t{
+\\t\\t\\tfor (member in gfGroup.members)
+\\t\\t\\t{
+\\t\\t\\t\\tif (member == null || member.curCharacter == null) continue;
+\\t\\t\\t\\tvar memberId:String = member.curCharacter.toLowerCase();
+\\t\\t\\t\\tif (memberId == 'cledy' || memberId == 'clyde')
+\\t\\t\\t\\t{
+\\t\\t\\t\\t\\tmember.alpha = 0;
+\\t\\t\\t\\t\\tmember.visible = false;
+\\t\\t\\t\\t}
+\\t\\t\\t}
+\\t\\t}
+\\t}
 
 function updateSouthThirdPartCharacters():Void
 	{
@@ -2431,9 +2461,7 @@ function updateSouthThirdPartCharacters():Void
 \t\t\tsouthCledyCharacter.visible = clydeActive;
 \t\t\t// The custom Clyde actor is the sole intended render. Hide any stale
 \t\t\t// cached Clyde/Cledy character left in a normal BF/Dad/GF group.
-\t\t\thideDuplicateSouthClydeGroup(boyfriendGroup);
-\t\t\thideDuplicateSouthClydeGroup(dadGroup);
-\t\t\thideDuplicateSouthClydeGroup(gfGroup);
+\t\t\thideDuplicateSouthClydeCharacters();
 \t\t}
 
 \t\t// Craig enters on his first custom-note sequence and is faded by the
