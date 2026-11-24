@@ -1715,7 +1715,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\telse if (southCameraAnimationIs(mainAnim, "DOWN") || southCameraAnimationIs(gfAnim, "DOWN"))
 \t\t\t\ttargetY += section.mustHitSection ? southCameraBfOffset : southCameraDadOffset;
 \t\t}
-\t\ttargetY -= southCameraVerticalOffset;
+\t\t// Chart camera points are absolute, matching THE SAME FUCKING CAM MOVIMENT SCRIPT.lua.
 \t\tcamFollow.set(targetX, targetY);
 \t\tsetSouthCameraAngle(targetAngle);
 \t}
@@ -2040,9 +2040,9 @@ case 'badapplelol':
 					southCameraBoyfriendOverride = !Math.isNaN(newBoyfriendCameraX) && !Math.isNaN(newBoyfriendCameraY);
 					if (eventName.toLowerCase() == 'aofisetibf-fest' && southCameraBoyfriendOverride)
 					{
-						camFollow.set(newBoyfriendCameraX, newBoyfriendCameraY - southCameraVerticalOffset);
-						if (camFollowPos != null) camFollowPos.setPosition(newBoyfriendCameraX, newBoyfriendCameraY - southCameraVerticalOffset);
-						if (camGame != null) camGame.scroll.set(newBoyfriendCameraX, newBoyfriendCameraY - southCameraVerticalOffset);
+						camFollow.set(newBoyfriendCameraX, newBoyfriendCameraY);
+						if (camFollowPos != null) camFollowPos.setPosition(newBoyfriendCameraX, newBoyfriendCameraY);
+						if (camGame != null) camGame.scroll.set(newBoyfriendCameraX, newBoyfriendCameraY);
 					}
 				}
 
@@ -2056,9 +2056,9 @@ case 'badapplelol':
 					southCameraDadOverride = !Math.isNaN(newDadCameraX) && !Math.isNaN(newDadCameraY);
 					if (eventName.toLowerCase() == 'aofisetidad-fest' && southCameraDadOverride)
 					{
-						camFollow.set(newDadCameraX, newDadCameraY - southCameraVerticalOffset);
-						if (camFollowPos != null) camFollowPos.setPosition(newDadCameraX, newDadCameraY - southCameraVerticalOffset);
-						if (camGame != null) camGame.scroll.set(newDadCameraX, newDadCameraY - southCameraVerticalOffset);
+						camFollow.set(newDadCameraX, newDadCameraY);
+						if (camFollowPos != null) camFollowPos.setPosition(newDadCameraX, newDadCameraY);
+						if (camGame != null) camGame.scroll.set(newDadCameraX, newDadCameraY);
 					}
 				}
 
@@ -2387,10 +2387,27 @@ function hideSouthClydeDuplicateSprite(candidate:FlxSprite):Void
 		}
 	}
 
+	function hideSouthClydeDuplicateTree(candidate:Dynamic, depth:Int):Void
+	{
+		if (candidate == null || candidate == southCledyCharacter || depth > 8) return;
+		if (Std.isOfType(candidate, FlxSprite))
+			hideSouthClydeDuplicateSprite(cast candidate);
+		// Search nested FlxGroups / FlxSpriteGroups as well as the root list.
+		if (Reflect.hasField(candidate, "members"))
+		{
+			var childMembers:Dynamic = Reflect.field(candidate, "members");
+			if (childMembers != null && Std.isOfType(childMembers, Array))
+			{
+				var children:Array<Dynamic> = cast childMembers;
+				for (child in children)
+					hideSouthClydeDuplicateTree(child, depth + 1);
+			}
+		}
+	}
+
 	function hideDuplicateSouthClydeCharacters():Void
 	{
-		// Match the earlier Kyle fix: suppress every inactive duplicate copy,
-		// including standalone sprites added directly to PlayState.
+		// Clear cached character instances even if temporarily removed from a group.
 		if (boyfriendMap != null)
 			for (characterName in boyfriendMap.keys())
 				hideSouthClydeDuplicateSprite(boyfriendMap.get(characterName));
@@ -2401,24 +2418,10 @@ function hideSouthClydeDuplicateSprite(candidate:FlxSprite):Void
 			for (characterName in gfMap.keys())
 				hideSouthClydeDuplicateSprite(gfMap.get(characterName));
 
-		if (boyfriendGroup != null)
-			for (member in boyfriendGroup.members)
-				if (member != null)
-					hideSouthClydeDuplicateSprite(member);
-		if (dadGroup != null)
-			for (member in dadGroup.members)
-				if (member != null)
-					hideSouthClydeDuplicateSprite(member);
-		if (gfGroup != null)
-			for (member in gfGroup.members)
-				if (member != null)
-					hideSouthClydeDuplicateSprite(member);
-
-		// Catch the original Lua sprite, which cledy.lua adds to the root list.
+		// Inspect the whole PlayState display tree, including nested groups.
 		if (members != null)
 			for (member in members)
-				if (member != null && Std.isOfType(member, FlxSprite))
-					hideSouthClydeDuplicateSprite(cast member);
+				hideSouthClydeDuplicateTree(member, 0);
 	}
 
 	function hideSouthJimmyCandidate(candidate:Character):Void
@@ -2461,51 +2464,6 @@ function hideSouthClydeDuplicateSprite(candidate:FlxSprite):Void
 					hideSouthJimmyCandidate(cast member);
 	}
 
-	function applySouthThirdConfrontationLayout():Void
-	{
-		var songMs:Float = Conductor.songPosition;
-		if (curStage != 'south' || !generatedMusic || songMs < 202750) return;
-
-		// Keep the two late-song scene backgrounds anchored at the source
-		// south.lua transforms. BG3 is the Tolkien/Kenny group scene; BG4 is
-		// the solo Kenny-versus-Tolkien hallway scene. Leave playground bg2 alone.
-		if (songMs >= 202750 && songMs < 309416.667)
-		{
-			var groupBackground:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('bg3');
-			if (groupBackground != null)
-			{
-				groupBackground.x = -1770;
-				groupBackground.y = -940;
-			}
-			var groupLight:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('bgluz3');
-			if (groupLight != null)
-			{
-				groupLight.x = -1770;
-				groupLight.y = -940;
-			}
-		}
-		else if (songMs >= 309416.667)
-		{
-			var faceoffBackground:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('bg4');
-			if (faceoffBackground != null)
-			{
-				faceoffBackground.x = -540;
-				faceoffBackground.y = -740;
-			}
-			var faceoffLight:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('bgluz4');
-			if (faceoffLight != null)
-			{
-				faceoffLight.x = -540;
-				faceoffLight.y = -740;
-			}
-			var faceoffLightSecond:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('bgluz42');
-			if (faceoffLightSecond != null)
-			{
-				faceoffLightSecond.x = -540;
-				faceoffLightSecond.y = -740;
-			}
-		}
-	}
 function updateSouthClydeVisibility():Void
 	{
 		if (curStage != 'south' || !generatedMusic || southCledyCharacter == null) return;
@@ -2893,7 +2851,7 @@ function updateSouthClydeVisibility():Void
 \t\tupdateSouthKennyFormBackground();
 \t\thideInactiveSouthCharacterGroups();
 \t\thideDuplicateSouthClydeCharacters();
-\t\tapplySouthThirdConfrontationLayout();
+
 \t\thideSouthThirdStageJimmyCharacters();
 \t\thideFinishedSouthCutsceneOverlays();
 \t\tupdateSouthBlackDiagnosticPanel();
@@ -2920,7 +2878,7 @@ function updateSouthClydeVisibility():Void
             raise RuntimeError("Could not locate the onUpdatePost point for Bloodbath smooth camera.")
         source = source.replace(
             camera_update_marker,
-            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);\n\t\tupdateSouthClydeVisibility();\n\t\tapplySouthThirdConfrontationLayout();\n\t\thideDuplicateSouthClydeCharacters();\n\t\thideSouthThirdStageJimmyCharacters();",
+            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);\n\t\tupdateSouthClydeVisibility();\n\t\thideDuplicateSouthClydeCharacters();\n\t\thideSouthThirdStageJimmyCharacters();",
             1,
         )
     update_code = update_marker + "\n\t\trestoreSouthSmoothCameraFrame();\n\t\tupdateBadAppleCameraFollow();\n\t\tupdateSouthOverlayRecovery();\n\t\tupdateSouthKyleCorruptionTimeline();"
