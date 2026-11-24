@@ -2037,7 +2037,7 @@ case 'badapplelol':
 					var newBoyfriendCameraY:Float = Std.parseFloat(value2);
 					if (!Math.isNaN(newBoyfriendCameraX)) southCameraBoyfriendX = newBoyfriendCameraX;
 					if (!Math.isNaN(newBoyfriendCameraY)) southCameraBoyfriendY = newBoyfriendCameraY;
-					southCameraBoyfriendOverride = !Math.isNaN(newBoyfriendCameraX) && !Math.isNaN(newBoyfriendCameraY - southCameraVerticalOffset);
+					southCameraBoyfriendOverride = !Math.isNaN(newBoyfriendCameraX) && !Math.isNaN(newBoyfriendCameraY);
 					if (eventName.toLowerCase() == 'aofisetibf-fest' && southCameraBoyfriendOverride)
 					{
 						camFollow.set(newBoyfriendCameraX, newBoyfriendCameraY - southCameraVerticalOffset);
@@ -2053,7 +2053,7 @@ case 'badapplelol':
 					var newDadCameraY:Float = Std.parseFloat(value2);
 					if (!Math.isNaN(newDadCameraX)) southCameraDadX = newDadCameraX;
 					if (!Math.isNaN(newDadCameraY)) southCameraDadY = newDadCameraY;
-					southCameraDadOverride = !Math.isNaN(newDadCameraX) && !Math.isNaN(newDadCameraY - southCameraVerticalOffset);
+					southCameraDadOverride = !Math.isNaN(newDadCameraX) && !Math.isNaN(newDadCameraY);
 					if (eventName.toLowerCase() == 'aofisetidad-fest' && southCameraDadOverride)
 					{
 						camFollow.set(newDadCameraX, newDadCameraY - southCameraVerticalOffset);
