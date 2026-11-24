@@ -2353,49 +2353,49 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 	}
 
 	function hideDuplicateSouthClydeCharacters():Void
-\\t{
-\\t\\t// Use the typed Psych character groups directly. Iterating a Dynamic
-\\t\\t// group reference is rejected by Haxe during the HTML5 compile.
-\\t\\tif (boyfriendGroup != null)
-\\t\\t{
-\\t\\t\\tfor (member in boyfriendGroup.members)
-\\t\\t\\t{
-\\t\\t\\t\\tif (member == null || member.curCharacter == null) continue;
-\\t\\t\\t\\tvar memberId:String = member.curCharacter.toLowerCase();
-\\t\\t\\t\\tif (memberId == 'cledy' || memberId == 'clyde')
-\\t\\t\\t\\t{
-\\t\\t\\t\\t\\tmember.alpha = 0;
-\\t\\t\\t\\t\\tmember.visible = false;
-\\t\\t\\t\\t}
-\\t\\t\\t}
-\\t\\t}
-\\t\\tif (dadGroup != null)
-\\t\\t{
-\\t\\t\\tfor (member in dadGroup.members)
-\\t\\t\\t{
-\\t\\t\\t\\tif (member == null || member.curCharacter == null) continue;
-\\t\\t\\t\\tvar memberId:String = member.curCharacter.toLowerCase();
-\\t\\t\\t\\tif (memberId == 'cledy' || memberId == 'clyde')
-\\t\\t\\t\\t{
-\\t\\t\\t\\t\\tmember.alpha = 0;
-\\t\\t\\t\\t\\tmember.visible = false;
-\\t\\t\\t\\t}
-\\t\\t\\t}
-\\t\\t}
-\\t\\tif (gfGroup != null)
-\\t\\t{
-\\t\\t\\tfor (member in gfGroup.members)
-\\t\\t\\t{
-\\t\\t\\t\\tif (member == null || member.curCharacter == null) continue;
-\\t\\t\\t\\tvar memberId:String = member.curCharacter.toLowerCase();
-\\t\\t\\t\\tif (memberId == 'cledy' || memberId == 'clyde')
-\\t\\t\\t\\t{
-\\t\\t\\t\\t\\tmember.alpha = 0;
-\\t\\t\\t\\t\\tmember.visible = false;
-\\t\\t\\t\\t}
-\\t\\t\\t}
-\\t\\t}
-\\t}
+\t{
+\t\t// Use the typed Psych character groups directly. Iterating a Dynamic
+\t\t// group reference is rejected by Haxe during the HTML5 compile.
+\t\tif (boyfriendGroup != null)
+\t\t{
+\t\t\tfor (member in boyfriendGroup.members)
+\t\t\t{
+\t\t\t\tif (member == null || member.curCharacter == null) continue;
+\t\t\t\tvar memberId:String = member.curCharacter.toLowerCase();
+\t\t\t\tif (memberId == 'cledy' || memberId == 'clyde')
+\t\t\t\t{
+\t\t\t\t\tmember.alpha = 0;
+\t\t\t\t\tmember.visible = false;
+\t\t\t\t}
+\t\t\t}
+\t\t}
+\t\tif (dadGroup != null)
+\t\t{
+\t\t\tfor (member in dadGroup.members)
+\t\t\t{
+\t\t\t\tif (member == null || member.curCharacter == null) continue;
+\t\t\t\tvar memberId:String = member.curCharacter.toLowerCase();
+\t\t\t\tif (memberId == 'cledy' || memberId == 'clyde')
+\t\t\t\t{
+\t\t\t\t\tmember.alpha = 0;
+\t\t\t\t\tmember.visible = false;
+\t\t\t\t}
+\t\t\t}
+\t\t}
+\t\tif (gfGroup != null)
+\t\t{
+\t\t\tfor (member in gfGroup.members)
+\t\t\t{
+\t\t\t\tif (member == null || member.curCharacter == null) continue;
+\t\t\t\tvar memberId:String = member.curCharacter.toLowerCase();
+\t\t\t\tif (memberId == 'cledy' || memberId == 'clyde')
+\t\t\t\t{
+\t\t\t\t\tmember.alpha = 0;
+\t\t\t\t\tmember.visible = false;
+\t\t\t\t}
+\t\t\t}
+\t\t}
+\t}
 
 function updateSouthThirdPartCharacters():Void
 	{
