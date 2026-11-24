@@ -1715,7 +1715,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\telse if (southCameraAnimationIs(mainAnim, "DOWN") || southCameraAnimationIs(gfAnim, "DOWN"))
 \t\t\t\ttargetY += section.mustHitSection ? southCameraBfOffset : southCameraDadOffset;
 \t\t}
-\t\t// Scripted aofisetiBF/aofisetiDad positions are absolute chart camera points.
+\t\ttargetY -= southCameraVerticalOffset;
 \t\tcamFollow.set(targetX, targetY);
 \t\tsetSouthCameraAngle(targetAngle);
 \t}
@@ -2037,12 +2037,12 @@ case 'badapplelol':
 					var newBoyfriendCameraY:Float = Std.parseFloat(value2);
 					if (!Math.isNaN(newBoyfriendCameraX)) southCameraBoyfriendX = newBoyfriendCameraX;
 					if (!Math.isNaN(newBoyfriendCameraY)) southCameraBoyfriendY = newBoyfriendCameraY;
-					southCameraBoyfriendOverride = !Math.isNaN(newBoyfriendCameraX) && !Math.isNaN(newBoyfriendCameraY);
+					southCameraBoyfriendOverride = !Math.isNaN(newBoyfriendCameraX) && !Math.isNaN(newBoyfriendCameraY - southCameraVerticalOffset);
 					if (eventName.toLowerCase() == 'aofisetibf-fest' && southCameraBoyfriendOverride)
 					{
-						camFollow.set(newBoyfriendCameraX, newBoyfriendCameraY);
-						if (camFollowPos != null) camFollowPos.setPosition(newBoyfriendCameraX, newBoyfriendCameraY);
-						if (camGame != null) camGame.scroll.set(newBoyfriendCameraX, newBoyfriendCameraY);
+						camFollow.set(newBoyfriendCameraX, newBoyfriendCameraY - southCameraVerticalOffset);
+						if (camFollowPos != null) camFollowPos.setPosition(newBoyfriendCameraX, newBoyfriendCameraY - southCameraVerticalOffset);
+						if (camGame != null) camGame.scroll.set(newBoyfriendCameraX, newBoyfriendCameraY - southCameraVerticalOffset);
 					}
 				}
 
@@ -2053,12 +2053,12 @@ case 'badapplelol':
 					var newDadCameraY:Float = Std.parseFloat(value2);
 					if (!Math.isNaN(newDadCameraX)) southCameraDadX = newDadCameraX;
 					if (!Math.isNaN(newDadCameraY)) southCameraDadY = newDadCameraY;
-					southCameraDadOverride = !Math.isNaN(newDadCameraX) && !Math.isNaN(newDadCameraY);
+					southCameraDadOverride = !Math.isNaN(newDadCameraX) && !Math.isNaN(newDadCameraY - southCameraVerticalOffset);
 					if (eventName.toLowerCase() == 'aofisetidad-fest' && southCameraDadOverride)
 					{
-						camFollow.set(newDadCameraX, newDadCameraY);
-						if (camFollowPos != null) camFollowPos.setPosition(newDadCameraX, newDadCameraY);
-						if (camGame != null) camGame.scroll.set(newDadCameraX, newDadCameraY);
+						camFollow.set(newDadCameraX, newDadCameraY - southCameraVerticalOffset);
+						if (camFollowPos != null) camFollowPos.setPosition(newDadCameraX, newDadCameraY - southCameraVerticalOffset);
+						if (camGame != null) camGame.scroll.set(newDadCameraX, newDadCameraY - southCameraVerticalOffset);
 					}
 				}
 
@@ -2352,11 +2352,34 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 		}
 	}
 
-function hideSouthClydeCandidate(candidate:Character):Void
+function hideSouthClydeDuplicateSprite(candidate:FlxSprite):Void
 	{
-		if (candidate == null || candidate == southCledyCharacter || candidate.curCharacter == null) return;
-		var candidateId:String = candidate.curCharacter.toLowerCase();
-		if (candidateId == 'cledy' || candidateId == 'clyde')
+		if (candidate == null || candidate == southCledyCharacter || southCledyCharacter == null) return;
+
+		var duplicateByCharacterId:Bool = false;
+		if (Std.isOfType(candidate, Character))
+		{
+			var character:Character = cast candidate;
+			if (character.curCharacter != null)
+			{
+				var characterId:String = character.curCharacter.toLowerCase();
+				duplicateByCharacterId = characterId == 'cledy' || characterId == 'clyde';
+			}
+		}
+
+		// cledy.lua makes an AnimatedLuaSprite in the root PlayState member
+		// list, not in boyfriendGroup/dadGroup/gfGroup. Compare its cached
+		// graphic identity too, so FlxSprites from the same Clyde atlas are caught.
+		var duplicateByGraphic:Bool = candidate.graphic != null
+			&& southCledyCharacter.graphic != null
+			&& candidate.graphic == southCledyCharacter.graphic;
+		if (!duplicateByGraphic && candidate.graphic != null && candidate.graphic.key != null)
+		{
+			var graphicKey:String = candidate.graphic.key.toLowerCase();
+			duplicateByGraphic = graphicKey.indexOf('characters/clyde') >= 0;
+		}
+
+		if (duplicateByCharacterId || duplicateByGraphic)
 		{
 			FlxTween.cancelTweensOf(candidate);
 			candidate.alpha = 0;
@@ -2366,30 +2389,36 @@ function hideSouthClydeCandidate(candidate:Character):Void
 
 	function hideDuplicateSouthClydeCharacters():Void
 	{
-		// Psych caches Change Character instances in maps as well as display groups.
-		// Hide both so the custom native Clyde actor is the only Clyde rendered.
+		// Match the earlier Kyle fix: suppress every inactive duplicate copy,
+		// including standalone sprites added directly to PlayState.
 		if (boyfriendMap != null)
 			for (characterName in boyfriendMap.keys())
-				hideSouthClydeCandidate(boyfriendMap.get(characterName));
+				hideSouthClydeDuplicateSprite(boyfriendMap.get(characterName));
 		if (dadMap != null)
 			for (characterName in dadMap.keys())
-				hideSouthClydeCandidate(dadMap.get(characterName));
+				hideSouthClydeDuplicateSprite(dadMap.get(characterName));
 		if (gfMap != null)
 			for (characterName in gfMap.keys())
-				hideSouthClydeCandidate(gfMap.get(characterName));
+				hideSouthClydeDuplicateSprite(gfMap.get(characterName));
 
 		if (boyfriendGroup != null)
 			for (member in boyfriendGroup.members)
-				if (member != null && Std.isOfType(member, Character))
-					hideSouthClydeCandidate(cast member);
+				if (member != null)
+					hideSouthClydeDuplicateSprite(member);
 		if (dadGroup != null)
 			for (member in dadGroup.members)
-				if (member != null && Std.isOfType(member, Character))
-					hideSouthClydeCandidate(cast member);
+				if (member != null)
+					hideSouthClydeDuplicateSprite(member);
 		if (gfGroup != null)
 			for (member in gfGroup.members)
-				if (member != null && Std.isOfType(member, Character))
-					hideSouthClydeCandidate(cast member);
+				if (member != null)
+					hideSouthClydeDuplicateSprite(member);
+
+		// Catch the original Lua sprite, which cledy.lua adds to the root list.
+		if (members != null)
+			for (member in members)
+				if (member != null && Std.isOfType(member, FlxSprite))
+					hideSouthClydeDuplicateSprite(cast member);
 	}
 
 	function hideSouthJimmyCandidate(candidate:Character):Void
@@ -2436,21 +2465,6 @@ function hideSouthClydeCandidate(candidate:Character):Void
 	{
 		var songMs:Float = Conductor.songPosition;
 		if (curStage != 'south' || !generatedMusic || songMs < 201750 || songMs >= 309416.667) return;
-
-		// Sketch-to-world estimate for the 202.417s confrontation view.
-		// Chart camera anchor is approximately (1090, 400), with a 0.4 zoom.
-		// Map outline centers left-to-right: Tolkien, Kenny, Craig, Clyde, Tweek.
-		// Only positions are changed; all character scales and camera zoom remain intact.
-		if (gf != null && gf.curCharacter != null && gf.curCharacter.toLowerCase().indexOf('tolkien') == 0)
-			gf.setPosition(151, 82);
-		if (dad != null && dad.curCharacter != null && dad.curCharacter.toLowerCase().indexOf('kenny') == 0)
-			dad.setPosition(1054, -231);
-		if (boyfriend != null && boyfriend.curCharacter != null && boyfriend.curCharacter.toLowerCase().indexOf('tweek') == 0)
-			boyfriend.setPosition(2092, 468);
-		if (southCraigCharacter != null)
-			southCraigCharacter.setPosition(1809, 182);
-		if (southCledyCharacter != null)
-			southCledyCharacter.setPosition(1968, 324);
 
 		// Keep the two late-song scene backgrounds anchored at the source
 		// south.lua transforms. BG3 is the Tolkien/Kenny group scene; BG4 is
@@ -2507,7 +2521,7 @@ function updateSouthThirdPartCharacters():Void
 \t\t\trequiredBoyfriendCharacter = 'jimmy';
 \t\telse if (songMs >= 160083.333 && songMs < 202250)
 \t\t\trequiredBoyfriendCharacter = 'jimmy c';
-\t\telse if (songMs >= 201750 && songMs < 245458.333)
+\t\telse if (songMs >= 202250 && songMs < 245458.333)
 \t\t\trequiredBoyfriendCharacter = 'tweek';
 \t\telse if (songMs >= 245458.333 && songMs < 309416.667)
 \t\t\trequiredBoyfriendCharacter = 'tweek a';
