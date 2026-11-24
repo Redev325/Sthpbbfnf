@@ -2500,7 +2500,7 @@ function updateSouthThirdPartCharacters():Void
 \t\t\trequiredBoyfriendCharacter = 'jimmy';
 \t\telse if (songMs >= 160083.333 && songMs < 202250)
 \t\t\trequiredBoyfriendCharacter = 'jimmy c';
-\t\telse if (songMs >= 202250 && songMs < 245458.333)
+\t\telse if (songMs >= 201750 && songMs < 245458.333)
 \t\t\trequiredBoyfriendCharacter = 'tweek';
 \t\telse if (songMs >= 245458.333 && songMs < 309416.667)
 \t\t\trequiredBoyfriendCharacter = 'tweek a';
@@ -2896,10 +2896,7 @@ function updateSouthThirdPartCharacters():Void
             raise RuntimeError("Could not locate the onUpdatePost point for Bloodbath smooth camera.")
         source = source.replace(
             camera_update_marker,
-            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);
-\t\tapplySouthThirdConfrontationLayout();
-\t\thideDuplicateSouthClydeCharacters();
-\t\thideSouthThirdStageJimmyCharacters();",
+            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);\n\t\tapplySouthThirdConfrontationLayout();\n\t\thideDuplicateSouthClydeCharacters();\n\t\thideSouthThirdStageJimmyCharacters();",
             1,
         )
     update_code = update_marker + "\n\t\trestoreSouthSmoothCameraFrame();\n\t\tupdateBadAppleCameraFollow();\n\t\tupdateSouthOverlayRecovery();\n\t\tupdateSouthKyleCorruptionTimeline();"
