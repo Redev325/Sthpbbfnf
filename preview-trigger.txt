@@ -1,1 +1,1 @@
-Inspect original shader and Comedy Central assets with PIL installed.
+Second inspection: locate any script/chart references to Comedy Central and extract shader event map.
