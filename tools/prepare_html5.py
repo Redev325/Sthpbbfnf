@@ -2457,16 +2457,18 @@ function updateSouthThirdPartCharacters():Void
 \t\t\t}
 \t\t}
 
-\t\t// Clyde's last custom note is at 253.417s. Craig resumes at 253.556s
-\t\t// and Tolkien S enters at 253.583s; Clyde must be hidden by 253.556s.
+\t\t// Clyde's custom notes run from 3:28.083 to 4:13.556. Do not force
+\t\t// him visible throughout that window: charted afadeout events must
+\t\t// remain authoritative after the character has been removed/killed.
 \t\tif (southCledyCharacter != null)
 \t\t{
-\t\t\tvar clydeActive:Bool = songMs >= 208083.333 && songMs < 253555.556;
-\t\t\tsouthCledyCharacter.alpha = clydeActive ? 1 : 0;
-\t\t\tsouthCledyCharacter.visible = clydeActive;
-\t\t\t// The custom Clyde actor is the sole intended render. Hide any stale
-\t\t\t// cached Clyde/Cledy character left in a normal BF/Dad/GF group.
-\t\t\thideDuplicateSouthClydeCharacters();
+\t\t\tvar clydeOutsideChartWindow:Bool = songMs < 208083.333 || songMs >= 253555.556;
+\t\t\tif (clydeOutsideChartWindow)
+\t\t\t{
+\t\t\t\tFlxTween.cancelTweensOf(southCledyCharacter);
+\t\t\t\tsouthCledyCharacter.alpha = 0;
+\t\t\t\tsouthCledyCharacter.visible = false;
+\t\t\t}
 \t\t}
 
 \t\t// Craig enters on his first custom-note sequence and is faded by the
@@ -2783,6 +2785,7 @@ function updateSouthThirdPartCharacters():Void
 \t\tupdateSouthThirdPartCharacters();
 \t\tupdateSouthKennyFormBackground();
 \t\thideInactiveSouthCharacterGroups();
+\t\thideDuplicateSouthClydeCharacters();
 \t\thideFinishedSouthCutsceneOverlays();
 \t\tupdateSouthBlackDiagnosticPanel();
 \t\trecoverLateBlackout();
