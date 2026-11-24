@@ -72,6 +72,15 @@ jobs:
                   output.append(f"FILE: {name}")
                   output.extend(f"{i+1}: {lines[i]}" for i in sorted(keep))
 
+              # Print the exact Comedy Central logo script, including timing/visibility logic.
+              output.append("\\n=== COMPLETE COMEDY CENTRAL LOGO SCRIPT ===")
+              logo_scripts=[n for n in names if Path(n).name.lower()=="logo.lua"]
+              if not logo_scripts:
+                  output.append("Logo.lua not found")
+              for name in logo_scripts:
+                  output.append(f"FILE: {name}")
+                  output.extend(f"{i+1}: {line}" for i,line in enumerate(zf.read(name).decode("utf-8","replace").splitlines()))
+
               # Search every packaged script/chart/config for an existing Comedy Central reference.
               output.append("\\n=== ALL TEXT REFERENCES TO COMEDY CENTRAL ===")
               text_exts=(".lua",".json",".txt",".xml",".hx",".hscript")
