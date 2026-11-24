@@ -1715,7 +1715,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\telse if (southCameraAnimationIs(mainAnim, "DOWN") || southCameraAnimationIs(gfAnim, "DOWN"))
 \t\t\t\ttargetY += section.mustHitSection ? southCameraBfOffset : southCameraDadOffset;
 \t\t}
-\t\ttargetY -= southCameraVerticalOffset;
+\t\t// Scripted aofisetiBF/aofisetiDad positions are absolute chart camera points.
 \t\tcamFollow.set(targetX, targetY);
 \t\tsetSouthCameraAngle(targetAngle);
 \t}
@@ -2040,9 +2040,9 @@ case 'badapplelol':
 					southCameraBoyfriendOverride = !Math.isNaN(newBoyfriendCameraX) && !Math.isNaN(newBoyfriendCameraY);
 					if (eventName.toLowerCase() == 'aofisetibf-fest' && southCameraBoyfriendOverride)
 					{
-						camFollow.set(newBoyfriendCameraX, newBoyfriendCameraY - southCameraVerticalOffset);
-						if (camFollowPos != null) camFollowPos.setPosition(newBoyfriendCameraX, newBoyfriendCameraY - southCameraVerticalOffset);
-						if (camGame != null) camGame.scroll.set(newBoyfriendCameraX, newBoyfriendCameraY - southCameraVerticalOffset);
+						camFollow.set(newBoyfriendCameraX, newBoyfriendCameraY);
+						if (camFollowPos != null) camFollowPos.setPosition(newBoyfriendCameraX, newBoyfriendCameraY);
+						if (camGame != null) camGame.scroll.set(newBoyfriendCameraX, newBoyfriendCameraY);
 					}
 				}
 
@@ -2056,9 +2056,9 @@ case 'badapplelol':
 					southCameraDadOverride = !Math.isNaN(newDadCameraX) && !Math.isNaN(newDadCameraY);
 					if (eventName.toLowerCase() == 'aofisetidad-fest' && southCameraDadOverride)
 					{
-						camFollow.set(newDadCameraX, newDadCameraY - southCameraVerticalOffset);
-						if (camFollowPos != null) camFollowPos.setPosition(newDadCameraX, newDadCameraY - southCameraVerticalOffset);
-						if (camGame != null) camGame.scroll.set(newDadCameraX, newDadCameraY - southCameraVerticalOffset);
+						camFollow.set(newDadCameraX, newDadCameraY);
+						if (camFollowPos != null) camFollowPos.setPosition(newDadCameraX, newDadCameraY);
+						if (camGame != null) camGame.scroll.set(newDadCameraX, newDadCameraY);
 					}
 				}
 
@@ -2452,40 +2452,46 @@ function hideSouthClydeCandidate(candidate:Character):Void
 		if (southCledyCharacter != null)
 			southCledyCharacter.setPosition(1968, 324);
 
-		// Restore the original south.lua playground world origin for the third
-		// confrontation. The clean image is full resolution; the corrupt atlas
-		// frames are half resolution, so 5.4 keeps the same visible footprint as 2.7.
-		var background:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('bg2');
-		if (background != null)
+		// Keep the two late-song scene backgrounds anchored at the source
+		// south.lua transforms. BG3 is the Tolkien/Kenny group scene; BG4 is
+		// the solo Kenny-versus-Tolkien hallway scene. Leave playground bg2 alone.
+		if (songMs >= 202750 && songMs < 309416.667)
 		{
-			background.x = -1970;
-			background.y = -1040;
-			var corruptBackground:Bool = southKennyBackgroundMode == 2;
-			var backgroundScale:Float = corruptBackground ? 5.4 : 2.7;
-			background.scale.set(backgroundScale, backgroundScale);
-			background.offset.set(0, 0);
-			background.origin.set(0, 0);
+			var groupBackground:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('bg3');
+			if (groupBackground != null)
+			{
+				groupBackground.x = -1770;
+				groupBackground.y = -940;
+			}
+			var groupLight:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('bgluz3');
+			if (groupLight != null)
+			{
+				groupLight.x = -1770;
+				groupLight.y = -940;
+			}
 		}
-		var light:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('bgluz2');
-		if (light != null)
+		else if (songMs >= 309416.667)
 		{
-			light.x = -1970;
-			light.y = -1040;
-			light.scale.set(2.7, 2.7);
-			light.offset.set(0, 0);
-			light.origin.set(0, 0);
-		}
-		var snow:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('nieve');
-		if (snow != null)
-		{
-			snow.x = -1970;
-			snow.y = -1040;
-			snow.scale.set(2.7, 2.7);
-			snow.offset.set(0, 0);
-			snow.origin.set(0, 0);
+			var faceoffBackground:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('bg4');
+			if (faceoffBackground != null)
+			{
+				faceoffBackground.x = -540;
+				faceoffBackground.y = -740;
+			}
+			var faceoffLight:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('bgluz4');
+			if (faceoffLight != null)
+			{
+				faceoffLight.x = -540;
+				faceoffLight.y = -740;
+			}
+			var faceoffLightSecond:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('bgluz42');
+			if (faceoffLightSecond != null)
+			{
+				faceoffLightSecond.x = -540;
+				faceoffLightSecond.y = -740;
+			}
 		}
 	}
-
 function updateSouthThirdPartCharacters():Void
 	{
 		if (curStage != 'south' || !generatedMusic) return;
