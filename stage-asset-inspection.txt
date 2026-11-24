@@ -1,0 +1,633 @@
+TRIGGER: Inspect original shader and Comedy Central assets with PIL installed.
+ARCHIVE MEMBERS: 2587
+
+=== LOGO IMAGE CANDIDATES ===
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/assets/images/logo.png | (806, 429) | RGBA | 86924 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/assets/images/logoBumpin.png | (1740, 1260) | RGBA | 578147 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/assets/images/newgrounds_logo.png | (362, 350) | RGBA | 40016 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/Comedy Central.png | (800, 276) | RGBA | 26401 bytes
+
+=== SOUTH STAGE LUA REFERENCES ===
+FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/stages/south.lua
+1: function onCreate()
+2: 	makeLuaSprite('sun', 'sun',-1870,-1240)
+3: 	setLuaSpriteScrollFactor('sun', 1, 1);
+4: 	scaleObject('sun', 1.4, 1.2);
+5:         addLuaSprite('sun',true);
+6:         setProperty('sun.alpha',0)
+7: 
+8: 	makeLuaSprite('wow1', 'fog bg2',-1670,-1240)
+9: 	setLuaSpriteScrollFactor('wow1', 1, 1);
+10: 	scaleObject('wow1', 3, 3);
+11:         addLuaSprite('wow1',true);
+12:         setProperty('wow1.alpha',0)
+13: 
+14: 	   makeLuaSprite('flash1', '', 0, 0);
+15:         makeGraphic('flash1',1280,720,'ffffff')
+16: 	      addLuaSprite('flash1', true);
+17: 
+18: 	setBlendMode('flash1', 'SUBTRACT')
+19: 	setObjectCamera ('flash1', 'other')
+20: 	      setProperty('flash1.scale.x',10)
+21: 	      setProperty('flash1.scale.y',10)
+22: 	      setProperty('flash1.alpha',0)
+23: 
+24:     makeLuaSprite('Vignette', 'Vignette', -20, 0);
+25:     addLuaSprite('Vignette', true);
+26:     setObjectCamera('Vignette', 'hud');
+27: 	setProperty('Vignette.alpha', 0);
+28: 
+29: 	makeLuaSprite('white','white', -1700, -500);
+30: 	addLuaSprite('white', false);
+31:     setObjectCamera('white', 'hud');
+32:         scaleObject('white', 1, 1);
+33: 	setProperty('white.alpha', 0);
+34: 
+35: 	makeLuaSprite('fog','fog', -2000, -1000);
+36: 	addLuaSprite('fog', true);
+37:         scaleObject('fog', 1.4, 1.4);
+38: 	setProperty('fog.alpha', 0);
+39: 
+40: 	makeLuaSprite('black','black', 0, 0);
+41: 	setObjectCamera('black', 'hud')
+42: 	addLuaSprite('black', true);
+43: 	setProperty('black.alpha', 0);
+44: 
+45:     makeAnimatedLuaSprite("anim", "anim", 0, 0);
+46:     setObjectCamera('anim', 'hud');
+47:     scaleObject("anim", 1, 1);
+48:     addLuaSprite("anim",true);
+49:     setProperty('anim.alpha', 0)
+50:     addAnimationByPrefix('anim', 'anim', 'anim a', 24, false);
+51: 
+52: 
+53: makeAnimatedLuaSprite('bg', 'bg',-1670,-1540)
+54: addAnimationByPrefix('bg', 'bg', 'bg a',17, true)
+55: scaleObject('bg', 2.7, 2.7);
+56: 	setProperty('bg.alpha', 0)
+57: addLuaSprite('bg',false)        
+58: 
+59: makeLuaSprite('bgluz', 'luzbg',-1670,-1540)
+60: scaleObject('bgluz', 2.7, 2.7);
+61: setProperty('bgluz.alpha', 0)
+62: addLuaSprite('bgluz',true)
+63: 
+64: makeAnimatedLuaSprite('bg3', 'bg3',-1770,-940)
+65: addAnimationByPrefix('bg3', 'bg3', 'idle',17, true)
+66: scaleObject('bg3', 2.3, 2.3);
+67: 	setProperty('bg3.alpha', 0)
+68: addLuaSprite('bg3',false)
+69: 
+70: makeLuaSprite('bgluz3', 'bg3luz',-1770,-940)
+71: scaleObject('bgluz3', 2.3, 2.3);
+72: setProperty('bgluz3.alpha', 0)
+73: addLuaSprite('bgluz3',true)
+74: 
+75: makeAnimatedLuaSprite('bg4', 'bg4',-540,-740)
+76: addAnimationByPrefix('bg4', 'bg4', 'bg4 a',17, true)
+77: scaleObject('bg4', 1.7, 1.7);
+78: 	setProperty('bg4.alpha', 0)
+79: addLuaSprite('bg4',false)
+80: 
+81: makeLuaSprite('bgluz4', 'bg4luz',-540,-740)
+82: scaleObject('bgluz4', 1.7, 1.7);
+83: setProperty('bgluz4.alpha', 0)
+84: addLuaSprite('bgluz4',false)
+85: 
+86: makeLuaSprite('bgluz42', 'bg4luz2',-540,-740)
+87: scaleObject('bgluz42', 1.7, 1.7);
+88: setProperty('bgluz42.alpha', 0)
+89: addLuaSprite('bgluz42',true)
+90: 
+91: makeLuaSprite('bg2', 'bg2 s',-1970,-1040)
+92: scaleObject('bg2', 2.7, 2.7);
+93: 	setProperty('bg2.alpha', 0)
+94: addLuaSprite('bg2',false)
+95: 
+96: makeAnimatedLuaSprite('bg2 n', 'bg2',-1970,-1040)
+97: addAnimationByPrefix('bg2 n', 'bg2 n', 'idle',17, true)
+98: scaleObject('bg2 n', 2.7, 2.7);
+99: 	setProperty('bg2 n.alpha', 0)
+100: addLuaSprite('bg2 n',false)
+101: 
+102: makeLuaSprite('bgluz2', 'bg2luz',-1970,-1040)
+103: scaleObject('bgluz2', 2.7, 2.7);
+104: setProperty('bgluz2.alpha', 0)
+105: setProperty('bgluz2.flipX', true)
+106: addLuaSprite('bgluz2',true)
+107: 
+108: makeLuaSprite('nieve', 'nieve',-1970,-1040)
+109: scaleObject('nieve', 2.7, 2.7);
+110: 	setProperty('nieve.alpha', 0)
+111: addLuaSprite('nieve',true)
+112: 
+113:     makeAnimatedLuaSprite("kyle s", "kyle s", 608, 164);
+114:     scaleObject("kyle s", 1, 1);
+115:     addLuaSprite("kyle s",false);
+116:     setProperty('kyle s.alpha', 0)
+117:     addAnimationByPrefix('kyle s', 'anim', 'idle', 24, true);
+118:     addAnimationByPrefix('kyle s', 'anim1', 'anim', 22, false);
+119: 
+120:     makeAnimatedLuaSprite("oh", "oh", 608, 164);
+121:     scaleObject("oh", 1.9, 1.9);
+122:     addLuaSprite("oh",false);
+123:     setProperty('oh.alpha', 0)
+124:     addAnimationByPrefix('oh', 'anim', 'oh', 16, true);
+125: 
+126:     makeAnimatedLuaSprite("craig s", "characters/craig", 1700, 490);
+127:     scaleObject("craig s", 0.9, 0.9);
+128:     addLuaSprite("craig s",true);
+129:     setProperty('craig s.alpha', 0)
+130:     addAnimationByPrefix('craig s', 'anim', 'oh', 16, true);
+131: 
+132: 	makeLuaSprite('blackbar','blackbar', 0, -0);
+133: 	setObjectCamera('blackbar', 'hud')
+134: 	addLuaSprite('blackbar', true);
+135: 	setProperty('blackbar.alpha', 0);
+136: 
+137:     makeAnimatedLuaSprite("anim2", "anim2", 0, 0);
+138:     setObjectCamera('anim2', 'hud');
+139:     scaleObject("anim2", 1, 1);
+140:     addLuaSprite("anim2",true);
+141:     setProperty('anim2.alpha', 0)
+142:     addAnimationByPrefix('anim2', 'anim', 'anim2 a', 24, false);
+143: 
+144:     makeAnimatedLuaSprite("anim2 c", "anim2 c", 0, 0);
+145:     setObjectCamera('anim2 c', 'hud');
+146:     scaleObject("anim2 c", 1, 1);
+147:     addLuaSprite("anim2 c",false);
+148:     setProperty('anim2 c.alpha', 0)
+149:     addAnimationByPrefix('anim2 c', 'anim', 'anim2 c a', 24, false);
+150: 
+151:     makeAnimatedLuaSprite("anim3", "anim3", 0, 0);
+152:     setObjectCamera('anim3', 'hud');
+153:     scaleObject("anim3", 1, 1);
+154:     addLuaSprite("anim3",false);
+155:     setProperty('anim3.alpha', 0)
+156:     addAnimationByPrefix('anim3', 'anim', 'anim3 idle', 24, false);
+157: 
+158: 
+159: 
+160:     	makeLuaSprite('Vignette', 'Vignette', 0, 0)
+161: 	setScrollFactor('Vignette', 1, 1);
+162: 	scaleObject('Vignette', 1, 1); 
+163: 	setObjectCamera('Vignette', 'other')
+164:     	setProperty('Vignette.alpha', 0)
+165: 	addLuaSprite('Vignette', true)
+166: end
+167: 
+173: 		doTweenColor('badapplexd10', 'iconP2', '000000', 0.01, 'linear')
+174:     elseif curStep == 11 then 
+175:         setProperty('gf.alpha', 0)
+176:         setProperty('kyle c.alpha', 0)
+177:         setProperty('cledy.alpha', 0)
+178:         setProperty('craig.alpha', 0)
+179:     elseif curStep == 128 then 
+180:         setProperty('bgluz.alpha', 0.5)
+181:     elseif curStep == 465 then 
+182: 		doTweenColor('badapplexd', 'boyfriend', 'ffffff', 0.01, 'linear')
+183:     elseif curStep == 472 then 
+184:         setProperty('kyle1.alpha', 1)
+185:         if curStep == 1104 then
+186:         noteTweenAlpha('playfades4', 4, 0, 0.3, 'quartInOut')
+187:         noteTweenAlpha('playfades5', 5, 0, 0.3, 'quartInOut')
+190:     end
+191:      elseif curStep == 1202 then 
+192:         setProperty('bgluz.alpha', 0)
+193:     
+194:         if curStep == 1215 then
+195:         noteTweenAlpha('playfades4', 4, 1, 0.3, 'quartInOut')
+199:     end
+200:     elseif curStep == 1285 then
+201:          setProperty('bgluz2.alpha', 1) 
+202:     elseif curStep == 2325 then
+203:          setProperty('bgluz2.alpha', 0)
+204:     elseif curStep == 2433 then
+205:          setProperty('bgluz3.alpha', 0.75)
+206:     elseif curStep == 3713 then
+207:          setProperty('bgluz3.alpha', 0)
+208:          setProperty('bgluz42.alpha', 1)
+209:          setProperty('bgluz4.alpha', 0.75)
+210:     elseif curStep == 68800 then
+211:         doTweenX('GF', 'gf', 800, 3. , 'cubeOut')
+212:     elseif curStep == 2344 then
+
+=== BLOODBATH SHADER CALLS ===
+LUA FILES: 18
+FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/data/bloodbath/glitchColor.lua
+6: initLuaShader("NewGlitch2")
+16: setSpriteShader("dad", "NewGlitch2")
+17: setShaderFloat("dad", "negativity", 0.0)
+18: setShaderFloat('dad', 'binaryIntensity', 1000.0)
+23: setSpriteShader("dad", "NewGlitch2")
+33: setShaderFloat('dad', 'binaryIntensity', dadGlitchIntensity)
+36: setShaderFloat('dad', 'negativity', 2)
+38: setShaderFloat('dad', 'negativity', -10)
+47: setShaderFloat("dad", "negativity", 0)
+51: setShaderFloat('dad', 'binaryIntensity', 2000.0)
+FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/data/bloodbath/Icon Glitch.lua
+6: initLuaShader("NewGlitch2")
+8: setSpriteShader("iconP2", "NewGlitch2")
+10: setSpriteShader("iconP1", "NewGlitch2")
+12: setShaderFloat('iconP2', 'binaryIntensity', math.random(2,8)+(1/math.random(1,4)))--/math.random(1,1))
+14: setShaderFloat('iconP2', 'binaryIntensity', 50)
+19: setShaderFloat('iconP1', 'binaryIntensity', 100)
+22: setShaderFloat('iconP1', 'binaryIntensity', math.random(2,8)+(1/math.random(1,4)))--/math.random(1,1))
+FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/data/bloodbath/opponentGlitchNote.lua
+7: initLuaShader("NewGlitch2")
+10: setSpriteShader('opponentStrums.members['..i..']', 'NewGlitch2')
+11: --setSpriteShader('playerStrums.members['..i..']', 'NewGlitch2')
+34: setShaderFloat("opponentStrums.members["..i.."]", "iTime", os.clock())
+35: --setShaderFloat("playerStrums.members["..i.."]", "iTime", os.clock())
+40: setShaderFloat('opponentStrums.members[0]', 'binaryIntensity', math.random(2,5)+ 1/math.random(1,3))
+44: setShaderFloat('opponentStrums.members[1]', 'binaryIntensity', math.random(2,5)+ 1/math.random(1,3))
+48: setShaderFloat('opponentStrums.members[2]', 'binaryIntensity', math.random(2,5)+ 1/math.random(1,3))
+52: setShaderFloat('opponentStrums.members[3]', 'binaryIntensity', math.random(2,5)+ 1/math.random(1,3))
+103: setShaderFloat('opponentStrums.members['..i..']', 'binaryIntensity', random+ 1/math.random(1,3))
+104: --setSpriteShader('playerStrums.members['..i..']', 'NewGlitch2')
+FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/data/bloodbath/ZNickShaders.lua
+166: runHaxeCode('game.variables["BarrelBlurEffect"] = game.createRuntimeShader("BarrelBlurEffect");')
+167: runHaxeCode('game.variables["mirrorRepeat"] = game.createRuntimeShader("mirrorRepeat");')
+168: runHaxeCode('game.variables["mirrorRepeathud"] = game.createRuntimeShader("mirrorRepeat");')
+169: runHaxeCode('game.variables["cross"] = game.createRuntimeShader("cross_hatch");')
+170: runHaxeCode('game.variables["old tv"] = game.createRuntimeShader("old tv");') --the "cross" thing is the tag you want and "cross_hatch" thing is the name of shader--
+171: runHaxeCode('game.variables["lightsrgb"] = game.createRuntimeShader("lightsrgb");')
+172: runHaxeCode('game.variables["static"] = game.createRuntimeShader("static");')
+173: runHaxeCode('game.variables["effect weird"] = game.createRuntimeShader("effect weird");')
+174: runHaxeCode('game.variables["crt distorsionnew"] = game.createRuntimeShader("crt distorsionnew");')
+175: runHaxeCode('game.variables["starfield"] = game.createRuntimeShader("starfield");')
+176: runHaxeCode('game.variables["colorswitching"] = game.createRuntimeShader("colorswitching");')
+177: runHaxeCode('game.variables["tv"] = game.createRuntimeShader("tv");')
+178: runHaxeCode('game.variables["raytracingcube"] = game.createRuntimeShader("raytracingcube");')
+179: runHaxeCode('game.variables["bloomEffect"] = game.createRuntimeShader("bloom");')
+180: runHaxeCode('game.variables["greyScale"] = game.createRuntimeShader("greyScale");')
+181: runHaxeCode('game.variables["barrel"] = game.createRuntimeShader("barrelblur");')
+182: runHaxeCode('game.variables["barrelhud"] = game.createRuntimeShader("barrelblur");')
+183: runHaxeCode('game.variables["blur"] = game.createRuntimeShader("Gaussian Blur");')
+184: runHaxeCode('game.variables["mosaic"] = game.createRuntimeShader("mosaic");')
+185: runHaxeCode('game.variables["chrom"] = game.createRuntimeShader("ChromAbEffect");')
+186: runHaxeCode('game.variables["colorola"] = game.createRuntimeShader("ColorShader");')
+187: runHaxeCode('game.variables["scan"] = game.createRuntimeShader("scanline");')
+188: runHaxeCode('game.variables["vig"] = game.createRuntimeShader("vignette");')
+189: runHaxeCode('game.variables["glitchy"] = game.createRuntimeShader("Glitchy");')
+190: runHaxeCode('game.variables["chromaticRadialBlur"] = game.createRuntimeShader("chromaticRadialBlur");')
+191: runHaxeCode('game.variables["vcrshader"] = game.createRuntimeShader("vcrshader");')
+192: runHaxeCode('game.variables["vcr with no glitch"] = game.createRuntimeShader("vcr with no glitch");')
+193: runHaxeCode('game.variables["rgbeffect3"] = game.createRuntimeShader("rgbeffect3");')
+194: runHaxeCode('game.variables["sob"] = game.createRuntimeShader("SobelEffect");')
+195: runHaxeCode('game.variables["smok"] = game.createRuntimeShader("PerlinSmokeEffect");')
+196: runHaxeCode('game.variables["blaze"] = game.createRuntimeShader("blaze");')
+197: runHaxeCode('game.variables["gameboy"] = game.createRuntimeShader("gameboy");')
+198: runHaxeCode('game.variables["invert"] = game.createRuntimeShader("invert");')
+199: runHaxeCode('game.variables["pc"] = game.createRuntimeShader("pc");')
+200: runHaxeCode('game.variables["color"] = game.createRuntimeShader("ColorOverrideEffect");')
+
+=== SHADER FILES ===
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/2.frag | 1947 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/3D.frag | 2465 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/3D2.frag | 707 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/aberration.frag | 1449 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/abr.frag | 534 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/addColor.frag | 532 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/adjustColor.frag | 975 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Antialising.frag | 1181 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/arcade.frag | 685 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/arrowGlich.frag | 982 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/AuraScreen.frag | 3387 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/barrelblur.frag | 4443 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BarrelBlurEffect.frag | 3618 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BarrelBlurMirrorEffect.frag | 2844 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BetterBlurEffect.frag | 734 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BetterBlurShader.frag | 734 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/blackandwhite.frag | 646 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BlackBars.frag | 1070 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/blaze.frag | 3117 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BloodBGEffect.frag | 1230 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BloodBGfade.frag | 1448 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/bloom.frag | 1360 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BloomEffect.frag | 1348 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BloomFX.frag | 5467 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BloomGlare.frag | 3690 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BloomNewEffect.frag | 2565 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BloomX.frag | 2489 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/blur.frag | 1105 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/blur2.frag | 1531 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BlurEffect.frag | 788 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/blurNew.frag | 1046 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BlurShader.frag | 810 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/blurZoomNerf.frag | 658 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/bnw.frag | 216 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/BWShader.frag | 647 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/camEffects.frag | 719 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/CameraGlitch (2).frag | 3564 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/CameraGlitch.frag | 3564 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/CameraShakeEffect.frag | 1197 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/checker.frag | 583 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/checkerBoard.frag | 583 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/chrom gltich.frag | 641 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/chrom.frag | 534 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/chromabber-back.frag | 879 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/chromabber.frag | 912 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ChromAbBlueSwapEffect.frag | 355 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ChromAbBlueSwapShader.frag | 351 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ChromAbEffect.frag | 353 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/chromaticAbber.frag | 439 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ChromaticAbberation.frag | 874 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ChromaticAbberationHUD.frag | 883 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/chromaticPincush.frag | 795 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ChromaticPincushEffect.frag | 1009 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/chromaticRadialBlur.frag | 1522 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ChromaticRadialBlurEffect.frag | 1517 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/chromaticWarp.frag | 1009 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ChromBlueEffect.frag | 285 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/chromeVcr.frag | 537 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/chromRadial.frag | 773 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Cinematic2Effect.frag | 10011 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/CinematicEffect.frag | 10011 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/CircleShader.frag | 821 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ColorFillEffect.frag | 515 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/colorInversion.frag | 1393 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ColorOverrideEffect.frag | 293 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ColorOverrideShader.frag | 293 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ColorShader.frag | 400 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/colorSwap.frag | 979 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ColorSwapEffect.frag | 353 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/colorswitching.frag | 507 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/contrast.frag | 214 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/crb.frag | 1522 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/cross hatch.frag | 5067 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/cross_hatch.frag | 5067 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/crt distorsionnew.frag | 3259 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/crt.frag | 1622 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/cyclesd.frag | 891 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/demon_blur.frag | 470 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/DirectionalBlur.frag | 807 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/DirectionalBlurEffect.frag | 734 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Dirty Edge.frag | 2945 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/distort.frag | 305 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Distortion.frag | 2266 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/DistortionEffect.frag | 4400 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/DistortionFL.frag | 819 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/distortTvGrey.frag | 3651 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/effect weird.frag | 1813 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/epilepsy.frag | 1135 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/EyeFishEffect.frag | 1585 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/FastBlurEffect.frag | 581 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/fastCRT.frag | 658 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/FasttBlurEffect.frag | 788 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/FCT.frag | 1807 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/file.frag | 2044 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/fire.frag | 1506 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/fireBG.frag | 2862 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/FireHouseEffect.frag | 2852 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/flip.frag | 149 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/FS.frag | 244 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/FuriosityShader.frag | 625 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/gameboy.frag | 1731 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Gaussian Blur Simple and Fast.frag | 1237 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Gaussian Blur.frag | 580 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/GaussianBlur.frag | 872 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/GayNiggerEffect.frag | 2768 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/gl.frag | 2625 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/gl1.frag | 1835 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Glitch Tranparency.frag | 896 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/glitch.frag | 1579 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/glitch2.frag | 2481 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/glitchBG.frag | 4656 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/glitchChromatic.frag | 2655 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/glitchChromatic2.frag | 2010 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/glitchChromaticNew.frag | 2647 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/GlitchedEffect.frag | 1860 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/GlitchedNewEffect.frag | 1859 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/GlitchEffect.frag | 3505 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/glitcheffect2.frag | 3131 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/glitchNew.frag | 3105 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/glitchPeak.frag | 2513 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/glitchShader.frag | 3182 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/GlitchTestEffect.frag | 1017 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/glitchText.frag | 1943 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/glitchVC.frag | 3729 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Glitchy.frag | 2071 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Glitchy2.frag | 2071 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/glowBorder.frag | 1492 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/GLT.frag | 2071 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/godrays.frag | 1429 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/godraysBetter.frag | 1458 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/godraysDIzz.frag | 1428 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/godraysfl.frag | 1429 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Gradient.frag | 2187 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/grain.frag | 890 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Grayscale.frag | 190 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/greyScale.frag | 317 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/GreyscaleEffect.frag | 317 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/grid wave effect.frag | 1993 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Hallucination.frag | 6382 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/HeatEffect.frag | 889 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/heatwave.frag | 739 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/highres.frag | 4336 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/hotlineVHSold.frag | 2983 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/hq2x.frag | 922 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/hs.frag | 929 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/HSVEffect.frag | 2164 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/HSVEffect.vert | 1074 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/HueRainbowEffect.frag | 2768 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/HueShiftEffect.frag | 929 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/HueShiftShader.frag | 943 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ImageFlipXY.frag | 2707 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ImageFloat.frag | 636 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ImageFloatns.frag | 591 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ImageFloatnshake.frag | 636 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/INV.frag | 598 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/invert.frag | 619 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/inverter.frag | 598 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/is good.frag | 1563 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Lean.frag | 2007 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/lightmatrix.frag | 2406 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/lightshow1.frag | 5164 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/lightshow2.frag | 5175 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/lightsrgb.frag | 5204 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/mirror.frag | 705 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/mirrorRepeat.frag | 1474 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/MirrorRepeatEffect.frag | 844 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/mirrorRepeatHud.frag | 1474 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/MirrorRepeatHudEffect.frag | 844 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/mosaic.frag | 401 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/MosaicEffect.frag | 338 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/MotionBlur.frag | 4921 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/multisplit.frag | 423 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/negative.frag | 921 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/New glitch.frag | 2244 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/NewGlitch2.frag | 1220 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ntsc.frag | 2009 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/old film.frag | 2445 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/old tv.frag | 1976 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/OldFilmEffect.frag | 2387 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/OldTapeEffect.frag | 3865 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ow.frag | 1947 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/PAG.frag | 1819 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/PaletteEffect.frag | 549 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ParticlesEffect.frag | 5762 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/PauseEffect.frag | 2886 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/pc.frag | 3307 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/PerlinSmokeEffect.frag | 3752 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/perspective.frag | 976 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/PincushEffect.frag | 615 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/PincushNewEffect.frag | 2421 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/PincushNewNoMirrorEffect.frag | 2776 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/pixel.frag | 499 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/pixelate.frag | 676 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/PostProcessEffect.frag | 766 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/radchr.frag | 724 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/radialBlur.frag | 884 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/rain.frag | 5803 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/rainbow.frag | 1095 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/RainEffect.frag | 2000 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/raymarch.frag | 2707 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/RayMarchEffect.frag | 4349 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/raytracingcube.frag | 3611 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/redShader.frag | 806 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/rgb effect2.frag | 684 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/rgb effect4.frag | 1233 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/rgb effectMENU.frag | 676 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/rgb.frag | 1233 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/RGB_PIN_SPLIT.frag | 554 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/RGB_Stroke.frag | 4796 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/rgbeffect3.frag | 957 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/RGBGlitch.frag | 1233 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/rimlight.frag | 1011 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/RTXLighting.frag | 2960 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/saturation.frag | 403 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/scanline.frag | 1237 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/ScanlineEffect.frag | 992 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/screenclose.frag | 2052 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/scroll.frag | 1281 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/shade.frag | 1194 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/shader.frag | 2329 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/shift glitch.frag | 1765 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/SmoothRGB.frag | 2458 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/SobelEffect.frag | 1367 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/sparkShader.frag | 2104 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/SpeedlinesEffect.frag | 3805 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/spinnycircle.frag | 1053 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Split.frag | 443 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/SquarePattern.frag | 583 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/StarbustEffect.frag | 2177 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/starfield.frag | 2939 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/static.frag | 642 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/strumglitch.frag | 7232 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Sunrays.frag | 1482 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/SunRaysEffect.frag | 2361 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/sweetdeath.frag | 5207 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/tiltshift.frag | 3264 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/tv.frag | 4942 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/tvcrt.frag | 1362 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/tvdist.frag | 5663 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/tvF.frag | 1955 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/tvSignal.frag | 4026 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/tvstatic.frag | 490 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/vaporwave.frag | 9033 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/vcr with glitch.frag | 3350 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/vcr with no glitch.frag | 3346 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/vcr.frag | 534 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/VCRGlitch.frag | 3350 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/vcrshader.frag | 2918 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/vcrshaderOpacity.frag | 2952 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Vhs.frag | 3516 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/vhsEffect.frag | 4393 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/VideoGlitch.frag | 5061 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/vignette.frag | 587 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/VignetteEffect.frag | 621 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/vignetteGlitch.frag | 5239 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/warp.frag | 620 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/WaterEffect.frag | 733 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/Wave.frag | 471 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/WaveBurstEffect.frag | 432 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/wavy.frag | 754 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/weird.frag | 1712 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/white.frag | 1127 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/WiggleEffect.frag | 1822 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/YouleanColorCorrection.frag | 4135 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/shaders/zoomblur.frag | 688 bytes
+
+=== ALL MOD IMAGE FILES WITH DIMENSIONS ===
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/anim.png | (12800, 11520) | 9884981 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/anim2 c.png | (7680, 5760) | 11483290 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/anim2.png | (5120, 4320) | 1736160 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/anim3.png | (7680, 5760) | 19199084 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/bg.png | (3840, 3240) | 7861739 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/bg2 s.png | (1920, 1080) | 2768492 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/bg2.png | (4096, 4096) | 6769954 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/bg2luz.png | (1920, 1080) | 996578 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/bg3.png | (4096, 4096) | 4458393 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/bg3luz.png | (1923, 1081) | 2178440 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/bg4.png | (3840, 2160) | 5353689 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/bg4luz.png | (1920, 1080) | 144992 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/bg4luz2.png | (1920, 1080) | 152626 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/black.png | (3192, 1692) | 15845 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/blackbar.png | (1280, 720) | 7066 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/BFblank.png | (1, 1) | 70 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/cartman b.png | (4146, 3008) | 239624 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/cartman s.png | (4096, 4096) | 11405028 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/cartman.png | (8192, 4096) | 10408223 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/clyde.png | (2048, 1024) | 1636788 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/craig.png | (4096, 4096) | 6510043 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/jimmy c.png | (4096, 2048) | 4427356 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/jimmy w.png | (4096, 2048) | 3918168 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/jimmy.png | (4096, 2048) | 3905643 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/kenny c f.png | (8192, 4096) | 9078293 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/kenny c.png | (8192, 8192) | 18943541 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/kenny s.png | (4096, 4096) | 8005049 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/kenny.png | (4096, 4096) | 740405 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/kyle c.png | (4096, 4096) | 5752120 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/kyle.png | (4096, 2048) | 4707406 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/stan r.png | (4096, 2048) | 5587502 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/stan v2.png | (4096, 4096) | 6862445 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/stan.png | (4096, 4096) | 7125224 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/timmy c.png | (4096, 2048) | 4023449 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/timmy w.png | (2048, 2048) | 3092186 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/tolkien c.png | (4096, 4096) | 6483928 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/tolkien f.png | (4096, 4096) | 6179871 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/tolkien s.png | (4096, 2048) | 5702776 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/tolkien.png | (4096, 4096) | 7017926 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/tweek a.png | (4096, 2048) | 3662514 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/characters/tweek.png | (4096, 2048) | 3509135 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/Comedy Central.png | (800, 276) | 26401 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/fog bg2.png | (2059, 1351) | 152225 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/fog.png | (3192, 1692) | 1547530 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/cartman.png | (394, 162) | 27300 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/clyde.png | (394, 162) | 31274 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/craig.png | (394, 162) | 33673 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/icon-blank.png | (300, 150) | 18548 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/jimmy c.png | (394, 162) | 30896 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/jimmy.png | (394, 162) | 27069 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/kenny s.png | (394, 162) | 27567 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/kenny.png | (424, 175) | 31068 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/kyle c.png | (394, 162) | 20510 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/kyle.png | (394, 162) | 38474 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/stan.png | (394, 162) | 26755 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/timmy c.png | (394, 162) | 34423 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/timmy.png | (394, 162) | 31620 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/tolkien c.png | (394, 162) | 32265 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/tolkien.png | (394, 162) | 26782 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/icons/tweek.png | (394, 162) | 33189 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/kyle s.png | (4096, 2048) | 6210091 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/luzbg.png | (1921, 1081) | 2241592 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/lyrics/cartman.png | (150, 150) | 3754 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/lyrics/kenny.png | (150, 150) | 17080 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/lyrics/kyle.png | (150, 150) | 4148 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/lyrics/THERAVEN.png | (150, 150) | 6850 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/menubackgrounds/menu_LC.png | (1280, 386) | 2885 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/nieve.png | (1920, 1080) | 504747 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/oh.png | (1024, 1024) | 474423 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/RedVG.png | (1280, 720) | 203003 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/sonicSplashes.png | (1098, 878) | 2798 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/sun.png | (3474, 2000) | 1542985 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/thefunnyeffect.png | (2440, 1400) | 291135 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/Vignette.png | (1280, 720) | 150130 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/Vignettes/light.png | (1280, 720) | 239799 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/Vignettes/red.png | (1280, 720) | 6444 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/Vignettes/Vignette.png | (2560, 1400) | 474345 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/Vignettes/Vignetteblood.png | (1280, 720) | 1379232 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/voiid_lines.png | (1280, 720) | 341597 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/white.png | (3192, 1692) | 49232 bytes
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/windCHASED vroom.png | (7405, 7178) | 219855 bytes
