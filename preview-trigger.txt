@@ -1,1 +1,1 @@
-Dump Clyde, Craig, IconManager and South stage scripts for exact matchup fixes.
+Extract Clyde/Craig custom note windows and IconManager matchup times.
