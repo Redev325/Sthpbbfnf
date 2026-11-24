@@ -2464,7 +2464,7 @@ function hideSouthClydeDuplicateSprite(candidate:FlxSprite):Void
 	function applySouthThirdConfrontationLayout():Void
 	{
 		var songMs:Float = Conductor.songPosition;
-		if (curStage != 'south' || !generatedMusic || songMs < 201750 || songMs >= 309416.667) return;
+		if (curStage != 'south' || !generatedMusic || songMs < 202750) return;
 
 		// Keep the two late-song scene backgrounds anchored at the source
 		// south.lua transforms. BG3 is the Tolkien/Kenny group scene; BG4 is
