@@ -1415,7 +1415,10 @@ def patch_south_stage(
 
     # Route the custom kyle note type to the visible extra Kyle character.
     note_marker = "if(note.noteType == 'Hey!' && dad.animOffsets.exists('hey')) {"
-    note_code = """        if (curStage == 'south' && note.noteType == 'kyle')
+    note_code = """        // Custom Clyde/Craig notes animate their dedicated actors only.
+        if (curStage == 'south' && (note.noteType == 'Clyde Note' || note.noteType == 'Craig Note')) note.noAnimation = true;
+
+        if (curStage == 'south' && note.noteType == 'kyle')
         {
             var kyleAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
             // Both Lua character scripts receive the same custom note type.
@@ -1474,7 +1477,10 @@ def patch_south_stage(
     good_note_body = source[good_note_start:good_note_end]
 
     good_note_marker = "if(!note.noAnimation) {"
-    good_note_code = """        if (curStage == 'south' && (note.noteType == 'kyle' || note.noteType == 'Kyle Note'))
+    good_note_code = """        // Custom Clyde/Craig notes animate their dedicated actors only.
+        if (curStage == 'south' && (note.noteType == 'Clyde Note' || note.noteType == 'Craig Note')) note.noAnimation = true;
+
+        if (curStage == 'south' && (note.noteType == 'kyle' || note.noteType == 'Kyle Note'))
         {
             var kylePlayerAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
             if (southKyleCharacter != null && southKyleCharacter.alpha > 0.01)
@@ -2376,7 +2382,7 @@ function hideSouthClydeDuplicateSprite(candidate:FlxSprite):Void
 		if (!duplicateByGraphic && candidate.graphic != null && candidate.graphic.key != null)
 		{
 			var graphicKey:String = candidate.graphic.key.toLowerCase();
-			duplicateByGraphic = graphicKey.indexOf('characters/clyde') >= 0;
+			duplicateByGraphic = graphicKey.indexOf('characters/clyde') >= 0 || graphicKey.indexOf('characters/cledy') >= 0;
 		}
 
 		if (duplicateByCharacterId || duplicateByGraphic)
@@ -2878,7 +2884,7 @@ function updateSouthClydeVisibility():Void
             raise RuntimeError("Could not locate the onUpdatePost point for Bloodbath smooth camera.")
         source = source.replace(
             camera_update_marker,
-            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);\n\t\tupdateSouthClydeVisibility();\n\t\thideDuplicateSouthClydeCharacters();\n\t\thideSouthThirdStageJimmyCharacters();",
+            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);\n\t\tupdateSouthClydeVisibility();\n\t\thideInactiveSouthCharacterGroups();\n\t\thideDuplicateSouthClydeCharacters();\n\t\thideSouthThirdStageJimmyCharacters();",
             1,
         )
     update_code = update_marker + "\n\t\trestoreSouthSmoothCameraFrame();\n\t\tupdateBadAppleCameraFollow();\n\t\tupdateSouthOverlayRecovery();\n\t\tupdateSouthKyleCorruptionTimeline();"
