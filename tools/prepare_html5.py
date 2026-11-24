@@ -1207,7 +1207,16 @@ def patch_south_stage(
 				add(southVignette);
 				southAnimatedObjects.set('vignette', southVignette);
 
-			case 'stage': //Week 1"""
+							// Port mods/scripts/Logo.lua using its exact downscroll placement.
+				var southComedyCentral:BGSprite = new BGSprite('Comedy Central', 1000, ClientPrefs.downScroll ? 60 : 600);
+				southComedyCentral.scale.set(0.3, 0.3);
+				southComedyCentral.updateHitbox();
+				southComedyCentral.scrollFactor.set(1, 1);
+				southComedyCentral.cameras = [camHUD];
+				southComedyCentral.alpha = ClientPrefs.downScroll ? 0.8 : 1;
+				add(southComedyCentral);
+				southAnimatedObjects.set('Comedy Central', southComedyCentral);
+case 'stage': //Week 1"""
     # Increase each sprite's Haxe scale by the inverse of its PNG resize ratio.
     # This keeps stage layout/character size while using much smaller GPU textures.
     stage_sprite_assets = {
@@ -3866,13 +3875,70 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \t\treturn shader;
 \t}
 
+\tfunction southShaderUniformValue(shaderKey:String, uniformName:String, fallback:Float):Float
+\t{
+\t\tvar uniformKey:String = shaderKey + "." + uniformName;
+\t\treturn southShaderUniformValues.exists(uniformKey)
+\t\t\t? southShaderUniformValues.get(uniformKey) : fallback;
+\t}
+
+\tfunction southShaderPassActive(shaderKey:String):Bool
+\t{
+\t\tvar value = function(uniformName:String, fallback:Float):Float
+\t\t{
+\t\t\treturn southShaderUniformValue(shaderKey, uniformName, fallback);
+\t\t};
+\t\tswitch (shaderKey)
+\t\t{
+\t\t\tcase 'bloomEffect': return value('effect', 0) > 0.0001;
+\t\t\tcase 'greyScale': return value('strength', 0) > 0.0001;
+\t\t\tcase 'barrel' | 'barrelhud':
+\t\t\t\treturn Math.abs(value('barrel', 0)) > 0.0001
+\t\t\t\t\t|| Math.abs(value('zoom', 1) - 1) > 0.0001
+\t\t\t\t\t|| Math.abs(value('angle', 0)) > 0.0001
+\t\t\t\t\t|| Math.abs(value('x', 0)) > 0.0001
+\t\t\t\t\t|| Math.abs(value('y', 0)) > 0.0001;
+\t\t\tcase 'blur' | 'mosaic' | 'chrom':
+\t\t\t\treturn value('strength', 0) > 0.0001;
+\t\t\tcase 'colorola':
+\t\t\t\treturn Math.abs(value('zoom', 1) - 1) > 0.0001
+\t\t\t\t\t|| Math.abs(value('red', 1) - 1) > 0.0001
+\t\t\t\t\t|| Math.abs(value('green', 1) - 1) > 0.0001
+\t\t\t\t\t|| Math.abs(value('blue', 1) - 1) > 0.0001;
+\t\t\tcase 'scan':
+\t\t\t\treturn value('strength', 0) > 0.0001 || value('pixelsBetweenEachLine', 0) > 0.0001;
+\t\t\tcase 'vig':
+\t\t\t\treturn value('strength', 0) > 0.0001 || value('size', 0) > 0.0001;
+\t\t\tcase 'glitchy': return value('AMT', 0) > 0.0001;
+\t\t\tcase 'sob': return value('strength', 0) > 0.0001;
+\t\t\tcase 'mirrorRepeat' | 'mirrorRepeathud':
+\t\t\t\treturn Math.abs(value('x', 0)) > 0.0001
+\t\t\t\t\t|| Math.abs(value('y', 0)) > 0.0001
+\t\t\t\t\t|| Math.abs(value('angle', 0)) > 0.0001
+\t\t\t\t\t|| Math.abs(value('zoom', 1) - 1) > 0.0001;
+\t\t\tcase 'chromaticRadialBlur':
+\t\t\t\treturn value('Count', 0) > 0.0001 || value('blur', 0) > 0.0001;
+\t\t\tcase 'invert' | 'pc' | 'cross' | 'smok' | 'old tv' | 'lightsrgb' | 'effect weird' |
+\t\t\t\t'static' | 'crt distorsionnew' | 'starfield' | 'colorswitching' | 'tv' |
+\t\t\t\t'raytracingcube' | 'blaze' | 'gameboy' | 'vcrshader' | 'vcr with no glitch' | 'rgbeffect3':
+\t\t\t\treturn southShaderFeatureEnabled(shaderKey);
+\t\t\tdefault: return false;
+\t\t}
+\t}
+
 \tfunction setSouthShaderUniform(shaderKey:String, uniformName:String, value:Float):Void
 \t{
 \t\tvar shader:FlxRuntimeShader = southRuntimeShaderObjects.get(shaderKey);
 \t\tif (shader == null || Math.isNaN(value)) return;
+\t\tvar wasActive:Bool = southShaderPassActive(shaderKey);
 \t\tvar uniformKey:String = shaderKey + "." + uniformName;
+\t\tvar hadValue:Bool = southShaderUniformValues.exists(uniformKey);
+\t\tvar oldValue:Float = hadValue ? southShaderUniformValues.get(uniformKey) : value;
 \t\tsouthShaderUniformValues.set(uniformKey, value);
 \t\tshader.setFloat(uniformName, value);
+\t\tif ((!hadValue || Math.abs(oldValue - value) >= 0.000001)
+\t\t\t&& wasActive != southShaderPassActive(shaderKey))
+\t\t\trefreshSouthShaderFilters();
 \t}
 
 \tfunction tweenSouthShaderUniform(shaderKey:String, uniformName:String, target:Float, duration:Float):Void
@@ -3924,25 +3990,23 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \t{
 \t\tif (curStage != 'south' || !ClientPrefs.shaders) return;
 
+\t\t// Avoid running neutral full-screen shader passes. The chart still
+\t\t// activates the same effects through uniforms/events; a pass is attached
+\t\t// only while its actual output differs from the neutral setting.
 \t\tvar gameFilters:Array<BitmapFilter> = [];
-\t\tfor (key in ['bloomEffect', 'greyScale', 'barrel', 'blur', 'mosaic', 'chrom', 'colorola', 'vig', 'glitchy', 'sob'])
-\t\t\tappendSouthShaderFilter(gameFilters, key);
-\t\tif (southShaderFeatureEnabled('invert')) appendSouthShaderFilter(gameFilters, 'invert');
-\t\tif (southShaderFeatureEnabled('pc')) appendSouthShaderFilter(gameFilters, 'pc');
-\t\tappendSouthShaderFilter(gameFilters, 'mirrorRepeat');
-\t\tfor (key in ['cross', 'smok', 'old tv', 'lightsrgb', 'effect weird', 'static', 'crt distorsionnew',
+\t\tfor (key in ['bloomEffect', 'greyScale', 'barrel', 'blur', 'mosaic', 'chrom', 'colorola', 'vig', 'glitchy', 'sob', 'mirrorRepeat'])
+\t\t\tif (southShaderPassActive(key)) appendSouthShaderFilter(gameFilters, key);
+\t\tfor (key in ['invert', 'pc', 'cross', 'smok', 'old tv', 'lightsrgb', 'effect weird', 'static', 'crt distorsionnew',
 \t\t\t'starfield', 'colorswitching', 'tv', 'raytracingcube', 'blaze', 'gameboy', 'vcrshader',
 \t\t\t'vcr with no glitch', 'rgbeffect3', 'chromaticRadialBlur'])
-\t\t\tif (southShaderFeatureEnabled(key)) appendSouthShaderFilter(gameFilters, key);
-\t\tappendSouthShaderFilter(gameFilters, 'color');
+\t\t\tif (southShaderPassActive(key)) appendSouthShaderFilter(gameFilters, key);
 \t\tcamGame.setFilters(gameFilters);
 
 \t\tvar hudFilters:Array<BitmapFilter> = [];
-\t\tfor (key in ['bloomEffect', 'greyScale', 'barrelhud', 'blur', 'mosaic', 'chrom', 'colorola', 'scan', 'glitchy', 'sob'])
-\t\t\tappendSouthShaderFilter(hudFilters, key);
-\t\tappendSouthShaderFilter(hudFilters, 'mirrorRepeathud');
+\t\tfor (key in ['bloomEffect', 'greyScale', 'barrelhud', 'blur', 'mosaic', 'chrom', 'colorola', 'scan', 'glitchy', 'sob', 'mirrorRepeathud'])
+\t\t\tif (southShaderPassActive(key)) appendSouthShaderFilter(hudFilters, key);
 \t\tfor (key in ['cross', 'old tv', 'vcrshader', 'vcr with no glitch', 'rgbeffect3', 'chromaticRadialBlur'])
-\t\t\tif (southShaderFeatureEnabled(key)) appendSouthShaderFilter(hudFilters, key);
+\t\t\tif (southShaderPassActive(key)) appendSouthShaderFilter(hudFilters, key);
 \t\tcamHUD.setFilters(hudFilters);
 \t}
 
@@ -4086,11 +4150,15 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \t\t\t'starfield', 'colorswitching', 'tv', 'raytracingcube', 'smok', 'vcrshader',
 \t\t\t'vcr with no glitch', 'rgbeffect3', 'blaze', 'gameboy', 'invert', 'pc'])
 \t\t{
+\t\t\tif (!southShaderPassActive(key)) continue;
 \t\t\tvar shader:FlxRuntimeShader = southRuntimeShaderObjects.get(key);
 \t\t\tif (shader != null) shader.setFloat('iTime', southShaderClock);
 \t\t}
-\t\tvar glitchShader:FlxRuntimeShader = southRuntimeShaderObjects.get('glitchy');
-\t\tif (glitchShader != null) glitchShader.setFloat('iTime', southShaderClock);
+\t\tif (southShaderPassActive('glitchy'))
+\t\t{
+\t\t\tvar glitchShader:FlxRuntimeShader = southRuntimeShaderObjects.get('glitchy');
+\t\t\tif (glitchShader != null) glitchShader.setFloat('iTime', southShaderClock);
+\t\t}
 \t}
 
 \tfunction handleSouthShaderEvent(eventName:String, value1:String, value2:String):Void
