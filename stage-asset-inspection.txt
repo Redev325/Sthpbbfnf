@@ -1,4 +1,4 @@
-TRIGGER: Dump Clyde, Craig, IconManager and South stage scripts for exact matchup fixes.
+TRIGGER: Extract Clyde/Craig custom note windows and IconManager matchup times.
 ARCHIVE MEMBERS: 2587
 
 === LOGO IMAGE CANDIDATES ===
@@ -1979,6 +1979,95 @@ FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/stages/south.lua (215 li
 207: setProperty('bgluz3.alpha', 0)
 208: setProperty('bgluz42.alpha', 1)
 209: setProperty('bgluz4.alpha', 0.75)
+\n=== BLOODBATH NOTE TYPE WINDOWS ===
+CHART: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/data/bloodbath/bloodbath-hard.json
+NOTE TYPE RANGES: {"(normal)": {"count": 2349, "first": 5416.66666666667, "last": 373416.666666666, "samples": [202750.0, 203083.333, 203250.0, 203416.667, 203750.0, 203916.667, 204083.333, 204250.0]}, "1000": {"count": 1, "first": 250916.666666667, "last": 250916.666666667, "samples": [250916.667]}, "1083.33333333333": {"count": 1, "first": 8083.33333333333, "last": 8083.33333333333, "samples": []}, "1166.66666666667": {"count": 14, "first": 9416.66666666667, "last": 394749.999999999, "samples": [272083.333, 272083.333, 273416.667, 273416.667, 274750.0, 274750.0, 276083.333, 276083.333]}, "125": {"count": 1, "first": 74416.6666666667, "last": 74416.6666666667, "samples": []}, "1250": {"count": 24, "first": 114750.0, "last": 349416.666666667, "samples": [213416.667, 216083.333, 218750.0, 221416.667, 224083.333, 229416.667, 232083.333]}, "1500": {"count": 1, "first": 395749.999999999, "last": 395749.999999999, "samples": []}, "166.666666666667": {"count": 6, "first": 10500.0, "last": 237083.333333334, "samples": [236750.0, 237083.333]}, "208.333333333333": {"count": 8, "first": 20750.0, "last": 205083.333333334, "samples": [205083.333]}, "250": {"count": 175, "first": 1416.66666666667, "last": 395416.666666666, "samples": [202750.0, 203416.667, 204750.0, 206083.333, 205416.667, 207416.667, 207750.0, 208083.333]}, "2500": {"count": 4, "first": 253416.666666667, "last": 253416.666666667, "samples": [253416.667, 253416.667, 253416.667, 253416.667]}, "375": {"count": 1, "first": 42750.0, "last": 42750.0, "samples": []}, "416.666666666667": {"count": 5, "first": 37416.6666666667, "last": 329750.0, "samples": []}, "500": {"count": 5, "first": 4750.0, "last": 298750.0, "samples": [298750.0]}, "541.666666666667": {"count": 1, "first": 116083.333333333, "last": 116083.333333333, "samples": []}, "580": {"count": 1, "first": 156083.333333333, "last": 156083.333333333, "samples": []}, "583": {"count": 1, "first": 139416.666666667, "last": 139416.666666667, "samples": []}, "583.333333333333": {"count": 65, "first": 750.0, "last": 394083.333333332, "samples": [214750.0, 215416.667, 217416.667, 218083.333, 220083.333, 220750.0, 222750.0, 223416.667]}, "625": {"count": 1, "first": 186750.0, "last": 186750.0, "samples": []}, "666.666666666667": {"count": 1, "first": 0.0, "last": 0.0, "samples": []}, "750": {"count": 1, "first": 226750.000000001, "last": 226750.000000001, "samples": [226750.0]}, "83.3333333333333": {"count": 10, "first": 73916.6666666667, "last": 371749.999999999, "samples": []}, "833.333333333333": {"count": 1, "first": 362749.999999999, "last": 362749.999999999, "samples": []}}
+RELEVANT SECTIONS: [{"section": 152, "start": 202750.0, "end": 203916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 153, "start": 204083.333, "end": 205083.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 154, "start": 205416.667, "end": 206583.333, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 155, "start": 206750.0, "end": 207750.0, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 156, "start": 208083.333, "end": 209083.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 157, "start": 209416.667, "end": 210416.667, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 158, "start": 210750.0, "end": 211916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 159, "start": 212083.333, "end": 213083.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 160, "start": 213416.667, "end": 214583.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 161, "start": 214750.0, "end": 215750.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 162, "start": 216083.333, "end": 217083.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 163, "start": 217416.667, "end": 218416.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 164, "start": 218750.0, "end": 219916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 165, "start": 220083.333, "end": 221250.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 166, "start": 221416.667, "end": 222416.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 167, "start": 222750.0, "end": 223750.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 168, "start": 224083.333, "end": 225250.0, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 169, "start": 225416.667, "end": 226416.667, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 170, "start": 226750.0, "end": 227750.0, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 171, "start": 228083.333, "end": 229083.333, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 172, "start": 229416.667, "end": 230583.333, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 173, "start": 230750.0, "end": 231916.667, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 174, "start": 232083.333, "end": 233083.333, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 175, "start": 233416.667, "end": 234416.667, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 176, "start": 234750.0, "end": 235916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 177, "start": 236083.333, "end": 237083.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 178, "start": 237416.667, "end": 238583.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 179, "start": 238750.0, "end": 239916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 180, "start": 240083.333, "end": 241250.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 181, "start": 241333.333, "end": 242583.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 182, "start": 242666.667, "end": 243916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 183, "start": 244083.333, "end": 245250.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 184, "start": 245416.667, "end": 246583.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 185, "start": 246750.0, "end": 247916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 186, "start": 248000.0, "end": 249250.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 187, "start": 249416.667, "end": 250583.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 188, "start": 250750.0, "end": 250916.667, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 189, "start": 252750.0, "end": 253083.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 190, "start": 253416.667, "end": 254416.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 191, "start": 254750.0, "end": 255750.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 192, "start": 256083.333, "end": 257250.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 193, "start": 257416.667, "end": 258583.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 194, "start": 258666.667, "end": 259916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 195, "start": 260083.333, "end": 261250.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 196, "start": 261416.667, "end": 262583.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 197, "start": 262750.0, "end": 263916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 198, "start": 264083.333, "end": 265250.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 199, "start": 265416.667, "end": 266583.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 200, "start": 266750.0, "end": 267916.667, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 201, "start": 268083.333, "end": 269250.0, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 202, "start": 269333.333, "end": 270583.333, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 203, "start": 270750.0, "end": 271916.667, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 204, "start": 272083.333, "end": 273250.0, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 205, "start": 273416.667, "end": 274583.333, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 206, "start": 274750.0, "end": 275916.667, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 207, "start": 276083.333, "end": 277250.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 208, "start": 277416.667, "end": 278583.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 209, "start": 278750.0, "end": 279916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 210, "start": 280083.333, "end": 281250.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 211, "start": 281416.667, "end": 282583.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 212, "start": 282750.0, "end": 283916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 213, "start": 284083.333, "end": 285250.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 214, "start": 285416.667, "end": 286583.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 215, "start": 286750.0, "end": 287916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 216, "start": 288083.333, "end": 289250.0, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 217, "start": 289416.667, "end": 290583.333, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 218, "start": 290750.0, "end": 291916.667, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 219, "start": 292083.333, "end": 293250.0, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 220, "start": 293416.667, "end": 294583.333, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 221, "start": 294750.0, "end": 295916.667, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 222, "start": 296083.333, "end": 297250.0, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 223, "start": 297416.667, "end": 298583.333, "mustHitSection": false, "gfSection": false, "altAnim": false}, {"section": 224, "start": 298750.0, "end": 299916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 225, "start": 300000.0, "end": 301250.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 226, "start": 301416.667, "end": 302416.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 227, "start": 302750.0, "end": 303916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 228, "start": 304083.333, "end": 304916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 229, "start": 305416.667, "end": 306250.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 230, "start": 306750.0, "end": 307750.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 231, "start": 308750.0, "end": 309250.0, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 232, "start": 309416.667, "end": 310583.333, "mustHitSection": true, "gfSection": false, "altAnim": false}, {"section": 233, "start": 310750.0, "end": 311916.667, "mustHitSection": true, "gfSection": false, "altAnim": false}]
+\n=== ICON MANAGER MATCHUP TIMELINE ===
+FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/data/bloodbath/IconManager.lua
+61: elseif curStep == 800 then
+62: runHaxeCode([[game.iconP1.changeIcon('cartman')]])
+63: setHealthBarColors('ff8000', 'b81414')
+64: elseif curStep == 960 then
+65: runHaxeCode([[game.iconP1.changeIcon('stan')]])
+66: setHealthBarColors('ff8000', '0061e5')
+67: elseif curStep == 1024 then
+68: runHaxeCode([[game.iconP1.changeIcon('kyle c')]])
+69: setHealthBarColors('ff8000', '48e000')
+70: elseif curStep == 1728 then
+71: runHaxeCode([[game.iconP1.changeIcon('timmy')]])
+72: setHealthBarColors('ff8000', 'b81414')
+73: elseif curStep == 1792 then
+74: runHaxeCode([[game.iconP1.changeIcon('timmy c')]])
+75: setHealthBarColors('ff8000', 'b81414')
+76: elseif curStep == 1857 then
+77: runHaxeCode([[game.iconP1.changeIcon('jimmy')]])
+78: setHealthBarColors('ff8000', 'ffff00')
+79: elseif curStep == 1920 then
+80: runHaxeCode([[game.iconP1.changeIcon('jimmy c')]])
+81: setHealthBarColors('ff8000', 'ffff00')
+82: elseif curStep == 1984 then
+83: runHaxeCode([[game.iconP1.changeIcon('timmy c')]])
+84: setHealthBarColors('ff8000', 'b81414')
+85: elseif curStep == 2175 then
+86: runHaxeCode([[game.iconP1.changeIcon('jimmy c')]])
+87: setHealthBarColors('ff8000', 'ffff00')
+88: elseif curStep == 2496 then
+89: runHaxeCode([[game.iconP1.changeIcon('clyde')]])
+90: setHealthBarColors('ff8000', 'b81414')
+91: elseif curStep == 2528 then
+92: runHaxeCode([[game.iconP1.changeIcon('tweek')]])
+93: setHealthBarColors('ff8000', 'ffff00')
+94: elseif curStep == 2544 then
+95: runHaxeCode([[game.iconP1.changeIcon('craig')]])
+96: setHealthBarColors('ff8000', '0061e5')
+97: elseif curStep == 2560 then
+98: runHaxeCode([[game.iconP1.changeIcon('clyde')]])
+99: setHealthBarColors('ff8000', 'b81414')
+100: elseif curStep == 2816 then
+101: runHaxeCode([[game.iconP1.changeIcon('tolkien')]])
+102: setHealthBarColors('ff8000', '572364')
+103: elseif curStep == 2848 then
+104: runHaxeCode([[game.iconP1.changeIcon('clyde')]])
+105: setHealthBarColors('ff8000', 'b81414')
+106: elseif curStep == 2880 then
+107: runHaxeCode([[game.iconP1.changeIcon('tweek')]])
+108: setHealthBarColors('ff8000', 'ffff00')
+109: elseif curStep == 2912 then
+110: runHaxeCode([[game.iconP1.changeIcon('craig')]])
+111: setHealthBarColors('ff8000', '0061e5')
+112: elseif curStep == 2944 then
+113: runHaxeCode([[game.iconP1.changeIcon('tweek')]])
+114: setHealthBarColors('ff8000', 'ffff00')
+115: elseif curStep == 3072 then
+116: runHaxeCode([[game.iconP1.changeIcon('tolkien')]])
+117: setHealthBarColors('ff8000', '572364')
+118: elseif curStep == 3200 then
+119: runHaxeCode([[game.iconP1.changeIcon('tweek')]])
+120: setHealthBarColors('ff8000', 'ffff00')
+121: elseif curStep == 3232 then
+122: runHaxeCode([[game.iconP1.changeIcon('craig')]])
+123: setHealthBarColors('ff8000', '0061e5')
+124: elseif curStep == 3328 then
+125: runHaxeCode([[game.iconP1.changeIcon('tweek')]])
+126: setHealthBarColors('ff8000', 'ffff00')
+127: elseif curStep == 3392 then
+128: runHaxeCode([[game.iconP1.changeIcon('craig')]])
+129: setHealthBarColors('ff8000', '0061e5')
+130: elseif curStep == 3584 then
+131: runHaxeCode([[game.iconP1.changeIcon('tolkien c')]])
+132: setHealthBarColors('ff8000', '572364')
+133: elseif curStep == 3648 then
+134: runHaxeCode([[game.iconP1.changeIcon('tweek')]])
+135: setHealthBarColors('ff8000', 'ffff00')
+136: elseif curStep == 3664 then
+137: runHaxeCode([[game.iconP1.changeIcon('craig')]])
+138: setHealthBarColors('ff8000', '0061e5')
+139: elseif curStep == 3680 then
+140: runHaxeCode([[game.iconP1.changeIcon('tolkien c')]])
+141: setHealthBarColors('ff8000', '572364')
+142: end
+143: end
 \n=== CHART CHANGE-CHARACTER / BACKGROUND EVENTS ===
 CHART: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/data/bloodbath/bloodbath-hard.json
 SONG META: {"song": "Bloodbath", "stage": "south", "player1": "stan", "player2": "kenny", "gfVersion": "cartman", "speed": 3, "bpm": 180, "needsVoices": true, "defaultCamZoom": null}
