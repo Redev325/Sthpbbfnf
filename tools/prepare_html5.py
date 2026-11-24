@@ -2352,7 +2352,22 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 		}
 	}
 
-	function updateSouthThirdPartCharacters():Void
+	function hideDuplicateSouthClydeGroup(group:Dynamic):Void
+\t{
+\t\tif (group == null) return;
+\t\tfor (member in group.members)
+\t\t{
+\t\t\tif (member == null || member == southCledyCharacter || member.curCharacter == null) continue;
+\t\t\tvar memberId:String = member.curCharacter.toLowerCase();
+\t\t\tif (memberId == 'cledy' || memberId == 'clyde')
+\t\t\t{
+\t\t\t\tmember.alpha = 0;
+\t\t\t\tmember.visible = false;
+\t\t\t}
+\t\t}
+\t}
+
+function updateSouthThirdPartCharacters():Void
 	{
 		if (curStage != 'south' || !generatedMusic) return;
 		var songMs:Float = Conductor.songPosition;
@@ -2414,6 +2429,11 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 \t\t\tvar clydeActive:Bool = songMs >= 208083.333 && songMs < 253555.556;
 \t\t\tsouthCledyCharacter.alpha = clydeActive ? 1 : 0;
 \t\t\tsouthCledyCharacter.visible = clydeActive;
+\t\t\t// The custom Clyde actor is the sole intended render. Hide any stale
+\t\t\t// cached Clyde/Cledy character left in a normal BF/Dad/GF group.
+\t\t\thideDuplicateSouthClydeGroup(boyfriendGroup);
+\t\t\thideDuplicateSouthClydeGroup(dadGroup);
+\t\t\thideDuplicateSouthClydeGroup(gfGroup);
 \t\t}
 
 \t\t// Craig enters on his first custom-note sequence and is faded by the
