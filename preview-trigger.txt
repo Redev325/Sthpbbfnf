@@ -1,1 +1,1 @@
-Inspect complete Comedy Central Logo.lua positioning and visibility logic.
+Inspect Tolkien, Kenny, Clyde, Craig, Tweek, Jimmy and stage background events/timings.
