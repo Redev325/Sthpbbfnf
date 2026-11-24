@@ -2915,13 +2915,12 @@ function updateSouthClydeVisibility():Void
             "\t\tupdateSouthScriptedCameraFollow();\n" + camera_update_marker,
             1,
         )
-    if "updateSouthSmoothCameraPost(elapsed);
-		updateSouthClydeVisibility();" not in source:
+    if "updateSouthSmoothCameraPost(elapsed);" not in source:
         if source.count(camera_update_marker) != 1:
             raise RuntimeError("Could not locate the onUpdatePost point for Bloodbath smooth camera.")
         source = source.replace(
             camera_update_marker,
-            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);\n\t\tapplySouthThirdConfrontationLayout();\n\t\thideDuplicateSouthClydeCharacters();\n\t\thideSouthThirdStageJimmyCharacters();",
+            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);\n\t\tupdateSouthClydeVisibility();\n\t\tapplySouthThirdConfrontationLayout();\n\t\thideDuplicateSouthClydeCharacters();\n\t\thideSouthThirdStageJimmyCharacters();",
             1,
         )
     update_code = update_marker + "\n\t\trestoreSouthSmoothCameraFrame();\n\t\tupdateBadAppleCameraFollow();\n\t\tupdateSouthOverlayRecovery();\n\t\tupdateSouthKyleCorruptionTimeline();"
