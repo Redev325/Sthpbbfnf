@@ -2472,7 +2472,21 @@ function hideSouthClydeDuplicateSprite(candidate:FlxSprite):Void
 					hideSouthJimmyCandidate(cast member);
 	}
 
-function hideSouthClydeForDeath():Void
+function updateSouthClydeDeathOverlay():Void
+	{
+		// anim2 c is a one-shot cinematic sprite. Flixel keeps its final frame
+		// visible after a non-looping animation finishes, so explicitly remove
+		// the overlay at that exact completion point.
+		var deathOverlay:BGSprite = southAnimatedObjects.get('anim2 c');
+		if (deathOverlay == null || !deathOverlay.visible || deathOverlay.animation == null) return;
+		if (deathOverlay.animation.curAnim != null && deathOverlay.animation.curAnim.finished)
+		{
+			deathOverlay.alpha = 0;
+			deathOverlay.visible = false;
+		}
+	}
+
+	function hideSouthClydeForDeath():Void
 	{
 		// The chart plays the full-screen anim2 c Clyde death sequence.
 		// Hide the separate live actor before the overlay appears, preventing
@@ -2484,6 +2498,8 @@ function hideSouthClydeForDeath():Void
 			southCledyCharacter.alpha = 0;
 			southCledyCharacter.visible = false;
 		}
+		// Also remove any Lua-era/cached copy of Clyde at the same transition.
+		hideDuplicateSouthClydeCharacters();
 	}
 
 	function updateSouthClydeVisibility():Void
@@ -2900,7 +2916,7 @@ function hideSouthClydeForDeath():Void
             raise RuntimeError("Could not locate the onUpdatePost point for Bloodbath smooth camera.")
         source = source.replace(
             camera_update_marker,
-            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);\n\t\tupdateSouthClydeVisibility();\n\t\thideInactiveSouthCharacterGroups();\n\t\thideDuplicateSouthClydeCharacters();\n\t\thideSouthThirdStageJimmyCharacters();",
+            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);\n\t\tupdateSouthClydeVisibility();\n\t\tupdateSouthClydeDeathOverlay();\n\t\thideInactiveSouthCharacterGroups();\n\t\thideDuplicateSouthClydeCharacters();\n\t\thideSouthThirdStageJimmyCharacters();",
             1,
         )
     update_code = update_marker + "\n\t\trestoreSouthSmoothCameraFrame();\n\t\tupdateBadAppleCameraFollow();\n\t\tupdateSouthOverlayRecovery();\n\t\tupdateSouthKyleCorruptionTimeline();"
