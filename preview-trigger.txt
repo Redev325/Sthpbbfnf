@@ -1,1 +1,1 @@
-Run 3: generate source alignment diagnostics with scale 2.7 and scale 5.4 composites.
+Camera diagnostics 4: inspect source stage defaults and chart zoom events at screenshot timestamp.
