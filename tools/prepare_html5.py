@@ -1207,7 +1207,7 @@ def patch_south_stage(
 				add(southVignette);
 				southAnimatedObjects.set('vignette', southVignette);
 
-							// Port mods/scripts/Logo.lua using its exact downscroll placement.
+				// Port mods/scripts/Logo.lua using its exact downscroll placement.
 				var southComedyCentral:BGSprite = new BGSprite('Comedy Central', 1000, ClientPrefs.downScroll ? 60 : 600);
 				southComedyCentral.scale.set(0.3, 0.3);
 				southComedyCentral.updateHitbox();
@@ -1216,7 +1216,7 @@ def patch_south_stage(
 				southComedyCentral.alpha = ClientPrefs.downScroll ? 0.8 : 1;
 				add(southComedyCentral);
 				southAnimatedObjects.set('Comedy Central', southComedyCentral);
-case 'stage': //Week 1"""
+			case 'stage': //Week 1"""
     # Increase each sprite's Haxe scale by the inverse of its PNG resize ratio.
     # This keeps stage layout/character size while using much smaller GPU textures.
     stage_sprite_assets = {
