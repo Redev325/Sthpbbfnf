@@ -2352,51 +2352,56 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 		}
 	}
 
-	function hideDuplicateSouthClydeCharacters():Void
-\t{
-\t\t// Use the typed Psych character groups directly. Iterating a Dynamic
-\t\t// group reference is rejected by Haxe during the HTML5 compile.
-\t\tif (boyfriendGroup != null)
-\t\t{
-\t\t\tfor (member in boyfriendGroup.members)
-\t\t\t{
-\t\t\t\tif (member == null || member.curCharacter == null) continue;
-\t\t\t\tvar memberId:String = member.curCharacter.toLowerCase();
-\t\t\t\tif (memberId == 'cledy' || memberId == 'clyde')
-\t\t\t\t{
-\t\t\t\t\tmember.alpha = 0;
-\t\t\t\t\tmember.visible = false;
-\t\t\t\t}
-\t\t\t}
-\t\t}
-\t\tif (dadGroup != null)
-\t\t{
-\t\t\tfor (member in dadGroup.members)
-\t\t\t{
-\t\t\t\tif (member == null || member.curCharacter == null) continue;
-\t\t\t\tvar memberId:String = member.curCharacter.toLowerCase();
-\t\t\t\tif (memberId == 'cledy' || memberId == 'clyde')
-\t\t\t\t{
-\t\t\t\t\tmember.alpha = 0;
-\t\t\t\t\tmember.visible = false;
-\t\t\t\t}
-\t\t\t}
-\t\t}
-\t\tif (gfGroup != null)
-\t\t{
-\t\t\tfor (member in gfGroup.members)
-\t\t\t{
-\t\t\t\tif (member == null || member.curCharacter == null) continue;
-\t\t\t\tvar memberId:String = member.curCharacter.toLowerCase();
-\t\t\t\tif (memberId == 'cledy' || memberId == 'clyde')
-\t\t\t\t{
-\t\t\t\t\tmember.alpha = 0;
-\t\t\t\t\tmember.visible = false;
-\t\t\t\t}
-\t\t\t}
-\t\t}
-\t}
-
+function hideDuplicateSouthClydeCharacters():Void
+	{
+		// Group members are typed as FlxSprite in Psych Engine. Narrow each
+		// member to Character before reading curCharacter.
+		if (boyfriendGroup != null)
+		{
+			for (member in boyfriendGroup.members)
+			{
+				if (member == null || !Std.isOfType(member, Character)) continue;
+				var character:Character = cast member;
+				if (character.curCharacter == null) continue;
+				var memberId:String = character.curCharacter.toLowerCase();
+				if (memberId == 'cledy' || memberId == 'clyde')
+				{
+					character.alpha = 0;
+					character.visible = false;
+				}
+			}
+		}
+		if (dadGroup != null)
+		{
+			for (member in dadGroup.members)
+			{
+				if (member == null || !Std.isOfType(member, Character)) continue;
+				var character:Character = cast member;
+				if (character.curCharacter == null) continue;
+				var memberId:String = character.curCharacter.toLowerCase();
+				if (memberId == 'cledy' || memberId == 'clyde')
+				{
+					character.alpha = 0;
+					character.visible = false;
+				}
+			}
+		}
+		if (gfGroup != null)
+		{
+			for (member in gfGroup.members)
+			{
+				if (member == null || !Std.isOfType(member, Character)) continue;
+				var character:Character = cast member;
+				if (character.curCharacter == null) continue;
+				var memberId:String = character.curCharacter.toLowerCase();
+				if (memberId == 'cledy' || memberId == 'clyde')
+				{
+					character.alpha = 0;
+					character.visible = false;
+				}
+			}
+		}
+	}
 function updateSouthThirdPartCharacters():Void
 	{
 		if (curStage != 'south' || !generatedMusic) return;
