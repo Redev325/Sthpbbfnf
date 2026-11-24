@@ -1,1 +1,1 @@
-Inspect shader and Comedy Central logo references from the original release package.
+Inspect original shader and Comedy Central assets with PIL installed.
