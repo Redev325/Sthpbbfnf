@@ -2394,10 +2394,11 @@ function hideSouthClydeCandidate(candidate:Character):Void
 
 	function hideSouthJimmyCandidate(candidate:Character):Void
 	{
-		if (candidate == null || candidate == boyfriend || candidate.curCharacter == null) return;
+		if (candidate == null || candidate.curCharacter == null) return;
 		var candidateId:String = candidate.curCharacter.toLowerCase();
 		if (candidateId.indexOf('jimmy') == 0)
 		{
+			FlxTween.cancelTweensOf(candidate);
 			candidate.alpha = 0;
 			candidate.visible = false;
 		}
