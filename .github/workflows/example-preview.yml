@@ -81,6 +81,52 @@ jobs:
                   output.append(f"FILE: {name}")
                   output.extend(f"{i+1}: {line}" for i,line in enumerate(zf.read(name).decode("utf-8","replace").splitlines()))
 
+              output.append("\\n=== CHARACTER / BG TIMELINE LUA MATCHES ===")
+              terms=re.compile(r"tolkien|tweek|jimmy|clyde|cledy|craig|kenny|bg2|bg3|bg4|change character|changecharacter|addLuaSprite|removeLuaSprite|setProperty\\s*\\(.*?alpha|setProperty\\s*\\(.*?visible",re.I)
+              for name in names:
+                  if not name.lower().endswith(".lua"):
+                      continue
+                  try:
+                      text=zf.read(name).decode("utf-8","replace")
+                  except Exception:
+                      continue
+                  lines=text.splitlines()
+                  relevant=[(i,line.strip()) for i,line in enumerate(lines) if terms.search(line)]
+                  if relevant and ("/mods/data/" in name.lower() or "/mods/stages/" in name.lower() or "song.lua" in name.lower()):
+                      output.append(f"FILE: {name} ({len(lines)} lines)")
+                      for i,line in relevant:
+                          output.append(f"{i+1}: {line[:500]}")
+
+              output.append("\\n=== CHART CHANGE-CHARACTER / BACKGROUND EVENTS ===")
+              chart_files=[n for n in names if n.lower().endswith(".json") and ("/mods/data/" in n.lower() or "/mods/weeks/" in n.lower())]
+              for name in sorted(chart_files,key=str.lower):
+                  try:
+                      chart=json.loads(zf.read(name))
+                  except Exception:
+                      continue
+                  song=chart.get("song",chart)
+                  changes=[]
+                  for group in song.get("events",[]):
+                      if not isinstance(group,list) or len(group)<2: continue
+                      try: stamp=float(group[0])
+                      except Exception: continue
+                      for ev in group[1] if isinstance(group[1],list) else []:
+                          if isinstance(ev,list) and len(ev)>=3:
+                              label=str(ev[0])
+                              vals=(str(ev[1]),str(ev[2]))
+                              if re.search(r"change character|changecharacter|background|stage|kenny|tolkien|tweek|jimmy|clyde|craig",label+" "+ " ".join(vals),re.I):
+                                  changes.append({"time_ms":stamp,"event":label,"v1":vals[0],"v2":vals[1]})
+                  sections=[]
+                  for i,section in enumerate(song.get("notes",[])):
+                      if not isinstance(section,dict): continue
+                      charfields={k:v for k,v in section.items() if re.search(r"character|gfSection|mustHit|altAnim",k,re.I)}
+                      if charfields: sections.append({"section":i,"start_time":section.get("sectionNotes",[None])[0][0] if section.get("sectionNotes") else None,**charfields})
+                  if changes or sections or any(x in name.lower() for x in ("bloodbath","blood-bath")):
+                      output.append(f"CHART: {name}")
+                      output.append("SONG META: "+json.dumps({k:song.get(k) for k in ("song","stage","player1","player2","gfVersion","speed","bpm","needsVoices","defaultCamZoom")},default=str))
+                      output.append("CHARACTER SECTIONS: "+json.dumps(sections,default=str))
+                      output.append("RELEVANT EVENTS: "+json.dumps(changes,default=str))
+
               # Search every packaged script/chart/config for an existing Comedy Central reference.
               output.append("\\n=== ALL TEXT REFERENCES TO COMEDY CENTRAL ===")
               text_exts=(".lua",".json",".txt",".xml",".hx",".hscript")
