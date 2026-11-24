@@ -1,1 +1,1 @@
-Extract Clyde/Craig custom note windows and IconManager matchup times.
+Rerun with note type column at index 3 for Clyde/Craig note timing.
