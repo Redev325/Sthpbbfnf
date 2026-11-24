@@ -172,12 +172,16 @@ jobs:
               exit 1
             fi
           done
-          for required in button_arrow_down.png button_arrow_up.png button_arrow_left.png button_arrow_right.png tooltip_arrow.png; do
+          for required in button_arrow_down.png button_arrow_up.png button_arrow_left.png button_arrow_right.png tooltip_arrow.png dropdown_mark.png; do
             if [ ! -s "$WEB_DIR/flixel/flixel-ui/img/$required" ]; then
               echo "Required root Flixel UI image is missing: flixel/flixel-ui/img/$required" >&2
               exit 1
             fi
           done
+          if [ ! -s "$WEB_DIR/assets/flixel/flixel-ui/img/dropdown_mark.png" ]; then
+            echo "Required fallback Flixel UI image is missing: assets/flixel/flixel-ui/img/dropdown_mark.png" >&2
+            exit 1
+          fi
 
           # Publish health icons as plain static files as well as compiled Lime
           # assets. Psych loads some icon paths dynamically at runtime, so keep
