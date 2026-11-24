@@ -1,1 +1,1 @@
-Inspect Tolkien, Kenny, Clyde, Craig, Tweek, Jimmy and stage background events/timings.
+Retry matchup timeline extraction with simplified Lua matcher.
