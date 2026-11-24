@@ -1434,7 +1434,7 @@ def patch_south_stage(
         if (curStage == 'south' && (note.noteType == 'Clyde Note' || note.noteType == 'Craig Note'))
         {
             var isClydeNote:Bool = note.noteType == 'Clyde Note';
-            var clydeStillInChart:Bool = Conductor.songPosition >= 208083.333 && Conductor.songPosition < 253555.556;
+            var clydeStillInChart:Bool = Conductor.songPosition >= 208083.333 && Conductor.songPosition < 255916.667;
             var extraOpponentCharacter:Character = isClydeNote ? southCledyCharacter : southCraigCharacter;
             var extraOpponentAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
             if (isClydeNote && !clydeStillInChart)
@@ -2352,56 +2352,139 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 		}
 	}
 
-function hideDuplicateSouthClydeCharacters():Void
+function hideSouthClydeCandidate(candidate:Character):Void
 	{
-		// Group members are typed as FlxSprite in Psych Engine. Narrow each
-		// member to Character before reading curCharacter.
-		if (boyfriendGroup != null)
+		if (candidate == null || candidate == southCledyCharacter || candidate.curCharacter == null) return;
+		var candidateId:String = candidate.curCharacter.toLowerCase();
+		if (candidateId == 'cledy' || candidateId == 'clyde')
 		{
-			for (member in boyfriendGroup.members)
-			{
-				if (member == null || !Std.isOfType(member, Character)) continue;
-				var character:Character = cast member;
-				if (character.curCharacter == null) continue;
-				var memberId:String = character.curCharacter.toLowerCase();
-				if (memberId == 'cledy' || memberId == 'clyde')
-				{
-					character.alpha = 0;
-					character.visible = false;
-				}
-			}
-		}
-		if (dadGroup != null)
-		{
-			for (member in dadGroup.members)
-			{
-				if (member == null || !Std.isOfType(member, Character)) continue;
-				var character:Character = cast member;
-				if (character.curCharacter == null) continue;
-				var memberId:String = character.curCharacter.toLowerCase();
-				if (memberId == 'cledy' || memberId == 'clyde')
-				{
-					character.alpha = 0;
-					character.visible = false;
-				}
-			}
-		}
-		if (gfGroup != null)
-		{
-			for (member in gfGroup.members)
-			{
-				if (member == null || !Std.isOfType(member, Character)) continue;
-				var character:Character = cast member;
-				if (character.curCharacter == null) continue;
-				var memberId:String = character.curCharacter.toLowerCase();
-				if (memberId == 'cledy' || memberId == 'clyde')
-				{
-					character.alpha = 0;
-					character.visible = false;
-				}
-			}
+			FlxTween.cancelTweensOf(candidate);
+			candidate.alpha = 0;
+			candidate.visible = false;
 		}
 	}
+
+	function hideDuplicateSouthClydeCharacters():Void
+	{
+		// Psych caches Change Character instances in maps as well as display groups.
+		// Hide both so the custom native Clyde actor is the only Clyde rendered.
+		if (boyfriendMap != null)
+			for (characterName in boyfriendMap.keys())
+				hideSouthClydeCandidate(boyfriendMap.get(characterName));
+		if (dadMap != null)
+			for (characterName in dadMap.keys())
+				hideSouthClydeCandidate(dadMap.get(characterName));
+		if (gfMap != null)
+			for (characterName in gfMap.keys())
+				hideSouthClydeCandidate(gfMap.get(characterName));
+
+		if (boyfriendGroup != null)
+			for (member in boyfriendGroup.members)
+				if (member != null && Std.isOfType(member, Character))
+					hideSouthClydeCandidate(cast member);
+		if (dadGroup != null)
+			for (member in dadGroup.members)
+				if (member != null && Std.isOfType(member, Character))
+					hideSouthClydeCandidate(cast member);
+		if (gfGroup != null)
+			for (member in gfGroup.members)
+				if (member != null && Std.isOfType(member, Character))
+					hideSouthClydeCandidate(cast member);
+	}
+
+	function hideSouthJimmyCandidate(candidate:Character):Void
+	{
+		if (candidate == null || candidate == boyfriend || candidate.curCharacter == null) return;
+		var candidateId:String = candidate.curCharacter.toLowerCase();
+		if (candidateId.indexOf('jimmy') == 0)
+		{
+			candidate.alpha = 0;
+			candidate.visible = false;
+		}
+	}
+
+	function hideSouthThirdStageJimmyCharacters():Void
+	{
+		var songMs:Float = Conductor.songPosition;
+		if (curStage != 'south' || songMs < 201750 || songMs >= 309416.667) return;
+		// The Tolkien confrontation uses Tweek, not any cached Jimmy variant.
+		if (boyfriendMap != null)
+			for (characterName in boyfriendMap.keys())
+				hideSouthJimmyCandidate(boyfriendMap.get(characterName));
+		if (dadMap != null)
+			for (characterName in dadMap.keys())
+				hideSouthJimmyCandidate(dadMap.get(characterName));
+		if (gfMap != null)
+			for (characterName in gfMap.keys())
+				hideSouthJimmyCandidate(gfMap.get(characterName));
+		if (boyfriendGroup != null)
+			for (member in boyfriendGroup.members)
+				if (member != null && Std.isOfType(member, Character))
+					hideSouthJimmyCandidate(cast member);
+		if (dadGroup != null)
+			for (member in dadGroup.members)
+				if (member != null && Std.isOfType(member, Character))
+					hideSouthJimmyCandidate(cast member);
+		if (gfGroup != null)
+			for (member in gfGroup.members)
+				if (member != null && Std.isOfType(member, Character))
+					hideSouthJimmyCandidate(cast member);
+	}
+
+	function applySouthThirdConfrontationLayout():Void
+	{
+		var songMs:Float = Conductor.songPosition;
+		if (curStage != 'south' || !generatedMusic || songMs < 201750 || songMs >= 309416.667) return;
+
+		// Sketch-to-world estimate for the 202.417s confrontation view.
+		// Chart camera anchor is approximately (1090, 400), with a 0.4 zoom.
+		// Map outline centers left-to-right: Tolkien, Kenny, Craig, Clyde, Tweek.
+		// Only positions are changed; all character scales and camera zoom remain intact.
+		if (gf != null && gf.curCharacter != null && gf.curCharacter.toLowerCase().indexOf('tolkien') == 0)
+			gf.setPosition(151, 82);
+		if (dad != null && dad.curCharacter != null && dad.curCharacter.toLowerCase().indexOf('kenny') == 0)
+			dad.setPosition(1054, -231);
+		if (boyfriend != null && boyfriend.curCharacter != null && boyfriend.curCharacter.toLowerCase().indexOf('tweek') == 0)
+			boyfriend.setPosition(2092, 468);
+		if (southCraigCharacter != null)
+			southCraigCharacter.setPosition(1809, 182);
+		if (southCledyCharacter != null)
+			southCledyCharacter.setPosition(1968, 324);
+
+		// Restore the original south.lua playground world origin for the third
+		// confrontation. The clean image is full resolution; the corrupt atlas
+		// frames are half resolution, so 5.4 keeps the same visible footprint as 2.7.
+		var background:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('bg2');
+		if (background != null)
+		{
+			background.x = -1970;
+			background.y = -1040;
+			var corruptBackground:Bool = southKennyBackgroundMode == 2;
+			var backgroundScale:Float = corruptBackground ? 5.4 : 2.7;
+			background.scale.set(backgroundScale, backgroundScale);
+			background.offset.set(0, 0);
+			background.origin.set(0, 0);
+		}
+		var light:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('bgluz2');
+		if (light != null)
+		{
+			light.x = -1970;
+			light.y = -1040;
+			light.scale.set(2.7, 2.7);
+			light.offset.set(0, 0);
+			light.origin.set(0, 0);
+		}
+		var snow:BGSprite = southAnimatedObjects == null ? null : southAnimatedObjects.get('nieve');
+		if (snow != null)
+		{
+			snow.x = -1970;
+			snow.y = -1040;
+			snow.scale.set(2.7, 2.7);
+			snow.offset.set(0, 0);
+			snow.origin.set(0, 0);
+		}
+	}
+
 function updateSouthThirdPartCharacters():Void
 	{
 		if (curStage != 'south' || !generatedMusic) return;
@@ -2457,12 +2540,12 @@ function updateSouthThirdPartCharacters():Void
 \t\t\t}
 \t\t}
 
-\t\t// Clyde's custom notes run from 3:28.083 to 4:13.556. Do not force
+\t\t// Clyde's custom notes run from 3:28.083 through the final sustain ending at 4:15.917. Do not force
 \t\t// him visible throughout that window: charted afadeout events must
 \t\t// remain authoritative after the character has been removed/killed.
 \t\tif (southCledyCharacter != null)
 \t\t{
-\t\t\tvar clydeOutsideChartWindow:Bool = songMs < 208083.333 || songMs >= 253555.556;
+\t\t\tvar clydeOutsideChartWindow:Bool = songMs < 208083.333 || songMs >= 255916.667;
 \t\t\tif (clydeOutsideChartWindow)
 \t\t\t{
 \t\t\t\tFlxTween.cancelTweensOf(southCledyCharacter);
@@ -2786,6 +2869,8 @@ function updateSouthThirdPartCharacters():Void
 \t\tupdateSouthKennyFormBackground();
 \t\thideInactiveSouthCharacterGroups();
 \t\thideDuplicateSouthClydeCharacters();
+\t\tapplySouthThirdConfrontationLayout();
+\t\thideSouthThirdStageJimmyCharacters();
 \t\thideFinishedSouthCutsceneOverlays();
 \t\tupdateSouthBlackDiagnosticPanel();
 \t\trecoverLateBlackout();
@@ -2811,7 +2896,10 @@ function updateSouthThirdPartCharacters():Void
             raise RuntimeError("Could not locate the onUpdatePost point for Bloodbath smooth camera.")
         source = source.replace(
             camera_update_marker,
-            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);",
+            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);
+\t\tapplySouthThirdConfrontationLayout();
+\t\thideDuplicateSouthClydeCharacters();
+\t\thideSouthThirdStageJimmyCharacters();",
             1,
         )
     update_code = update_marker + "\n\t\trestoreSouthSmoothCameraFrame();\n\t\tupdateBadAppleCameraFollow();\n\t\tupdateSouthOverlayRecovery();\n\t\tupdateSouthKyleCorruptionTimeline();"
