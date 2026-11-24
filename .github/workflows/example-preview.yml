@@ -115,6 +115,45 @@ jobs:
                       for i,line in relevant:
                           output.append(f"{i+1}: {line[:500]}")
 
+              output.append("\\n=== BLOODBATH NOTE TYPE WINDOWS ===")
+              for name in [n for n in names if Path(n).name.lower()=="bloodbath-hard.json"]:
+                  chart=json.loads(zf.read(name))
+                  song=chart.get("song",chart)
+                  types={}
+                  for sec in song.get("notes",[]):
+                      if not isinstance(sec,dict): continue
+                      for note in sec.get("sectionNotes",[]):
+                          if not isinstance(note,list) or len(note)<3: continue
+                          try: stamp=float(note[0])
+                          except Exception: continue
+                          label=str(note[2] or "").strip() or "(normal)"
+                          item=types.setdefault(label,{"count":0,"first":stamp,"last":stamp,"samples":[]})
+                          item["count"]+=1
+                          item["first"]=min(item["first"],stamp)
+                          item["last"]=max(item["last"],stamp)
+                          if len(item["samples"])<8 and 195000 <= stamp <= 312000:
+                              item["samples"].append(round(stamp,3))
+                  output.append(f"CHART: {name}")
+                  output.append("NOTE TYPE RANGES: "+json.dumps(types,sort_keys=True,default=str))
+                  # Exact song section starts around the Kenny/Tolkien group confrontation.
+                  selected=[]
+                  cursor=0.0
+                  for ix,sec in enumerate(song.get("notes",[])):
+                      if not isinstance(sec,dict): continue
+                      notes=sec.get("sectionNotes",[])
+                      start=min((float(n[0]) for n in notes if isinstance(n,list) and n and isinstance(n[0],(int,float))),default=cursor)
+                      end=max((float(n[0]) for n in notes if isinstance(n,list) and n and isinstance(n[0],(int,float))),default=start)
+                      if (195000 <= start <= 312000) or (195000 <= end <= 312000):
+                          selected.append({"section":ix,"start":round(start,3),"end":round(end,3),"mustHitSection":sec.get("mustHitSection"),"gfSection":sec.get("gfSection"),"altAnim":sec.get("altAnim")})
+                      cursor=end
+                  output.append("RELEVANT SECTIONS: "+json.dumps(selected,default=str))
+
+              output.append("\\n=== ICON MANAGER MATCHUP TIMELINE ===")
+              for name in [n for n in names if Path(n).name.lower()=="iconmanager.lua"]:
+                  lines=zf.read(name).decode("utf-8","replace").splitlines()
+                  output.append(f"FILE: {name}")
+                  output.extend(f"{i+1}: {line}" for i,line in enumerate(lines[60:143],60))
+
               output.append("\\n=== CHART CHANGE-CHARACTER / BACKGROUND EVENTS ===")
               chart_files=[n for n in names if n.lower().endswith(".json") and ("/mods/data/" in n.lower() or "/mods/weeks/" in n.lower())]
               for name in sorted(chart_files,key=str.lower):
