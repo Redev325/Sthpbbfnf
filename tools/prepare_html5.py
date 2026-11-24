@@ -1433,9 +1433,19 @@ def patch_south_stage(
 
         if (curStage == 'south' && (note.noteType == 'Clyde Note' || note.noteType == 'Craig Note'))
         {
-            var extraOpponentCharacter:Character = note.noteType == 'Clyde Note' ? southCledyCharacter : southCraigCharacter;
+            var isClydeNote:Bool = note.noteType == 'Clyde Note';
+            var clydeStillInChart:Bool = Conductor.songPosition >= 208083.333 && Conductor.songPosition < 253555.556;
+            var extraOpponentCharacter:Character = isClydeNote ? southCledyCharacter : southCraigCharacter;
             var extraOpponentAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
-            if (extraOpponentCharacter != null && extraOpponentCharacter.animation.getByName(extraOpponentAnim) != null)
+            if (isClydeNote && !clydeStillInChart)
+            {
+                if (southCledyCharacter != null)
+                {
+                    southCledyCharacter.alpha = 0;
+                    southCledyCharacter.visible = false;
+                }
+            }
+            else if (extraOpponentCharacter != null && extraOpponentCharacter.animation.getByName(extraOpponentAnim) != null)
             {
                 extraOpponentCharacter.visible = true;
                 extraOpponentCharacter.alpha = 1;
@@ -1481,9 +1491,19 @@ def patch_south_stage(
 
         if (curStage == 'south' && (note.noteType == 'Clyde Note' || note.noteType == 'Craig Note'))
         {
-            var extraPlayerCharacter:Character = note.noteType == 'Clyde Note' ? southCledyCharacter : southCraigCharacter;
+            var isClydeNote:Bool = note.noteType == 'Clyde Note';
+            var clydeStillInChart:Bool = Conductor.songPosition >= 208083.333 && Conductor.songPosition < 253555.556;
+            var extraPlayerCharacter:Character = isClydeNote ? southCledyCharacter : southCraigCharacter;
             var extraPlayerAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
-            if (extraPlayerCharacter != null && extraPlayerCharacter.animation.getByName(extraPlayerAnim) != null)
+            if (isClydeNote && !clydeStillInChart)
+            {
+                if (southCledyCharacter != null)
+                {
+                    southCledyCharacter.alpha = 0;
+                    southCledyCharacter.visible = false;
+                }
+            }
+            else if (extraPlayerCharacter != null && extraPlayerCharacter.animation.getByName(extraPlayerAnim) != null)
             {
                 extraPlayerCharacter.visible = true;
                 extraPlayerCharacter.alpha = 1;
@@ -1669,7 +1689,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\tif (section == null) return;
 \t\tvar targetX:Float = section.mustHitSection ? southCameraBoyfriendX : southCameraDadX;
 \t\tvar targetY:Float = section.mustHitSection ? southCameraBoyfriendY : southCameraDadY;
-\t\t// Kenny is loaded during the opening setup, so character identity alone\n\t\t// cannot identify his actual spotlight. Use the charted Kenny windows.\n\t\tvar songTime:Float = Conductor.songPosition;\n\t\tvar isKennySpotlight:Bool = (songTime >= 106833.333 && songTime < 201750)\n\t\t\t|| songTime >= 309500;\n\t\tif (isKennySpotlight && !section.mustHitSection && !section.gfSection)\n\t\t\ttargetX -= southCameraKennyLeftOffset;
+\t\t// Kenny is loaded during the opening setup, so character identity alone\n\t\t// cannot identify his actual spotlight. Use the charted Kenny windows.\n\t\tvar songTime:Float = Conductor.songPosition;\n\t\tvar isKennySpotlight:Bool = songTime >= 106833.333;\n\t\tif (isKennySpotlight && !section.mustHitSection && !section.gfSection)\n\t\t\ttargetX -= southCameraKennyLeftOffset;
 \t\tvar targetAngle:Float = 0;
 \t\tif (southCameraSystemEnabled)
 \t\t{
@@ -2337,45 +2357,66 @@ def patch_black_screen_diagnostics(engine: Path) -> None:
 		if (curStage != 'south' || !generatedMusic) return;
 		var songMs:Float = Conductor.songPosition;
 
-		// Keep each Jimmy state aligned with the chart's exact Change Character
-		// intervals: Jimmy W -> Jimmy -> slightly corrupted Jimmy C.
-		var requiredJimmyCharacter:String = null;
-		if (songMs >= 106333.333 && songMs < 149250)
-			requiredJimmyCharacter = 'jimmy w';
-		else if (songMs >= 149250 && songMs < 160083.333)
-			requiredJimmyCharacter = 'jimmy';
-		else if (songMs >= 160083.333 && songMs < 202250)
-			requiredJimmyCharacter = 'jimmy c';
+		// Mirror the chart's Change Character timeline in the browser build.
+\t\t// Explicitly restore Tweek after Jimmy C so Jimmy cannot remain on-screen
+\t\t// during the Tolkien/Kenny/Clyde/Craig/Tweek confrontation.
+\t\tvar requiredBoyfriendCharacter:String = null;
+\t\tif (songMs >= 106333.333 && songMs < 149250)
+\t\t\trequiredBoyfriendCharacter = 'jimmy w';
+\t\telse if (songMs >= 149250 && songMs < 160083.333)
+\t\t\trequiredBoyfriendCharacter = 'jimmy';
+\t\telse if (songMs >= 160083.333 && songMs < 202250)
+\t\t\trequiredBoyfriendCharacter = 'jimmy c';
+\t\telse if (songMs >= 202250 && songMs < 245458.333)
+\t\t\trequiredBoyfriendCharacter = 'tweek';
+\t\telse if (songMs >= 245458.333 && songMs < 309416.667)
+\t\t\trequiredBoyfriendCharacter = 'tweek a';
+\t\telse if (songMs >= 309416.667)
+\t\t\trequiredBoyfriendCharacter = 'tolkien f';
 
-		if (requiredJimmyCharacter != null && boyfriend != null
-			&& boyfriend.curCharacter.toLowerCase() != requiredJimmyCharacter)
-		{
-			if (!boyfriendMap.exists(requiredJimmyCharacter))
-				addCharacterToList(requiredJimmyCharacter, 0);
-			var chartJimmyCharacter:Boyfriend = boyfriendMap.get(requiredJimmyCharacter);
-			if (chartJimmyCharacter != null)
-			{
-				boyfriend.alpha = 0;
-				boyfriend.visible = false;
-				boyfriend = chartJimmyCharacter;
-				boyfriend.alpha = 1;
-				boyfriend.visible = true;
-				boyfriend.holdTimer = 0;
-				if (iconP1 != null) iconP1.changeIcon(boyfriend.healthIcon);
-				setOnLuas('boyfriendName', boyfriend.curCharacter);
-			}
-		}
+\t\tif (requiredBoyfriendCharacter != null && (boyfriend == null
+\t\t\t|| boyfriend.curCharacter.toLowerCase() != requiredBoyfriendCharacter))
+\t\t{
+\t\t\tif (!boyfriendMap.exists(requiredBoyfriendCharacter))
+\t\t\t\taddCharacterToList(requiredBoyfriendCharacter, 0);
+\t\t\tvar chartBoyfriendCharacter:Boyfriend = boyfriendMap.get(requiredBoyfriendCharacter);
+\t\t\tif (chartBoyfriendCharacter != null)
+\t\t\t{
+\t\t\t\tif (boyfriend != null)
+\t\t\t\t{
+\t\t\t\t\tboyfriend.alpha = 0;
+\t\t\t\t\tboyfriend.visible = false;
+\t\t\t\t}
+\t\t\t\tboyfriend = chartBoyfriendCharacter;
+\t\t\t\tboyfriend.alpha = 1;
+\t\t\t\tboyfriend.visible = true;
+\t\t\t\tboyfriend.holdTimer = 0;
+\t\t\t\t// Psych caches previous BF sprites in boyfriendGroup. Hide all
+\t\t\t\t// inactive members so Jimmy does not remain beside Tweek.
+\t\t\t\tif (boyfriendGroup != null)
+\t\t\t\t{
+\t\t\t\t\tfor (member in boyfriendGroup.members)
+\t\t\t\t\t{
+\t\t\t\t\t\tif (member == null) continue;
+\t\t\t\t\t\tmember.visible = member == boyfriend;
+\t\t\t\t\t\tmember.alpha = member == boyfriend ? 1 : 0;
+\t\t\t\t\t}
+\t\t\t\t}
+\t\t\t\tif (iconP1 != null) iconP1.changeIcon(boyfriend.healthIcon);
+\t\t\t\tsetOnLuas('boyfriendName', boyfriend.curCharacter);
+\t\t\t}
+\t\t}
 
-		// Clyde's custom-note sequence runs from 3:28.083 to 4:13.417.
-		// Keep the sprite present only through that section and its final sing hold.
-		if (southCledyCharacter != null)
-		{
-			var clydeActive:Bool = songMs >= 208083 && songMs < 254600;
-			southCledyCharacter.alpha = clydeActive ? 1 : 0;
-			southCledyCharacter.visible = clydeActive;
-		}
+\t\t// Clyde's last custom note is at 253.417s. Craig resumes at 253.556s
+\t\t// and Tolkien S enters at 253.583s; Clyde must be hidden by 253.556s.
+\t\tif (southCledyCharacter != null)
+\t\t{
+\t\t\tvar clydeActive:Bool = songMs >= 208083.333 && songMs < 253555.556;
+\t\t\tsouthCledyCharacter.alpha = clydeActive ? 1 : 0;
+\t\t\tsouthCledyCharacter.visible = clydeActive;
+\t\t}
 
-		// Craig enters on his first custom-note sequence and is faded by the
+\t\t// Craig enters on his first custom-note sequence and is faded by the
 		// chart's "afadeout craig" event at 5:06.417.
 		if (southCraigCharacter != null)
 		{
