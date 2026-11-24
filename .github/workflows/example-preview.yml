@@ -17,6 +17,11 @@ jobs:
         with:
           ref: example-preview
 
+      - name: Install image tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pil
+
       - name: Download source release and inspect shader/logo references
         env:
           GH_TOKEN: ${{ github.token }}
