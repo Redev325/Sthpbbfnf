@@ -59,6 +59,24 @@ jobs:
               if not logo_hits:
                   output.append("No filename candidates matched.")
 
+              output.append("\\n=== FULL MATCHUP CONTROL SCRIPTS ===")
+              wanted_names={"cledy.lua","craig.lua","iconmanager.lua","south.lua","white effect.lua"}
+              for name in names:
+                  if Path(name).name.lower() in wanted_names:
+                      output.append(f"\\n--- FILE: {name} ---")
+                      text=zf.read(name).decode("utf-8","replace")
+                      output.extend(f"{i+1}: {line}" for i,line in enumerate(text.splitlines()))
+              output.append("\\n=== MATCHUP CHARACTER JSON ===")
+              for name in names:
+                  if "/mods/characters/" in name.lower() and Path(name).suffix.lower()==".json":
+                      base=Path(name).stem.lower()
+                      if any(key in base for key in ("kenny","tolkien","tweek","clyde","cledy","craig","jimmy")):
+                          try:
+                              obj=json.loads(zf.read(name))
+                              output.append(f"{name}: "+json.dumps({k:obj.get(k) for k in ("image","position","camera_position","healthicon","healthbar_colors","flip_x","scale","no_antialiasing")},default=str))
+                          except Exception as e:
+                              output.append(f"{name}: JSON ERROR {e}")
+
               # Inspect stage creation and logo placement instructions.
               stage_files = [n for n in names if Path(n).name.lower() in ("south.lua","stage.lua") and ("/stages/" in n.lower() or "/stage/" in n.lower())]
               output.append("\n=== SOUTH STAGE LUA REFERENCES ===")
