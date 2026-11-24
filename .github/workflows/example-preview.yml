@@ -72,6 +72,34 @@ jobs:
                   output.append(f"FILE: {name}")
                   output.extend(f"{i+1}: {lines[i]}" for i in sorted(keep))
 
+              # Search every packaged script/chart/config for an existing Comedy Central reference.
+              output.append("\\n=== ALL TEXT REFERENCES TO COMEDY CENTRAL ===")
+              text_exts=(".lua",".json",".txt",".xml",".hx",".hscript")
+              for name in names:
+                  if not name.lower().endswith(text_exts):
+                      continue
+                  try:
+                      txt=zf.read(name).decode("utf-8","replace")
+                  except Exception:
+                      continue
+                  lines=txt.splitlines()
+                  matches=[(i,line.strip()) for i,line in enumerate(lines)
+                           if re.search(r"comedy|central|Comedy Central\\.png",line,re.I)]
+                  if matches:
+                      output.append(f"FILE: {name}")
+                      output.extend(f"{i+1}: {line[:500]}" for i,line in matches)
+
+              # Include the original shader controller's event-to-effect mapping
+              # so the HTML5 pass list can be optimized without removing charted effects.
+              znick=[n for n in names if Path(n).name.lower()=="znickshaders.lua"]
+              output.append("\\n=== ZNICK SHADER EVENT MAP ===")
+              for name in znick:
+                  lines=zf.read(name).decode("utf-8","replace").splitlines()
+                  output.append(f"FILE: {name} ({len(lines)} lines)")
+                  for i,line in enumerate(lines):
+                      if re.search(r"function onEvent|function onCreate|function onUpdate|setSpriteShader|setShaderFloat|setShaderBool|camGame|camHUD|setObjectCamera|filters|shader|BarrelBlurEffect|mirrorRepeat",line,re.I):
+                          output.append(f"{i+1}: {line[:500]}")
+
               # List all Lua shader operations and their context across Bloodbath scripts.
               lua_files=[n for n in names if n.lower().endswith(".lua") and "/mods/data/bloodbath/" in n.lower()]
               shader_call=re.compile(r"createRuntimeShader|initLuaShader|setSpriteShader|setShaderFloat|setShaderFloatArray|setShaderBool|setShaderSampler2D|setShaderInt",re.I)
