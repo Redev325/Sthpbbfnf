@@ -63,7 +63,34 @@ jobs:
               print("ATLAS SIZE: " + str(atlas.size))
               print("FIRST FRAME: " + json.dumps(attrs, sort_keys=True))
               print("FRAME COUNT: " + str(len(frames)))
+
+              # Extract original stage camera defaults and timeline zoom events.
               stage = zf.read(selected["south.lua"]).decode("utf-8", "replace")
+              cam_lines = [line.strip() for line in stage.splitlines()
+                           if re.search(r"defaultCamZoom|camGame|camera|zoom|follow", line, re.I)]
+              print("ORIGINAL SOUTH CAMERA LINES:\n" + "\n".join(cam_lines[:180]))
+
+              chart_matches = [n for n in names if Path(n).name.lower() == "bloodbath-hard.json"]
+              if chart_matches:
+                  chart = json.loads(zf.read(chart_matches[0]))
+                  song = chart.get("song", chart)
+                  print("CHART DEFAULT CAM ZOOM: " + str(song.get("notes", [{}])[0].get("mustHitSection") if False else song.get("defaultCamZoom")))
+                  print("CHART LENGTH FIELDS: " + json.dumps({k:v for k,v in song.items() if "length" in k.lower() or "zoom" in k.lower() or "speed" in k.lower()}, default=str))
+                  timed_events = []
+                  for group in song.get("events", []):
+                      if not isinstance(group, list) or len(group) < 2:
+                          continue
+                      try:
+                          stamp = float(group[0])
+                      except (TypeError, ValueError):
+                          continue
+                      if 65000 <= stamp <= 90000:
+                          for ev in (group[1] if isinstance(group[1], list) else []):
+                              if isinstance(ev, list) and len(ev) >= 3:
+                                  timed_events.append({"time":stamp,"name":ev[0],"v1":ev[1],"v2":ev[2]})
+                  print("CHART EVENTS 65-90 SEC: " + json.dumps(timed_events[:200], default=str))
+              else:
+                  print("BLOODBATH HARD CHART NOT FOUND")
               stage_lines = [line.strip() for line in stage.splitlines()
                              if re.search(r"bg2|kenny", line, re.I)]
               print("SOUTH.LUA RELEVANT LINES:\n" + "\n".join(stage_lines[:100]))
