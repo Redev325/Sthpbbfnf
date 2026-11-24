@@ -545,6 +545,7 @@ def patch_south_stage(
 	var southKyleCCharacter:Character;
 	var southCraigCharacter:Character;
 	var southCledyCharacter:Character;
+	var southClydeDeathStarted:Bool = false;
 	var southKyleCorruptionStarted:Bool = false;
 	var southKyleCorruptionActive:Bool = false;
 	var badAppleWhiteBg:FlxSprite;
@@ -904,6 +905,7 @@ def patch_south_stage(
 			hideSouthExtraKyles();
 		}
 		if (isSouthBackgroundLayer(normalizedKey)) setSouthBackgroundLayer(normalizedKey, 0.35);
+		if (normalizedKey == 'anim2 c') hideSouthClydeForDeath();
 		stageSprite.visible = true;
 		stageSprite.alpha = 1;
 		if (animationName.length > 0) stageSprite.animation.play(animationName, true);
@@ -1437,7 +1439,7 @@ def patch_south_stage(
         if (curStage == 'south' && (note.noteType == 'Clyde Note' || note.noteType == 'Craig Note'))
         {
             var isClydeNote:Bool = note.noteType == 'Clyde Note';
-            var clydeStillInChart:Bool = Conductor.songPosition >= 208083.333 && Conductor.songPosition < 256083.333;
+            var clydeStillInChart:Bool = !southClydeDeathStarted && Conductor.songPosition >= 208083.333 && Conductor.songPosition < 256083.333;
             var extraOpponentCharacter:Character = isClydeNote ? southCledyCharacter : southCraigCharacter;
             var extraOpponentAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
             if (isClydeNote && !clydeStillInChart)
@@ -1498,7 +1500,7 @@ def patch_south_stage(
         if (curStage == 'south' && (note.noteType == 'Clyde Note' || note.noteType == 'Craig Note'))
         {
             var isClydeNote:Bool = note.noteType == 'Clyde Note';
-            var clydeStillInChart:Bool = Conductor.songPosition >= 208083.333 && Conductor.songPosition < 256083.333;
+            var clydeStillInChart:Bool = !southClydeDeathStarted && Conductor.songPosition >= 208083.333 && Conductor.songPosition < 256083.333;
             var extraPlayerCharacter:Character = isClydeNote ? southCledyCharacter : southCraigCharacter;
             var extraPlayerAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
             if (isClydeNote && !clydeStillInChart)
@@ -2470,14 +2472,28 @@ function hideSouthClydeDuplicateSprite(candidate:FlxSprite):Void
 					hideSouthJimmyCandidate(cast member);
 	}
 
-function updateSouthClydeVisibility():Void
+function hideSouthClydeForDeath():Void
+	{
+		// The chart plays the full-screen anim2 c Clyde death sequence.
+		// Hide the separate live actor before the overlay appears, preventing
+		// the base Clyde from being rendered over the death animation.
+		southClydeDeathStarted = true;
+		if (southCledyCharacter != null)
+		{
+			FlxTween.cancelTweensOf(southCledyCharacter);
+			southCledyCharacter.alpha = 0;
+			southCledyCharacter.visible = false;
+		}
+	}
+
+	function updateSouthClydeVisibility():Void
 	{
 		if (curStage != 'south' || !generatedMusic || southCledyCharacter == null) return;
 		var songMs:Float = Conductor.songPosition;
 		// Keep Clyde through the final 2.5-second sustain, then remove him
 		// as the following GF Sing section begins. Run this both before and
 		// after note callbacks so the last sustain cannot resurrect him.
-		if (songMs < 208083.333 || songMs >= 256083.333)
+		if (southClydeDeathStarted || songMs < 208083.333 || songMs >= 256083.333)
 		{
 			FlxTween.cancelTweensOf(southCledyCharacter);
 			southCledyCharacter.alpha = 0;
