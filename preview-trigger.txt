@@ -1,1 +1,1 @@
-Second inspection: locate any script/chart references to Comedy Central and extract shader event map.
+Inspect complete Comedy Central Logo.lua positioning and visibility logic.
