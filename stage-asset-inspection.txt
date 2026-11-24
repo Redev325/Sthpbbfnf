@@ -1,4 +1,4 @@
-TRIGGER: Retry matchup timeline extraction with simplified Lua matcher.
+TRIGGER: Dump Clyde, Craig, IconManager and South stage scripts for exact matchup fixes.
 ARCHIVE MEMBERS: 2587
 
 === LOGO IMAGE CANDIDATES ===
@@ -6,6 +6,1594 @@ fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/assets/images/logo.png | (806, 429)
 fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/assets/images/logoBumpin.png | (1740, 1260) | RGBA | 578147 bytes
 fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/assets/images/newgrounds_logo.png | (362, 350) | RGBA | 40016 bytes
 fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/images/Comedy Central.png | (800, 276) | RGBA | 26401 bytes
+\n=== FULL MATCHUP CONTROL SCRIPTS ===
+\n--- FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/data/bloodbath/cledy.lua ---
+1: characterPath = 'characters/clyde'
+2: characterTag = 'cledy'
+3: noteNames = {
+4:     'Clyde Note',
+5: }
+6: 
+7: isDanceIdle = true
+8: flipX = false
+9: objectOrder = 3
+10: haveMissAnimations = false
+11: singAnimationLength = 6
+12: danceEveryNumBeats = 2
+13: gfSpeed = 0
+14: characterFPS = 18
+15: skipDance = false
+16: 
+17: extraSection = false
+18: teamplaySettings = {
+19:     enabled = false,
+20: 
+21:     sideDependent = false
+22: }
+23: animSuffix = ''
+24: 
+25: antialiasing = true
+26: 
+27: idleSuffix = '' 
+28: heyTimer = 0
+29: specialAnim = false
+30: 
+31: local precacheImages = true
+32: 
+33: animationData = {
+34:     ['idle'] = {'idle', -10, -65, '', false},
+35: 
+36:     ['singLEFT'] = {'left', 77, -69, '', false},
+37:     ['singDOWN'] = {'down', -3, -109, '', false},
+38:     ['singUP'] = {'up', -15, -31, '', false},
+39:     ['singRIGHT'] = {'right', -81, -62, '', false},
+40:    }
+41: 
+42: singAnimations = {
+43:     'singLEFT', -- Left
+44:     'singDOWN', -- Down
+45:     'singUP', -- Up
+46:     'singRIGHT' -- Right
+47: }
+48: 
+49: characterPos = {
+50:     700,
+51:     220
+52: }
+53: 
+54: characterCamera = {
+55:     0, -- X (Offset) for the camera to be targetting when it is extra character's turn.
+56:     0 -- Y (Offset) for the camera to be targetting when it is extra character's turn.
+57: }
+58: 
+59: characterScales = {
+60:     1.9, -- Scale X of character
+61:     1.9 -- Scale Y of character
+62: }
+63: 
+64: local noteFileCreation = false
+65: function createCharacter(tag)
+66:     for notes = 1, #noteNames do
+67:         if not checkFileExists(currentModDirectory .. '/custom_notetypes/' .. noteNames[notes] .. '.lua') and checkFileExists(currentModDirectory .. stringSplit(scriptName, 'mods/')[2]) and noteFileCreation then
+68:             saveFile(currentModDirectory .. '/custom_notetypes/' .. noteNames[notes] .. '.lua', '')
+69:         elseif not checkFileExists('custom_notetypes/' .. noteNames[notes] .. '.lua') and not checkFileExists(stringSplit(scriptName, 'mods/')[2]) and noteFileCreation then
+70:             saveFile('/custom_notetypes/' .. noteNames[notes] .. '.lua', '')
+71:         end
+72:     end
+73: 
+74:     makeAnimatedLuaSprite(tag, characterPath, characterPos[1], characterPos[2]);
+75: 
+76:     for i, v in pairs(animationData) do
+77:         if stringTrim(v[4]) == '' or not v[4] then
+78:             addAnimationByPrefix(tag, i, v[1], characterFPS, v[5]);
+79:         elseif v[4] and not v[5] then -- else'em
+80:             addAnimationByIndices(tag, i, v[1], v[4], characterFPS);
+81:         elseif v[4] and v[5] then -- else'em
+82:             addAnimationByIndicesLoop(tag, i, v[1], v[4], characterFPS);
+83:         end
+84: 
+85:         addOffset(tag, i, v[2], v[3]);
+86:     end
+87: 
+88:     setProperty(tag .. '.flipX', flipX);
+89:     setProperty(tag .. '.antialiasing', antialiasing)
+90:     scaleObject(tag, characterScales[1], characterScales[2]);
+91: 
+92:     setObjectOrder(tag, objectOrder);
+93: 
+94:     addLuaSprite(tag, false); -- Set this to true if you want it to be in front of other sprites. (You can also use object order to set where the sprite should overlap.)
+95: 
+96:     dance() -- Fix character playing a random animation & offset on character creation.
+97: end
+98: 
+99: function onCreate()
+100:     luaDeprecatedWarnings = false
+101:     luaDebugMode = true
+102: 
+103:     createCharacter(characterTag);
+104: end
+105: 
+106: function onCreatePost()
+107:     if precacheImages then
+108:         for i = 0, getProperty('eventNotes.length')-1 do
+109:             if getPropertyFromGroup('eventNotes', i, 'event') == 'extr. char change' then
+110:                 local charV2 = stringSplit(getPropertyFromGroup('eventNotes', i, 'value2'), ', ')
+111:                 local nextCharacter = jparse(getTextFromFile('characters/' .. charV2[1] .. '.json'), 1, '[') --surely this wont cause an issue!!! (performance wise, idk)
+112:                 precacheImage(nextCharacter.image) --massive amounts of precaching could lead to high memory usage.
+113:             end
+114:         end
+115:     end
+116: end
+117: 
+118: function onSpawnNote(membersIndex, noteData, noteType, isSustainNote)
+119:     for names = 1, #noteNames do
+120:         if noteType == noteNames[names] then
+121:             setPropertyFromGroup('unspawnNotes', membersIndex, 'noAnimation', true); -- Make it so original character doesn't sing these notes
+122:             setPropertyFromGroup('unspawnNotes', membersIndex, 'noMissAnimation', true); -- Make it so original character doesn't miss (0.7.1h - for some reason, it just ignores this)
+123:         end
+124:     end
+125: end
+126: 
+127: holdTimer = 0 -- For onUpdate.
+128: 
+129: danced = false -- Has the character danced for GF?
+130: 
+131: function onBeatHit()
+132:     if isDanceIdle then
+133:         if curBeat % danceEveryNumBeats == 0 and not skipDance and not stringStartsWith(getProperty(characterTag .. '.animation.curAnim.name'), 'sing') then
+134:             dance()
+135:             --holdTimer = 0
+136:         end
+137: 
+138:     elseif not isDanceIdle then -- I did this differently than in Psych Engine. However, this works!
+139:         if danced and not skipDance and curBeat % gfSpeed == 0 and not stringStartsWith(getProperty(characterTag .. '.animation.curAnim.name'), 'sing') then -- no stepCrochet?
+140:             dance()
+141:             --holdTimer = 0
+142: 
+143:         elseif not danced and not skipDance and curBeat % gfSpeed == 0 and not stringStartsWith(getProperty(characterTag .. '.animation.curAnim.name'), 'sing') then -- no stepCrochet?
+144:             dance()
+145:             --holdTimer = 0
+146:         end
+147:     end
+148: end
+149: 
+150: function onUpdate(elapsed)
+151:     if stringStartsWith(getProperty(characterTag .. '.animation.curAnim.name'), 'sing') then
+152:         holdTimer = holdTimer + elapsed
+153:     end
+154: 
+155:     if flipX then 
+156:         if holdTimer >= stepCrochet * (0.0011 / getPropertyFromClass('flixel.FlxG', 'sound.music.pitch')) * singAnimationLength then
+157:             dance()
+158:             holdTimer = 0
+159:         end
+160: 
+161:     else
+162:         if holdTimer > stepCrochet * (0.0011 / getPropertyFromClass('flixel.FlxG', 'sound.music.pitch')) * singAnimationLength and stringStartsWith(getProperty(characterTag .. '.animation.curAnim.name'), 'sing') and not stringEndsWith(getProperty(characterTag .. '.animation.curAnim.name'), 'miss') then
+163:             dance()
+164:         end
+165:     end
+166: 
+167:     if stringEndsWith(getProperty(characterTag .. '.animation.curAnim.name'), 'miss') and getProperty(characterTag .. '.animation.curAnim.finished') then
+168:         if stringStartsWith(version, '0.6') then playAnim(characterTag, 'idle' .. idleSuffix, true, false, 10) elseif stringStartsWith(version, '0.7') then dance() playAnim(characterTag, 'idle' .. idleSuffix, true, false, getProperty(characterTag .. '.animation.curAnim.numFrames') - 1) end
+169:     end
+170: 
+171:     if getProperty(characterTag .. '.animation.curAnim.finished') and stringEndsWith(getProperty(characterTag .. '.animation.curAnim.name'), '-loop') then
+172:         playAnim(characterTag, getProperty(characterTag .. '.animation.curAnim.name') .. '-loop')
+173:     end
+174: 
+175:     if specialAnim and heyTimer <= 0 then -- Automatically set 'heyTimer' to 0.6 if it plays one of these animations with specialAnim on. (Do I do this?)
+176:         heyTimer = 0.6
+177:     end
+178: 
+179:     if heyTimer > 0 then
+180:         heyTimer = heyTimer - elapsed * playbackRate
+181:         if heyTimer <= 0 then
+182:             if specialAnim then
+183:                 specialAnim = false
+184:                 dance()
+185:             end
+186:             heyTimer = 0
+187:         end
+188:     elseif specialAnim and getProperty(characterTag .. '.animation.curAnim.finished') then
+189:         specialAnim = false
+190:         dance()
+191:     end
+192: end
+193: 
+194: function onMoveCamera(character)
+195:     if extraSection then
+196:         setProperty('camFollow.x', getMidpointX(characterTag) - 100 - characterCamera[1])
+197:         setProperty('camFollow.y', getMidpointY(characterTag) - 100 + characterCamera[2])
+198:     end
+199: end
+200: 
+201: function onCountdownStarted()
+202:     runTimer('startCharacterTimer', crochet / 1000 / playbackRate, 5) -- lol (will a loop of 5 be an issue?)
+203: end
+204: 
+205: function opponentNoteHit(membersIndex, noteData, noteType, isSustainNote)
+206:     for notes = 1, #noteNames do
+207:         if noteType == noteNames[notes] then
+208:             animSuffix = ''
+209:             playAnim(characterTag, singAnimations[noteData + 1] .. animSuffix, true);
+210:             holdTimer = 0
+211: 
+212:         elseif noteType == noteNames[notes] and not isDanceIdle then
+213:             --playAnim(characterTag, animNames[noteData + 2], true); -- uhhh is this needed?
+214:             animSuffix = ''
+215: 
+216:             if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[1] .. animSuffix then
+217:                 danced = true
+218:             elseif getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[2] .. animSuffix then
+219:                 danced = false
+220:             end
+221: 
+222:             if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[3] .. animSuffix or getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[4] .. animSuffix then
+223:                 danced = not danced
+224:             end
+225:         end
+226:     end
+227: 
+228:     if stringEndsWith(noteType:lower(), 'alt') then
+229:         animSuffix = '-alt'
+230:         playAnim(characterTag, singAnimations[noteData + 1] .. animSuffix, true);
+231:         holdTimer = 0
+232:     
+233:     elseif stringEndsWith(noteType:lower(), 'alt') and not isDanceIdle then
+234:         animSuffix = '-alt'
+235:         if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[1] .. animSuffix then
+236:             danced = true
+237:         elseif getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[2] .. animSuffix then
+238:             danced = false
+239:         end
+240: 
+241:         if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[3] .. animSuffix or getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[4] .. animSuffix then
+242:             danced = not danced
+243:         end
+244:     end
+245: 
+246:     for extraNotes = 3, #noteNames do -- 3? more like doing manual guessing!!! (hmmm, could this mess up with the normal 3rd player notes?)
+247:         if noteType == noteNames[extraNotes] then
+248:             animSuffix = ''
+249:                         
+250:             if noteNames[extraNotes]:find('-') then
+251:                 playAnim(characterTag, tostring(stringSplit(noteNames[extraNotes], '-')[2]), true);
+252:                 specialAnim = true
+253:             else
+254:                 playAnim(characterTag, singAnimations[noteData + 1] .. animSuffix, true);
+255:             end
+256: 
+257:             holdTimer = 0
+258:         end
+259:     end
+260: 
+261:     --Sort this better?
+262:     if teamplaySettings.enabled then
+263:         if teamplaySettings.sideDependent and (flipX or getProperty(characterTag .. '.flipX')) then
+264:             if noteType == '' then -- Default Note (lol)
+265:                 animSuffix = ''
+266:                 playAnim(characterTag, singAnimations[noteData + 1] .. animSuffix, true);
+267:                 holdTimer = 0
+268: 
+269:                 if not isDanceIdle then
+270:                     animSuffix = ''
+271:                     if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[1] .. animSuffix then
+272:                         danced = true
+273:                     elseif getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[2] .. animSuffix then
+274:                         danced = false
+275:                     end
+276:                 end
+277: 
+278:                 if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[3] .. animSuffix or getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[4] .. animSuffix then
+279:                     danced = not danced
+280:                 end
+281:             elseif noteType == 'Alt Animation' then
+282:                 animSuffix = '-alt'
+283:                 playAnim(characterTag, singAnimations[noteData + 1] .. animSuffix, true);
+284:                 holdTimer = 0
+285: 
+286:                 if not isDanceIdle then
+287:                     animSuffix = '-alt'
+288:                     if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[1] .. animSuffix then
+289:                         danced = true
+290:                     elseif getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[2] .. animSuffix then
+291:                         danced = false
+292:                     end
+293:                 end
+294: 
+295:                 if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[3] .. animSuffix or getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[4] .. animSuffix then
+296:                     danced = not danced
+297:                 end
+298:             end
+299:         elseif not teamplaySettings.sideDependent then --huh. (read todo at bottom of code)
+300:             if noteType == '' then -- Default Note (lol)
+301:                 animSuffix = ''
+302:                 playAnim(characterTag, singAnimations[noteData + 1] .. animSuffix, true);
+303:                 holdTimer = 0
+304: 
+305:                 if not isDanceIdle then
+306:                     animSuffix = ''
+307:                     if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[1] .. animSuffix then
+308:                         danced = true
+309:                     elseif getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[2] .. animSuffix then
+310:                         danced = false
+311:                     end
+312:                 end
+313: 
+314:                 if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[3] .. animSuffix or getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[4] .. animSuffix then
+315:                     danced = not danced
+316:                 end
+317:             elseif noteType == 'Alt Animation' then
+318:                 animSuffix = '-alt'
+319:                 playAnim(characterTag, singAnimations[noteData + 1] .. animSuffix, true);
+320:                 holdTimer = 0
+321: 
+322:                 if not isDanceIdle then
+323:                     animSuffix = '-alt'
+324:                     if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[1] .. animSuffix then
+325:                         danced = true
+326:                     elseif getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[2] .. animSuffix then
+327:                         danced = false
+328:                     end
+329:                 end
+330: 
+331:                 if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[3] .. animSuffix or getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[4] .. animSuffix then
+332:                     danced = not danced
+333:                 end
+334:             end
+335:         end
+336:     end
+337: end
+338: 
+339: function goodNoteHit(membersIndex, noteData, noteType, isSustainNote)
+340:     for notes = 1, #noteNames do
+341:         if noteType == noteNames[notes] then
+342:             animSuffix = ''
+343:             playAnim(characterTag, singAnimations[noteData + 1] .. animSuffix, true);
+344:             holdTimer = 0
+345: 
+346:         elseif noteType == noteNames[notes] and not isDanceIdle then
+347:             --playAnim(characterTag, animNames[noteData + 2], true); -- uhhh is this needed?
+348:             animSuffix = ''
+349: 
+350:             if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[1] .. animSuffix then
+351:                 danced = true
+352:             elseif getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[2] .. animSuffix then
+353:                 danced = false
+354:             end
+355: 
+356:             if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[3] .. animSuffix or getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[4] .. animSuffix then
+357:                 danced = not danced
+358:             end
+359:         end
+360:     end
+361: 
+362:     if stringEndsWith(noteType:lower(), 'alt') then
+363:         animSuffix = '-alt'
+364:         playAnim(characterTag, singAnimations[noteData + 1] .. animSuffix, true);
+365:         holdTimer = 0
+366:     
+367:     elseif stringEndsWith(noteType:lower(), 'ALT') and not isDanceIdle then
+368:         animSuffix = '-alt'
+369:         if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[1] .. animSuffix then
+370:             danced = true
+371:         elseif getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[2] .. animSuffix then
+372:             danced = false
+373:         end
+374: 
+375:         if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[3] .. animSuffix or getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[4] .. animSuffix then
+376:             danced = not danced
+377:         end
+378:     end
+379: 
+380:     for extraNotes = 3, #noteNames do -- 3? more like doing manual guessing!!! (hmmm, could this mess up with the normal 3rd player notes?)
+381:         if noteType == noteNames[extraNotes] then
+382:             animSuffix = ''
+383: 
+384:             if noteNames[extraNotes]:find('-') then
+385:                 playAnim(characterTag, tostring(stringSplit(noteNames[extraNotes], '-')[2]), true);
+386:                 specialAnim = true
+387:             else
+388:                 playAnim(characterTag, singAnimations[noteData + 1] .. animSuffix, true);
+389:             end
+390: 
+391:             holdTimer = 0
+392:         end
+393:     end
+394: 
+395:     --Sort this better?
+396:     if teamplaySettings.enabled then
+397:         if teamplaySettings.sideDependent and (not flipX or not getProperty(characterTag .. '.flipX')) then
+398:             if noteType == '' then -- Default Note (lol)
+399:                 animSuffix = ''
+400:                 playAnim(characterTag, singAnimations[noteData + 1] .. animSuffix, true);
+401:                 holdTimer = 0
+402: 
+403:                 if not isDanceIdle then
+404:                     animSuffix = ''
+405:                     if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[1] .. animSuffix then
+406:                         danced = true
+407:                     elseif getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[2] .. animSuffix then
+408:                         danced = false
+409:                     end
+410:                 end
+411: 
+412:                 if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[3] .. animSuffix or getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[4] .. animSuffix then
+413:                     danced = not danced
+414:                 end
+415:             elseif noteType == 'Alt Animation' then
+416:                 animSuffix = '-alt'
+417:                 playAnim(characterTag, singAnimations[noteData + 1] .. animSuffix, true);
+418:                 holdTimer = 0
+419: 
+420:                 if not isDanceIdle then
+421:                     animSuffix = '-alt'
+422:                     if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[1] .. animSuffix then
+423:                         danced = true
+424:                     elseif getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[2] .. animSuffix then
+425:                         danced = false
+426:                     end
+427:                 end
+428: 
+429:                 if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[3] .. animSuffix or getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[4] .. animSuffix then
+430:                     danced = not danced
+431:                 end
+432:             end
+433:         elseif not teamplaySettings.sideDependent then --huh. (read todo at bottom of code)
+434:             if noteType == '' then -- Default Note (lol)
+435:                 animSuffix = ''
+436:                 playAnim(characterTag, singAnimations[noteData + 1] .. animSuffix, true);
+437:                 holdTimer = 0
+438: 
+439:                 if not isDanceIdle then
+440:                     animSuffix = ''
+441:                     if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[1] .. animSuffix then
+442:                         danced = true
+443:                     elseif getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[2] .. animSuffix then
+444:                         danced = false
+445:                     end
+446:                 end
+447: 
+448:                 if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[3] .. animSuffix or getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[4] .. animSuffix then
+449:                     danced = not danced
+450:                 end
+451:             elseif noteType == 'Alt Animation' then
+452:                 animSuffix = '-alt'
+453:                 playAnim(characterTag, singAnimations[noteData + 1] .. animSuffix, true);
+454:                 holdTimer = 0
+455: 
+456:                 if not isDanceIdle then
+457:                     animSuffix = '-alt'
+458:                     if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[1] .. animSuffix then
+459:                         danced = true
+460:                     elseif getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[2] .. animSuffix then
+461:                         danced = false
+462:                     end
+463:                 end
+464: 
+465:                 if getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[3] .. animSuffix or getProperty(characterTag .. '.animation.curAnim.name') == singAnimations[4] .. animSuffix then
+466:                     danced = not danced
+467:                 end
+468:             end
+469:         end
+470:     end
+471: end
+472: 
+473: function noteMiss(membersIndex, noteData, noteType, isSustainNote)
+474:     if noteType == noteNames[1] and haveMissAnimations then
+475:         playAnim(characterTag, singAnimations[noteData + 1] .. 'miss' .. animSuffix, true)
+476:         --recalculateDanceIdle()
+477:     end
+478: end
+479: 
+480: function onTimerCompleted(tag, loops, loopsLeft)
+481:     if tag == 'startCharacterTimer' then
+482:         if isDanceIdle and luaSpriteExists(characterTag) and loopsLeft % danceEveryNumBeats == 0 and getProperty(characterTag .. '.animation.curAnim') and not stringStartsWith(getProperty(characterTag .. '.animation.curAnim.name'), 'sing') then
+483:             dance()
+484: 
+485:         elseif not isDanceIdle and luaSpriteExists(characterTag) and loopsLeft % gfSpeed == 0 and getProperty(characterTag .. '.animation.curAnim') and not stringStartsWith(getProperty(characterTag .. '.animation.curAnim.name'), 'sing') then -- gfSpeed and not round(gfSpeed * danceEveryNumBeats)? lol
+486:             dance()
+487:         end
+488:     end
+489: end
+490: 
+491: function onEvent(eventName, value1, value2)
+492:     if eventName == characterTag .. ' Idle ALT' or stringEndsWith(eventName, ' Idle ALT') then
+493:         if value1 then
+494:             idleSuffix = value1
+495:         else
+496:             idleSuffix = ''
+497:         end
+498:     end
+499: 
+500:     if eventName == characterTag .. ' Camera Section' or stringEndsWith(eventName, ' Camera Section') then
+501:         if value1 == '1' then
+502:             extraSection = true
+503:         elseif value1 == '0' then
+504:             extraSection = false
+505:         end
+506:     end
+507: 
+508:     if stringEndsWith(eventName, ' Teamplay') then --Rethink name check?
+509:         if value1 == '1' then
+510:             teamplaySettings.enabled = true
+511:         elseif value1 == '0' then
+512:             teamplaySettings.enabled = false
+513:         end
+514: 
+515:         if value2 ~= '' then
+516:             teamplaySettings.sideDependent = tonumber(value2)
+517:         end
+518:     end
+519: 
+520:     if eventName == 'Play Animation' then -- could be an issue if the default character if not specified is bf or whatever.
+521:         if value2 == characterTag then
+522:             playAnim(value2, value1, true) -- This won't check if the animation is a sing note. (because idk lol i could make it check)
+523:             specialAnim = true
+524:         end
+525:     end
+526: 
+527:     if eventName == 'extr. char change' then --this shit finna be real
+528:         if value1 == characterTag then
+529:             value2 = value2 or 'bf' --no flip x included
+530:             local v2 = stringSplit(value2, ', ')
+531:             animationData = jparse(getTextFromFile('characters/' .. v2[1] .. '.json'), 1, '[') -- Erase character data to replace with new character data (don't worry about not being in the same format)
+532:             removeLuaSprite(characterTag, true)
+533: 
+534:             makeAnimatedLuaSprite(characterTag, animationData.image, characterPos[1] + animationData.position[1], characterPos[2] + (animationData.position[2] - 350));
+535: 
+536:             for i = 1, #animationData.animations do
+537:                 if not animationData.animations[i].indices[1] then
+538:                     addAnimationByPrefix(characterTag, animationData.animations[i].anim, animationData.animations[i].name, animationData.animations[i].fps, animationData.animations[i].loop)
+539:                 elseif animationData.animations[i].indices[1] and not animationData.animations[i].loop then
+540:                     addAnimationByIndices(characterTag, animationData.animations[i].anim, animationData.animations[i].name, table.concat(animationData.animations[i].indices, ','), animationData.animations[i].fps);
+541:                 elseif animationData.animations[i].indices[1] and animationData.animations[i].loop then
+542:                     addAnimationByIndicesLoop(characterTag, animationData.animations[i].anim, animationData.animations[i].name, table.concat(animationData.animations[i].indices, ','), animationData.animations[i].fps);
+543:                 end
+544: 
+545:                 if (animationData.animations[i].anim == 'danceLeft' .. idleSuffix and animationData.animations[i].anim == 'danceRight' .. idleSuffix) then
+546:                     isDanceIdle = false
+547:                 elseif (animationData.animations[i].anim == 'idle' .. idleSuffix) then
+548:                     isDanceIdle = true
+549:                 end
+550: 
+551:                 addOffset(characterTag, animationData.animations[i].anim, animationData.animations[i].offsets[1], animationData.animations[i].offsets[2])
+552:             end
+553: 
+554:             setProperty(characterTag .. '.flipX', not animationData.flip_x)
+555:             setProperty(characterTag .. '.antialiasing', not animationData.no_antialiasing)
+556:             singAnimationLength = animationData.sing_duration
+557:             characterCamera = animationData.camera_position
+558:             scaleObject(characterTag, animationData.scale, animationData.scale)
+559:             addLuaSprite(characterTag, true)
+560:             if 3 and (tonumber(3) > 0 or stringTrim(v2[2]) ~= '') then objectOrder = 3 setObjectOrder(characterTag, 3) end
+561:             debugPrint(value2)
+562:             dance()
+563:         end
+564:     end
+565: end
+566: 
+567: function eventEarlyTrigger(event)
+568:     if stringEndsWith(event, ' Teamplay') then -- Should work properly? (seems to be needed since it doesn't work on the same step with notes.)
+569:         return 10 -- In 0.7.1h, this is somehow not working? (could be the same in 0.6.3)
+570:     end
+571: end
+572: 
+573: local settingCharacterUp = true
+574: function recalculateDanceIdle() -- Does settingCharacterUp & lastDance variable be needed for this? (Psych Engine does this but it seems to be fine without it? I don't know.)
+575:     local lastDanceIdle = isDanceIdle
+576:     isDanceIdle = (getProperty(characterTag .. '.animation.curAnim.name') == 'danceLeft' .. idleSuffix and getProperty(characterTag .. '.animation.curAnim.name') == 'danceRight' .. idleSuffix)
+577: 
+578:     if settingCharacterUp then
+579:         danceEveryNumBeats = (isDanceIdle == 1 and 1 or 2) -- isDanceIdle == 1 or 2?
+580:     elseif not lastDanceIdle == isDanceIdle then
+581:         local danceEveryNumBeatsCalc = danceEveryNumBeats
+582: 
+583:         if not isDanceIdle then
+584:             danceEveryNumBeatsCalc = danceEveryNumBeatsCalc / 2
+585:         else
+586:             danceEveryNumBeatsCalc = danceEveryNumBeatsCalc * 2
+587:     
+588:             danceEveryNumBeats = round(math.max(danceEveryNumBeatsCalc, 1)) 
+589:             --debugPrint('Round handled: ' .. danceEveryNumBeats)
+590:         end
+591:         settingCharacterUp = false
+592:     end
+593: end
+594: 
+595: function dance()
+596:     if not skipDance and not specialAnim then
+597:         if not isDanceIdle then
+598: 
+599:             danced = not danced
+600: 
+601:             if danced then -- no stepCrochet?
+602:                 playAnim(characterTag, 'danceRight' .. idleSuffix, true);
+603:                 holdTimer = 0
+604:     
+605:             elseif not danced then -- no stepCrochet?
+606:                 playAnim(characterTag, 'danceLeft' .. idleSuffix, true);
+607:                 holdTimer = 0
+608:             end
+609: 
+610:         elseif isDanceIdle then
+611:             playAnim(characterTag, 'idle' .. idleSuffix, false);
+612:         end
+613:     end
+614: end
+615: 
+616: -- http://lua-users.org/wiki/SimpleRound -- Second code.
+617: function round(num, numDecimalPlaces)
+618:     local mult = 10^(numDecimalPlaces or 0)
+619:     return math.floor(num * mult + 0.5) / mult
+620: end
+621: 
+622: function setCharacterVar(variable, input)
+623:     _G[variable] = input
+624: end
+625: 
+626: function getCharacterVar(variable)
+627:     return _G[variable]
+628: end
+629: 
+630: --// JSON parser
+631: local json = {}
+632: 
+633: local function kind_of(obj)
+634:   if type(obj) ~= 'table' then return type(obj) end
+635:   local i = 1
+636:   for _ in pairs(obj) do
+637:     if obj[i] ~= nil then i = i + 1 else return 'table' end
+638:   end
+639:   if i == 1 then return 'table' else return 'array' end
+640: end
+641: 
+642: local function escape_str(s)
+643:   local in_char  = {'\\', '"', '/', '\b', '\f', '\n', '\r', '\t'}
+644:   local out_char = {'\\', '"', '/',  'b',  'f',  'n',  'r',  't'}
+645:   for i, c in ipairs(in_char) do
+646:     s = s:gsub(c, '\\' .. out_char[i])
+647:   end
+648:   return s
+649: end
+650: 
+651: local function skip_delim(str, pos, delim, err_if_missing)
+652:   pos = pos + #str:match('^%s*', pos)
+653:   if str:sub(pos, pos) ~= delim then
+654:     return pos, false
+655:   end
+656:   return pos + 1, true
+657: end
+658: 
+659: local function parse_str_val(str, pos, val)
+660:   val = val or ''
+661:   local early_end_error = 'End of input found while parsing string.'
+662:   local c = str:sub(pos, pos)
+663:   if c == '"'  then return val, pos + 1 end
+664:   if c ~= '\\' then return parse_str_val(str, pos + 1, val .. c) end
+665:   -- We must have a \ character.
+666:   local esc_map = {b = '\b', f = '\f', n = '\n', r = '\r', t = '\t'}
+667:   local nextc = str:sub(pos + 1, pos + 1)
+668:   return parse_str_val(str, pos + 2, val .. (esc_map[nextc] or nextc))
+669: end
+670: 
+671: local function parse_num_val(str, pos)
+672:   local num_str = str:match('^-?%d+%.?%d*[eE]?[+-]?%d*', pos)
+673:   local val = tonumber(num_str)
+674:   return val, pos + #num_str
+675: end
+676: 
+677: function jstringify(obj, as_key)
+678:   local s = {}
+679:   local kind = kind_of(obj)
+680:   if kind == 'array' then
+681:     s[#s + 1] = '['
+682:     for i, val in ipairs(obj) do
+683:       if i > 1 then s[#s + 1] = ', ' end
+684:       s[#s + 1] = jstringify(val)
+685:     end
+686:     s[#s + 1] = ']'
+687:   elseif kind == 'table' then
+688:     s[#s + 1] = '{'
+689:     for k, v in pairs(obj) do
+690:       if #s > 1 then s[#s + 1] = ', ' end
+691:       s[#s + 1] = jstringify(k, true)
+692:       s[#s + 1] = ':'
+693:       s[#s + 1] = jstringify(v)
+694:     end
+695:     s[#s + 1] = '}'
+696:   elseif kind == 'string' then
+697:     return '"' .. escape_str(obj) .. '"'
+698:   elseif kind == 'number' then
+699:     if as_key then return '"' .. tostring(obj) .. '"' end
+700:     return tostring(obj)
+701:   elseif kind == 'boolean' then
+702:     return tostring(obj)
+703:   elseif kind == 'nil' then
+704:     return 'null'
+705:   end
+706:   return table.concat(s)
+707: end
+708: 
+709: json.null = {}
+710: 
+711: function jparse(str, pos, end_delim)
+712:   pos = pos or 1
+713:   if not str then error('Array was not found.') end
+714:   local pos = pos + #str:match('^%s*', pos)
+715:   local first = str:sub(pos, pos)
+716:   if first == '{' then  -- Parse an object.
+717:     local obj, key, delim_found = {}, true, true
+718:     pos = pos + 1
+719:     while true do
+720:       key, pos = jparse(str, pos, '}')
+721:       if key == nil then return obj, pos end
+722:       pos = skip_delim(str, pos, ':', true)
+723:       obj[key], pos = jparse(str, pos)
+724:       pos, delim_found = skip_delim(str, pos, ',')
+725:     end
+726:   elseif first == '[' then  -- Parse an array.
+727:     local arr, val, delim_found = {}, true, true
+728:     pos = pos + 1
+729:     while true do
+730:       val, pos = jparse(str, pos, ']')
+731:       if val == nil then return arr, pos end
+732:       arr[#arr + 1] = val
+733:       pos, delim_found = skip_delim(str, pos, ',')
+734:     end
+735:   elseif first == '"' then  -- Parse a string.
+736:     return parse_str_val(str, pos + 1)
+737:   elseif first == '-' or first:match('%d') then
+738:     return parse_num_val(str, pos)
+739:   elseif first == end_delim then
+740:     return nil, pos + 1
+741:   else  -- Parse true, false, or null.
+742:     local literals = {['true'] = true, ['false'] = false, ['null'] = json.null}
+743:     for lit_str, lit_val in pairs(literals) do
+744:       local lit_end = pos + #lit_str - 1
+745:       if str:sub(pos, lit_end) == lit_str then return lit_val, lit_end + 1 end
+746:     end
+747:     local pos_info_str = 'position ' .. pos .. ': ' .. str:sub(pos, pos + 10)
+748:   end
+749: end
+750: 
+751: --[[
+752:     Todo:
+753: 
+754:     Add Automatic File Creation for Character Change Event? (could possibly remove the feature, idk tho)
+755:     Make singing code into an function to save space and to prevent duplicate code.
+756: ]]
+\n--- FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/data/bloodbath/craig.lua ---
+1: -- hi uhhh, this script was made by DJtrix lolololololol and this is kinda based on other scripts but i made kinda make this better and this is an example
+2: -- remember to change the strings so that you can set your character
+3: 
+4: -- ANIMATIONS for the new character
+5: idleNameAnimation = 'idle'
+6: leftNameAnimation = 'left'
+7: downNameAnimation = 'down'
+8: upNameAnimation = 'up'
+9: rightNameAnimation = 'right'
+10: 
+11: --ALT ANIMATIONS for the new character
+12: idleAltNameAnimation = 'Dad idle dance'
+13: leftAltNameAnimation = 'oh'
+14: downAltNameAnimation = 'Cartman Revisit Down'
+15: upAltNameAnimation = 'Cartman Revisit Up'
+16: rightAltNameAnimation = 'Cartman Revisit Left'
+17: 
+18: --MISS ANIMATIONS if your character is gonna be playable
+19: leftMissNameAnimation = 'Pico Note Right Miss'
+20: downMissNameAnimation = 'Pico Down Note MISS'
+21: upMissNameAnimation = 'pico Up note miss'
+22: rightMissNameAnimation = 'Pico NOTE LEFT miss'
+23: 
+24: -- OFFSETS NORMAL
+25: idleOffsets = {'-10', '-65'} -- recommended to put this on 0 but whatever
+26: leftOffsets = {'69', '-96'}
+27: downOffsets = {'25', '-104'}
+28: upOffsets = {'110', '-43'}
+29: rightOffsets = {'-82', '-70'}
+30: 
+31: -- ALT OFFSETS
+32: idleAltOffsets = {'0', '0'} -- recommended to put this on 0 but whatever
+33: leftAltOffsets = {'-10', '-65'}
+34: downAltOffsets = {'0', '0'}
+35: upAltOffsets = {'0', '0'}
+36: rightAltOffsets = {'0', '0'}
+37: 
+38: -- MISS ANIMATIONS OFFSETS
+39: leftMissOffsets = {'0', '0'}
+40: downMissOffsets = {'0', '0'}
+41: upMissOffsets = {'0', '0'}
+42: rightMissOffsets = {'0', '0'}
+43: 
+44: -- POSITION ON THE STAGE
+45: positionX = 1670
+46: positionY = 400
+47: 
+48: -- TAG, PNG & XML of the new character
+49: character_xml = 'craig'
+50: character_tag = 'craig'
+51: 
+52: -- Scales for the character
+53: scaleX = 0.9
+54: scaleY = 0.9
+55: 
+56: -- Flip X if your want to make the new character playable or idk lol
+57: FlipX = false
+58: 
+59: -- the notetypes shits
+60: notetype_name_solo = 'Craig Note' -- the solo is for the character sing alone
+61: notetype_name_alt = 'Craig Note ALT' -- the solo is for the character sing alone
+62: notetype_name_duet = '2nd Char Duet' -- this is for the character sing with dad together 
+63: notetype_name_duetBF = '2nd Duet Player' -- this is for the character sing with bf together (what I said on duoDAD)
+64: 
+65: --DONT TOUCH THIS PLEASE
+66: IdleAnim = true --dont
+67: 
+68: function onCreate() -- if you want to create your characters use this
+69:     makeAnimatedLuaSprite(character_tag, 'characters/'.. character_xml, positionX, positionY);
+70: 	addAnimationByPrefix(character_tag, 'idle', idleNameAnimation, 17, false);
+71: 	addAnimationByPrefix(character_tag, 'singLEFT', leftNameAnimation, 17, false);
+72: 	addAnimationByPrefix(character_tag, 'singDOWN', downNameAnimation, 17, false);
+73: 	addAnimationByPrefix(character_tag, 'singUP', upNameAnimation, 17, false);
+74: 	addAnimationByPrefix(character_tag, 'singRIGHT', rightNameAnimation, 17, false);
+75: 	addAnimationByPrefix(character_tag, 'idle-alt', idleAltNameAnimation, 24, false);
+76: 	addAnimationByPrefix(character_tag, 'singLEFT-alt', leftAltNameAnimation, 16, true);
+77: 	addAnimationByPrefix(character_tag, 'singDOWN-alt', downAltNameAnimation, 24, false);
+78: 	addAnimationByPrefix(character_tag, 'singUP-alt', upAltNameAnimation, 24, false);
+79: 	addAnimationByPrefix(character_tag, 'singRIGHT-alt', rightAltNameAnimation, 24, false);
+80:     	addAnimationByPrefix(character_tag, 'singLEFTmiss', leftMissNameAnimation, 24, false);
+81: 	addAnimationByPrefix(character_tag, 'singDOWNmiss', downMissNameAnimation, 24, false);
+82: 	addAnimationByPrefix(character_tag, 'singUPmiss', upMissNameAnimation, 24, false);
+83: 	addAnimationByPrefix(character_tag, 'singRIGHTmiss', rightMissNameAnimation, 24, false);
+84: 	scaleObject(character_tag, scaleX, scaleY);
+85: 	setObjectOrder(character_tag, 16);
+86: 	playAnim(character_tag, 'idle', true);
+87: 	addLuaSprite(character_tag, true);
+88: 
+89: 	if FlipX == true then
+90: 		setProperty(character_tag..'.flipX', true);
+91: 	else
+92: 		setProperty(character_tag ..'.flipX', false);
+93: 	end
+94: 
+95: end
+96: 
+97: local CharDADAnims = {"singLEFT", "singDOWN", "singUP", "singRIGHT", "singLEFT-alt", "singDOWN-alt", "singUP-alt", "singRIGHT-alt"}
+98: function opponentNoteHit(id, direction, noteType, isSustainNote)
+99: 	if noteType == notetype_name_solo or noteType == notetype_name_Glitch then -- you can change the name of the notetype but remember to put the same name of the notetype lua script
+100: 	    IdleAnim = false
+101: 		playAnim(character_tag, CharDADAnims[direction + 1], false);
+102: 
+103: 	if direction == 0 then
+104: 		setProperty(character_tag ..'.offset.x', leftOffsets[1]);
+105: 		setProperty(character_tag ..'.offset.y', leftOffsets[2]);
+106:         playAnim(character_tag, 'singLEFT', true);
+107: 
+108:     elseif direction == 1 then
+109: 		setProperty(character_tag ..'.offset.x', downOffsets[1]);
+110: 		setProperty(character_tag ..'.offset.y', downOffsets[2]);
+111:         playAnim(character_tag, 'singDOWN', true);
+112: 
+113: 	elseif direction == 2 then
+114: 		setProperty(character_tag ..'.offset.x', upOffsets[1]);
+115: 		setProperty(character_tag ..'.offset.y', upOffsets[2]);
+116:         playAnim(character_tag, 'singUP', true);
+117: 
+118: 	elseif direction == 3 then
+119: 		setProperty(character_tag ..'.offset.x', rightOffsets[1]);
+120: 		setProperty(character_tag ..'.offset.y', rightOffsets[2]);
+121:         playAnim(character_tag, 'singRIGHT', true);
+122: 
+123: 	if isSustainNote then
+124: 		playAnim(character_tag, CharDADAnims[direction + 1], true);
+125: 			end
+126: 		end
+127: 	end
+128: 	if noteType == notetype_name_alt then
+129: 	    IdleAnim = false
+130: 		playAnim(character_tag, CharDADAnims[direction + 1], false);
+131: 
+132: 	if direction == 0 then
+133: 		setProperty(character_tag ..'.offset.x', leftOffsets[1]);
+134: 		setProperty(character_tag ..'.offset.y', leftOffsets[2]);
+135:         playAnim(character_tag, 'singLEFT-alt', true);
+136: 
+137:     elseif direction == 1 then
+138: 		setProperty(character_tag ..'.offset.x', downOffsets[1]);
+139: 		setProperty(character_tag ..'.offset.y', downOffsets[2]);
+140:         playAnim(character_tag, 'singDOWN-alt', true);
+141: 
+142: 	elseif direction == 2 then
+143: 		setProperty(character_tag ..'.offset.x', upOffsets[1]);
+144: 		setProperty(character_tag ..'.offset.y', upOffsets[2]);
+145:         playAnim(character_tag, 'singUP-alt', true);
+146: 
+147: 	elseif direction == 3 then
+148: 		setProperty(character_tag ..'.offset.x', rightOffsets[1]);
+149: 		setProperty(character_tag ..'.offset.y', rightOffsets[2]);
+150:         playAnim(character_tag, 'singRIGHT-alt', true);
+151: 
+152: 	if isSustainNote then
+153: 		playAnim(character_tag, CharDADAnims[direction + 1], true);
+154: 			end
+155: 		end
+156: 	end
+157:     if noteType == notetype_name_duet then
+158: 		IdleAnim = false
+159: 		playAnim(character_tag, CharDADAnims[direction + 1], false);
+160: 
+161: 	if direction == 0 then
+162: 		setProperty(character_tag ..'.offset.x', leftOffsets[1]);
+163: 		setProperty(character_tag ..'.offset.y', leftOffsets[2]);
+164:         playAnim(character_tag, 'singLEFT', true);
+165: 
+166:     elseif direction == 1 then
+167: 		setProperty(character_tag ..'.offset.x', downOffsets[1]);
+168: 		setProperty(character_tag ..'.offset.y', downOffsets[2]);
+169:         playAnim(character_tag, 'singDOWN', true);
+170: 
+171: 	elseif direction == 2 then
+172: 		setProperty(character_tag ..'.offset.x', upOffsets[1]);
+173: 		setProperty(character_tag ..'.offset.y', upOffsets[2]);
+174:         playAnim(character_tag, 'singUP', true);
+175: 
+176: 	elseif direction == 3 then
+177: 		setProperty(character_tag ..'.offset.x', rightOffsets[1]);
+178: 		setProperty(character_tag ..'.offset.y', rightOffsets[2]);
+179:         playAnim(character_tag, 'singRIGHT', true);
+180: 
+181: 	if isSustainNote then
+182: 		playAnim(character_tag, CharDADAnims[direction + 1], true);
+183: 			end
+184: 		end
+185:         end
+186: end
+187: 
+188: local CharBFAnims = {"singLEFT", "singDOWN", "singUP", "singRIGHT"}
+189: function goodNoteHit(id, direction, noteType, isSustainNote)
+190: 	if noteType == notetype_name_solo then
+191: 	    IdleAnim = false
+192: 		playAnim(character_tag, CharBFAnims[direction + 1], false);
+193: 
+194: 	if direction == 0 then
+195: 		setProperty(character_tag ..'.offset.x', leftOffsets[1]);
+196: 		setProperty(character_tag ..'.offset.y', leftOffsets[2]);
+197:         playAnim(character_tag, 'singLEFT', true);
+198: 
+199:     elseif direction == 1 then
+200: 		setProperty(character_tag ..'.offset.x', downOffsets[1]);
+201: 		setProperty(character_tag ..'.offset.y', downOffsets[2]);
+202:         playAnim(character_tag, 'singDOWN', true);
+203: 
+204: 	elseif direction == 2 then
+205: 		setProperty(character_tag ..'.offset.x', upOffsets[1]);
+206: 		setProperty(character_tag ..'.offset.y', upOffsets[2]);
+207:         playAnim(character_tag, 'singUP', true);
+208: 
+209: 	elseif direction == 3 then
+210: 		setProperty(character_tag ..'.offset.x', rightOffsets[1]);
+211: 		setProperty(character_tag ..'.offset.y', rightOffsets[2]);
+212:         playAnim(character_tag, 'singRIGHT', true);
+213: 
+214: 	if isSustainNote then
+215: 		playAnim(character_tag, CharBFAnims[direction + 1], true);
+216: 			end
+217: 		end
+218: 	end
+219: 	if noteType == notetype_name_duetBF then
+220: 		IdleAnim = false
+221: 		playAnim(character_tag, CharBFAnims[direction + 1], false);
+222: 
+223: 	if direction == 0 then
+224: 		setProperty(character_tag ..'.offset.x', leftOffsets[1]);
+225: 		setProperty(character_tag ..'.offset.y', leftOffsets[2]);
+226:         playAnim(character_tag, 'singLEFT', true);
+227: 
+228:     elseif direction == 1 then
+229: 		setProperty(character_tag ..'.offset.x', downOffsets[1]);
+230: 		setProperty(character_tag ..'.offset.y', downOffsets[2]);
+231:         playAnim(character_tag, 'singDOWN', true);
+232: 
+233: 	elseif direction == 2 then
+234: 		setProperty(character_tag ..'.offset.x', upOffsets[1]);
+235: 		setProperty(character_tag ..'.offset.y', upOffsets[2]);
+236:         playAnim(character_tag, 'singUP', true);
+237: 
+238: 	elseif direction == 3 then
+239: 		setProperty(character_tag ..'.offset.x', rightOffsets[1]);
+240: 		setProperty(character_tag ..'.offset.y', rightOffsets[2]);
+241:         playAnim(character_tag, 'singRIGHT', true);
+242: 
+243: 	if isSustainNote then
+244: 		playAnim(character_tag, CharBFAnims[direction + 1], true);
+245: 		end
+246: 	end
+247: end
+248: end
+249: 
+250: local missAnim = {"singLEFTmiss", "singDOWNmiss", "singUPmiss", "singRIGHTmiss"}
+251: function noteMiss(id, direction, noteType, isSustainNote)
+252:     if noteType == notetype_name_solo or noteType == notetype_name_duetDAD or noteType == notetype_name_duetBF then
+253:         doIdle = false
+254: 		    playAnim(character_tag, missAnim[direction + 1], false);
+255:         
+256:         if direction == 0 then
+257:             setProperty(character_tag .. '.offset.x', leftMissOffsets[1]);
+258:             setProperty(character_tag .. '.offset.y', leftMissOffsets[2]);
+259:             if isSustainNote then
+260:                 playAnim(character_tag, missAnims[direction + 1], true);
+261:             end
+262:         elseif direction == 1 then
+263:             setProperty(character_tag .. '.offset.x', downMissOffsets[1]);
+264:             setProperty(character_tag .. '.offset.y', downMissOffsets[2]);
+265:             if isSustainNote then
+266:                 playAnim(character_tag, missAnims[direction + 1], true);
+267:             end
+268:         elseif direction == 2 then
+269:             setProperty(character_tag .. '.offset.x', upMissOffsets[1]);
+270:             setProperty(character_tag .. '.offset.y', upMissOffsets[2]);
+271:             if isSustainNote then
+272:                 playAnim(character_tag, missAnims[direction + 1], true);
+273:             end
+274:         elseif direction == 3 then
+275:             setProperty(character_tag .. '.offset.x', rightMissOffsets[1]);
+276:             setProperty(character_tag .. '.offset.y', rightMissOffsets[2]);
+277:             if isSustainNote then
+278:                 playAnim(character_tag, missAnims[direction + 1], true);
+279:             end
+280:         end
+281:     end
+282: end
+283: 
+284: function onBeatHit()
+285: 	if curBeat % 2 == 0 and IdleAnim then
+286: 		playAnim(character_tag, 'idle');
+287: 		setProperty(character_tag ..'.offset.x', idleOffsets[1]);
+288: 		setProperty(character_tag ..'.offset.y', idleOffsets[2]);
+289: 	end
+290: 	IdleAnim = true
+291: end
+292: 
+293: function onMoveCamera(character)
+294:     if extraSection then
+295:         setProperty('camFollow.x', getMidpointX(characterTag) - 100 - characterCamera[1])
+296:         setProperty('camFollow.y', getMidpointY(characterTag) - 100 + characterCamera[2])
+297:     end
+298: end
+299: 
+300: function onCountdownTick(counter)
+301: -- this shit right here is for the countdown so dont touch this lol
+302: 	if counter % 2 == 0 then
+303: 		if IdleAnim == true then
+304:         playAnim(character_tag, 'idle');
+305: 		setProperty(character_tag ..'.offset.x', idleOffsets[1]);
+306: 		setProperty(character_tag ..'.offset.y', idleOffsets[2]);
+307: 		end
+308: 	end
+309: end
+\n--- FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/data/bloodbath/IconManager.lua ---
+1: function onUpdate()
+2: 
+3: 	if getProperty('health') > 1.6 then
+4: 
+5:         local angleOfs = math.random(-6, 6)
+6:         setProperty('iconP2.angle', angleOfs)
+7: 
+8: 	elseif getProperty('health') < 1.6 then
+9: 
+10:         local angleOfs = math.random(-2, 2)
+11:         setProperty('iconP2.angle', angleOfs)
+12: 
+13:     end
+14: end
+15: function onStepHit ()
+16: if curStep == 128 then
+17: runHaxeCode([[game.iconP1.changeIcon('cartman')]])
+18: setHealthBarColors('ff8000', 'b81414')
+19: elseif curStep == 161 then
+20: runHaxeCode([[game.iconP1.changeIcon('stan')]])
+21: setHealthBarColors('ff8000', '0061e5')
+22: elseif curStep == 176 then
+23: runHaxeCode([[game.iconP1.changeIcon('kyle')]])
+24: setHealthBarColors('ff8000', '48e000')
+25: elseif curStep == 232 then
+26: runHaxeCode([[game.iconP1.changeIcon('stan')]])
+27: setHealthBarColors('ff8000', '0061e5')
+28: elseif curStep == 240 then
+29: runHaxeCode([[game.iconP1.changeIcon('cartman')]])
+30: setHealthBarColors('ff8000', 'b81414')
+31: elseif curStep == 286 then
+32: runHaxeCode([[game.iconP1.changeIcon('kyle')]])
+33: setHealthBarColors('ff8000', '48e000')
+34: elseif curStep == 352 then
+35: runHaxeCode([[game.iconP1.changeIcon('cartman')]])
+36: setHealthBarColors('ff8000', 'b81414')
+37: elseif curStep == 416 then
+38: runHaxeCode([[game.iconP1.changeIcon('stan')]])
+39: setHealthBarColors('ff8000', '0061e5')
+40: elseif curStep == 480 then
+41: runHaxeCode([[game.iconP1.changeIcon('kyle')]])
+42: setHealthBarColors('ff8000', '48e000')
+43: elseif curStep == 488 then
+44: runHaxeCode([[game.iconP1.changeIcon('stan')]])
+45: setHealthBarColors('ff8000', '0061e5')
+46: elseif curStep == 496 then
+47: runHaxeCode([[game.iconP1.changeIcon('cartman')]])
+48: setHealthBarColors('ff8000', 'b81414')
+49: elseif curStep == 512 then
+50: runHaxeCode([[game.iconP1.changeIcon('kyle')]])
+51: setHealthBarColors('ff8000', '48e000')
+52: elseif curStep == 576 then
+53: runHaxeCode([[game.iconP1.changeIcon('cartman')]])
+54: setHealthBarColors('ff8000', 'b81414')
+55: elseif curStep == 638 then
+56: runHaxeCode([[game.iconP1.changeIcon('stan')]])
+57: setHealthBarColors('ff8000', '0061e5')
+58: elseif curStep == 704 then
+59: runHaxeCode([[game.iconP1.changeIcon('kyle')]])
+60: setHealthBarColors('ff8000', '48e000')
+61: elseif curStep == 800 then
+62: runHaxeCode([[game.iconP1.changeIcon('cartman')]])
+63: setHealthBarColors('ff8000', 'b81414')
+64: elseif curStep == 960 then
+65: runHaxeCode([[game.iconP1.changeIcon('stan')]])
+66: setHealthBarColors('ff8000', '0061e5')
+67: elseif curStep == 1024 then
+68: runHaxeCode([[game.iconP1.changeIcon('kyle c')]])
+69: setHealthBarColors('ff8000', '48e000')
+70: elseif curStep == 1728 then
+71: runHaxeCode([[game.iconP1.changeIcon('timmy')]])
+72: setHealthBarColors('ff8000', 'b81414')
+73: elseif curStep == 1792 then
+74: runHaxeCode([[game.iconP1.changeIcon('timmy c')]])
+75: setHealthBarColors('ff8000', 'b81414')
+76: elseif curStep == 1857 then
+77: runHaxeCode([[game.iconP1.changeIcon('jimmy')]])
+78: setHealthBarColors('ff8000', 'ffff00')
+79: elseif curStep == 1920 then
+80: runHaxeCode([[game.iconP1.changeIcon('jimmy c')]])
+81: setHealthBarColors('ff8000', 'ffff00')
+82: elseif curStep == 1984 then
+83: runHaxeCode([[game.iconP1.changeIcon('timmy c')]])
+84: setHealthBarColors('ff8000', 'b81414')
+85: elseif curStep == 2175 then
+86: runHaxeCode([[game.iconP1.changeIcon('jimmy c')]])
+87: setHealthBarColors('ff8000', 'ffff00')
+88: elseif curStep == 2496 then
+89: runHaxeCode([[game.iconP1.changeIcon('clyde')]])
+90: setHealthBarColors('ff8000', 'b81414')
+91: elseif curStep == 2528 then
+92: runHaxeCode([[game.iconP1.changeIcon('tweek')]])
+93: setHealthBarColors('ff8000', 'ffff00')
+94: elseif curStep == 2544 then
+95: runHaxeCode([[game.iconP1.changeIcon('craig')]])
+96: setHealthBarColors('ff8000', '0061e5')
+97: elseif curStep == 2560 then
+98: runHaxeCode([[game.iconP1.changeIcon('clyde')]])
+99: setHealthBarColors('ff8000', 'b81414')
+100: elseif curStep == 2816 then
+101: runHaxeCode([[game.iconP1.changeIcon('tolkien')]])
+102: setHealthBarColors('ff8000', '572364')
+103: elseif curStep == 2848 then
+104: runHaxeCode([[game.iconP1.changeIcon('clyde')]])
+105: setHealthBarColors('ff8000', 'b81414')
+106: elseif curStep == 2880 then
+107: runHaxeCode([[game.iconP1.changeIcon('tweek')]])
+108: setHealthBarColors('ff8000', 'ffff00')
+109: elseif curStep == 2912 then
+110: runHaxeCode([[game.iconP1.changeIcon('craig')]])
+111: setHealthBarColors('ff8000', '0061e5')
+112: elseif curStep == 2944 then
+113: runHaxeCode([[game.iconP1.changeIcon('tweek')]])
+114: setHealthBarColors('ff8000', 'ffff00')
+115: elseif curStep == 3072 then
+116: runHaxeCode([[game.iconP1.changeIcon('tolkien')]])
+117: setHealthBarColors('ff8000', '572364')
+118: elseif curStep == 3200 then
+119: runHaxeCode([[game.iconP1.changeIcon('tweek')]])
+120: setHealthBarColors('ff8000', 'ffff00')
+121: elseif curStep == 3232 then
+122: runHaxeCode([[game.iconP1.changeIcon('craig')]])
+123: setHealthBarColors('ff8000', '0061e5')
+124: elseif curStep == 3328 then
+125: runHaxeCode([[game.iconP1.changeIcon('tweek')]])
+126: setHealthBarColors('ff8000', 'ffff00')
+127: elseif curStep == 3392 then
+128: runHaxeCode([[game.iconP1.changeIcon('craig')]])
+129: setHealthBarColors('ff8000', '0061e5')
+130: elseif curStep == 3584 then
+131: runHaxeCode([[game.iconP1.changeIcon('tolkien c')]])
+132: setHealthBarColors('ff8000', '572364')
+133: elseif curStep == 3648 then
+134: runHaxeCode([[game.iconP1.changeIcon('tweek')]])
+135: setHealthBarColors('ff8000', 'ffff00')
+136: elseif curStep == 3664 then
+137: runHaxeCode([[game.iconP1.changeIcon('craig')]])
+138: setHealthBarColors('ff8000', '0061e5')
+139: elseif curStep == 3680 then
+140: runHaxeCode([[game.iconP1.changeIcon('tolkien c')]])
+141: setHealthBarColors('ff8000', '572364')
+142: end
+143: end
+\n--- FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/data/bloodbath/white effect.lua ---
+1: function onEvent(n,v1,v2)
+2: 	if n == 'Weffect' then
+3: 	   makeLuaSprite('flash2', '', 0, 0);
+4:         makeGraphic('flash2',1280,720,'ffffff')
+5: 	      addLuaSprite('flash2', true);
+6: 
+7: 	setBlendMode('flash2', 'add')
+8: 	setObjectCamera ('flash2', 'other')
+9: 	      setProperty('flash2.scale.x',1)
+10: 	      setProperty('flash2.scale.y',1)
+11: 	      setProperty('flash2.alpha',0)
+12: 		setProperty('flash2.alpha',0.2)
+13: 		doTweenAlpha('flTw','flash2',0,v1,'linear')
+14: 	end
+15: end
+16: 
+17: function opponentNoteHit(id, direction, noteType, isSustainNote)
+18: if getProperty('health') >= 0.4 then
+19: if dadName == 'CorruptStewiePh1' then
+20: setProperty('health', getProperty('health') - 0.01)
+21: elseif dadName == 'CorruptStewiePh2' then
+22: setProperty('health', getProperty('health') - 0.02)
+23: elseif dadName == 'CorruptStewiePh3' then
+24: 
+25: setProperty('health', getProperty('health') - 0.03)
+26: end
+27: end
+28: end
+29: function onUpdate()
+30: 
+31:   if curStep == 66000 then
+32:     doTweenAngle('camgamerotateto0', 'camGame', 10, 0.01, 'linear')
+33:   end
+34:   if curStep == 112 then
+35:     doTweenAngle('otrn', 'camGame', 60, 2, 'linear')
+36:   end
+37:   if curStep == 128 then
+38:     doTweenAngle('otrn', 'camGame', 0, 0.01, 'linear')
+39:   end
+40:   if curStep == 506 then
+41:     doTweenAngle('otrn', 'camGame', 60, 2, 'linear')
+42:   end
+43:   if curStep == 512 then
+44:     doTweenAngle('otrn', 'camGame', 0, 0.01, 'linear')
+45:   end
+46:   if curStep == 536 then
+47:     doTweenAngle('otrn', 'camGame', 7, 0.5, 'linear')
+48:   end
+49:   if curStep == 656 then
+50:     doTweenAngle('otrn', 'camGame', 7, 0.5, 'linear')
+51:   end
+52:   if curStep == 833 then
+53:     doTweenAngle('otrn', 'camGame', 20, 7, 'linear')
+54:   end
+55:   if curStep == 856 then
+56:     doTweenAngle('otrn', 'camGame', 0, 0.7, 'linear')
+57:   end
+58:   if curStep == 1391 then
+59:     doTweenAngle('otrn', 'camGame', 10, 0.7, 'linear')
+60:   end
+61:   if curStep == 24650 then
+62:     doTweenAngle('otrn', 'camGame', 0, 5, 'expoInOut')
+63:   end
+64:   if curStep == 5360 then
+65:     doTweenAngle('otrn', 'camGame', 0, 0.6, 'expoInOut')
+66:   end
+67:   if curStep == 10520 then
+68:     doTweenAngle('otrn', 'camGame', 0, 0.001, 'expoInOut')
+69:   end
+70: 	if curStep == 1480 then
+71: 		doTweenAngle('camerathing', 'camera', -20, 0.6, 'linear')
+72:      end
+73: 	if curStep == 152100 then
+74: 		doTweenAngle('camerathing', 'camera', -15, 0.002, 'linear')
+75:      end
+76: 	if curStep == 11260 then
+77: 		doTweenAngle('camerathing', 'camera', 5, 0.3, 'linear')
+78:      end
+79: 	if curStep == 4020 then
+80: 		doTweenAngle('camerathing', 'camera', 5, 0.5, 'linear')
+81:      end
+82: 	if curStep == 4180 then
+83: 		doTweenAngle('camerathing', 'camera', 0, 2, 'linear')
+84:      end
+85: 	if curStep == 933 then
+86: 		doTweenAngle('camerathing', 'camera', 0, 0.0001, 'linear')
+87:      end
+88: 	if curStep == 138700 then
+89: 		doTweenAngle('camerathing', 'camera', 5, 0.6, 'linear')
+90:      end
+91:      if curStep == 12800 then
+92:         doTweenX('Boyfriend', 'boyfriend', 700, 6, 'cubeOut')
+93:      end
+94:      if curStep == 502 then
+95:         doTweenX('fogblack1', 'fogblack1', 1600, 0.9, 'cubeOut')
+96:      end
+97:      if curStep == 12800 then
+98:         doTweenX('DAD', 'dad', 600, 6, 'cubeOut')
+99:      end
+100:      if curStep == 14600 then
+101:         doTweenX('DAD', 'dad', -220, 16, 'cubeOut')
+102:      end
+103:      if curStep == 14600 then
+104:         doTweenX('Boyfriend', 'boyfriend', 40, 16, 'cubeOut')
+105:      end
+106:      if curStep == 15410 then
+107:         doTweenX('Boyfriend', 'boyfriend', 800, 16, 'cubeOut')
+108:      end
+109:      if curStep == 15410 then
+110:         doTweenX('DAD', 'dad', 540, 16, 'cubeOut')
+111:      end
+112: 	if curStep == 1300 then
+113: 		doTweenAngle('camerathing', 'camera', 10, 0.002, 'linear')
+114:      end
+115:      if curStep == 1615 then
+116:         doTweenX('DAD', 'dad', -550, 1, 'cubeOut')
+117:      end
+118:      if curStep == 3676 then
+119:         doTweenX('Boyfriend', 'boyfriend', 3000, 2, 'cubeOut')
+120:      end
+121:      if curStep == 3676 then
+122:         doTweenX('craig', 'craig', 3050, 2, 'cubeOut')
+123:      end
+124:      if curStep == 16480 then
+125:         doTweenX('DAD', 'dad', -100, 1, 'cubeOut')
+126:      end
+127:      if curStep == 16710 then
+128:         doTweenX('DAD', 'dad', -620, 1, 'cubeOut')
+129:      end
+130:      if curStep == 1624 then
+131:         doTweenX('GF', 'gf', 990, 1, 'cubeOut')
+132:      end
+133: 	if curStep == 1622 then
+134: 		doTweenAngle('camerathing', 'camera', 0, 0.002, 'linear')
+135:      end
+136:      if curStep == 40000 then
+137:         doTweenX('GF', 'gf', 500, 3. , 'cubeOut')
+138:      end
+139: end
+\n--- FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/stages/south.lua ---
+1: function onCreate()
+2: 	makeLuaSprite('sun', 'sun',-1870,-1240)
+3: 	setLuaSpriteScrollFactor('sun', 1, 1);
+4: 	scaleObject('sun', 1.4, 1.2);
+5:         addLuaSprite('sun',true);
+6:         setProperty('sun.alpha',0)
+7: 
+8: 	makeLuaSprite('wow1', 'fog bg2',-1670,-1240)
+9: 	setLuaSpriteScrollFactor('wow1', 1, 1);
+10: 	scaleObject('wow1', 3, 3);
+11:         addLuaSprite('wow1',true);
+12:         setProperty('wow1.alpha',0)
+13: 
+14: 	   makeLuaSprite('flash1', '', 0, 0);
+15:         makeGraphic('flash1',1280,720,'ffffff')
+16: 	      addLuaSprite('flash1', true);
+17: 
+18: 	setBlendMode('flash1', 'SUBTRACT')
+19: 	setObjectCamera ('flash1', 'other')
+20: 	      setProperty('flash1.scale.x',10)
+21: 	      setProperty('flash1.scale.y',10)
+22: 	      setProperty('flash1.alpha',0)
+23: 
+24:     makeLuaSprite('Vignette', 'Vignette', -20, 0);
+25:     addLuaSprite('Vignette', true);
+26:     setObjectCamera('Vignette', 'hud');
+27: 	setProperty('Vignette.alpha', 0);
+28: 
+29: 	makeLuaSprite('white','white', -1700, -500);
+30: 	addLuaSprite('white', false);
+31:     setObjectCamera('white', 'hud');
+32:         scaleObject('white', 1, 1);
+33: 	setProperty('white.alpha', 0);
+34: 
+35: 	makeLuaSprite('fog','fog', -2000, -1000);
+36: 	addLuaSprite('fog', true);
+37:         scaleObject('fog', 1.4, 1.4);
+38: 	setProperty('fog.alpha', 0);
+39: 
+40: 	makeLuaSprite('black','black', 0, 0);
+41: 	setObjectCamera('black', 'hud')
+42: 	addLuaSprite('black', true);
+43: 	setProperty('black.alpha', 0);
+44: 
+45:     makeAnimatedLuaSprite("anim", "anim", 0, 0);
+46:     setObjectCamera('anim', 'hud');
+47:     scaleObject("anim", 1, 1);
+48:     addLuaSprite("anim",true);
+49:     setProperty('anim.alpha', 0)
+50:     addAnimationByPrefix('anim', 'anim', 'anim a', 24, false);
+51: 
+52: 
+53: makeAnimatedLuaSprite('bg', 'bg',-1670,-1540)
+54: addAnimationByPrefix('bg', 'bg', 'bg a',17, true)
+55: scaleObject('bg', 2.7, 2.7);
+56: 	setProperty('bg.alpha', 0)
+57: addLuaSprite('bg',false)        
+58: 
+59: makeLuaSprite('bgluz', 'luzbg',-1670,-1540)
+60: scaleObject('bgluz', 2.7, 2.7);
+61: setProperty('bgluz.alpha', 0)
+62: addLuaSprite('bgluz',true)
+63: 
+64: makeAnimatedLuaSprite('bg3', 'bg3',-1770,-940)
+65: addAnimationByPrefix('bg3', 'bg3', 'idle',17, true)
+66: scaleObject('bg3', 2.3, 2.3);
+67: 	setProperty('bg3.alpha', 0)
+68: addLuaSprite('bg3',false)
+69: 
+70: makeLuaSprite('bgluz3', 'bg3luz',-1770,-940)
+71: scaleObject('bgluz3', 2.3, 2.3);
+72: setProperty('bgluz3.alpha', 0)
+73: addLuaSprite('bgluz3',true)
+74: 
+75: makeAnimatedLuaSprite('bg4', 'bg4',-540,-740)
+76: addAnimationByPrefix('bg4', 'bg4', 'bg4 a',17, true)
+77: scaleObject('bg4', 1.7, 1.7);
+78: 	setProperty('bg4.alpha', 0)
+79: addLuaSprite('bg4',false)
+80: 
+81: makeLuaSprite('bgluz4', 'bg4luz',-540,-740)
+82: scaleObject('bgluz4', 1.7, 1.7);
+83: setProperty('bgluz4.alpha', 0)
+84: addLuaSprite('bgluz4',false)
+85: 
+86: makeLuaSprite('bgluz42', 'bg4luz2',-540,-740)
+87: scaleObject('bgluz42', 1.7, 1.7);
+88: setProperty('bgluz42.alpha', 0)
+89: addLuaSprite('bgluz42',true)
+90: 
+91: makeLuaSprite('bg2', 'bg2 s',-1970,-1040)
+92: scaleObject('bg2', 2.7, 2.7);
+93: 	setProperty('bg2.alpha', 0)
+94: addLuaSprite('bg2',false)
+95: 
+96: makeAnimatedLuaSprite('bg2 n', 'bg2',-1970,-1040)
+97: addAnimationByPrefix('bg2 n', 'bg2 n', 'idle',17, true)
+98: scaleObject('bg2 n', 2.7, 2.7);
+99: 	setProperty('bg2 n.alpha', 0)
+100: addLuaSprite('bg2 n',false)
+101: 
+102: makeLuaSprite('bgluz2', 'bg2luz',-1970,-1040)
+103: scaleObject('bgluz2', 2.7, 2.7);
+104: setProperty('bgluz2.alpha', 0)
+105: setProperty('bgluz2.flipX', true)
+106: addLuaSprite('bgluz2',true)
+107: 
+108: makeLuaSprite('nieve', 'nieve',-1970,-1040)
+109: scaleObject('nieve', 2.7, 2.7);
+110: 	setProperty('nieve.alpha', 0)
+111: addLuaSprite('nieve',true)
+112: 
+113:     makeAnimatedLuaSprite("kyle s", "kyle s", 608, 164);
+114:     scaleObject("kyle s", 1, 1);
+115:     addLuaSprite("kyle s",false);
+116:     setProperty('kyle s.alpha', 0)
+117:     addAnimationByPrefix('kyle s', 'anim', 'idle', 24, true);
+118:     addAnimationByPrefix('kyle s', 'anim1', 'anim', 22, false);
+119: 
+120:     makeAnimatedLuaSprite("oh", "oh", 608, 164);
+121:     scaleObject("oh", 1.9, 1.9);
+122:     addLuaSprite("oh",false);
+123:     setProperty('oh.alpha', 0)
+124:     addAnimationByPrefix('oh', 'anim', 'oh', 16, true);
+125: 
+126:     makeAnimatedLuaSprite("craig s", "characters/craig", 1700, 490);
+127:     scaleObject("craig s", 0.9, 0.9);
+128:     addLuaSprite("craig s",true);
+129:     setProperty('craig s.alpha', 0)
+130:     addAnimationByPrefix('craig s', 'anim', 'oh', 16, true);
+131: 
+132: 	makeLuaSprite('blackbar','blackbar', 0, -0);
+133: 	setObjectCamera('blackbar', 'hud')
+134: 	addLuaSprite('blackbar', true);
+135: 	setProperty('blackbar.alpha', 0);
+136: 
+137:     makeAnimatedLuaSprite("anim2", "anim2", 0, 0);
+138:     setObjectCamera('anim2', 'hud');
+139:     scaleObject("anim2", 1, 1);
+140:     addLuaSprite("anim2",true);
+141:     setProperty('anim2.alpha', 0)
+142:     addAnimationByPrefix('anim2', 'anim', 'anim2 a', 24, false);
+143: 
+144:     makeAnimatedLuaSprite("anim2 c", "anim2 c", 0, 0);
+145:     setObjectCamera('anim2 c', 'hud');
+146:     scaleObject("anim2 c", 1, 1);
+147:     addLuaSprite("anim2 c",false);
+148:     setProperty('anim2 c.alpha', 0)
+149:     addAnimationByPrefix('anim2 c', 'anim', 'anim2 c a', 24, false);
+150: 
+151:     makeAnimatedLuaSprite("anim3", "anim3", 0, 0);
+152:     setObjectCamera('anim3', 'hud');
+153:     scaleObject("anim3", 1, 1);
+154:     addLuaSprite("anim3",false);
+155:     setProperty('anim3.alpha', 0)
+156:     addAnimationByPrefix('anim3', 'anim', 'anim3 idle', 24, false);
+157: 
+158: 
+159: 
+160:     	makeLuaSprite('Vignette', 'Vignette', 0, 0)
+161: 	setScrollFactor('Vignette', 1, 1);
+162: 	scaleObject('Vignette', 1, 1); 
+163: 	setObjectCamera('Vignette', 'other')
+164:     	setProperty('Vignette.alpha', 0)
+165: 	addLuaSprite('Vignette', true)
+166: end
+167: 
+168: function onStepHit()
+169:     if curStep == 2 then
+170: 		doTweenColor('badapplexd1', 'dad', '000000', 0.01, 'linear')
+171: 		doTweenColor('badapplexd6', 'healthBar', '000000', 0.01, 'linear')
+172: 		doTweenColor('badapplexd100', 'iconP1', '000000', 0.01, 'linear')
+173: 		doTweenColor('badapplexd10', 'iconP2', '000000', 0.01, 'linear')
+174:     elseif curStep == 11 then 
+175:         setProperty('gf.alpha', 0)
+176:         setProperty('kyle c.alpha', 0)
+177:         setProperty('cledy.alpha', 0)
+178:         setProperty('craig.alpha', 0)
+179:     elseif curStep == 128 then 
+180:         setProperty('bgluz.alpha', 0.5)
+181:     elseif curStep == 465 then 
+182: 		doTweenColor('badapplexd', 'boyfriend', 'ffffff', 0.01, 'linear')
+183:     elseif curStep == 472 then 
+184:         setProperty('kyle1.alpha', 1)
+185:         if curStep == 1104 then
+186:         noteTweenAlpha('playfades4', 4, 0, 0.3, 'quartInOut')
+187:         noteTweenAlpha('playfades5', 5, 0, 0.3, 'quartInOut')
+188:         noteTweenAlpha('playfades6', 6, 0, 0.3, 'quartInOut')
+189:         noteTweenAlpha('playfades7', 7, 0, 0.3, 'quartInOut')
+190:     end
+191:      elseif curStep == 1202 then 
+192:         setProperty('bgluz.alpha', 0)
+193:     
+194:         if curStep == 1215 then
+195:         noteTweenAlpha('playfades4', 4, 1, 0.3, 'quartInOut')
+196:         noteTweenAlpha('playfades5', 5, 1, 0.3, 'quartInOut')
+197:         noteTweenAlpha('playfades6', 6, 1, 0.3, 'quartInOut')
+198:         noteTweenAlpha('playfades7', 7, 1, 0.3, 'quartInOut')
+199:     end
+200:     elseif curStep == 1285 then
+201:          setProperty('bgluz2.alpha', 1) 
+202:     elseif curStep == 2325 then
+203:          setProperty('bgluz2.alpha', 0)
+204:     elseif curStep == 2433 then
+205:          setProperty('bgluz3.alpha', 0.75)
+206:     elseif curStep == 3713 then
+207:          setProperty('bgluz3.alpha', 0)
+208:          setProperty('bgluz42.alpha', 1)
+209:          setProperty('bgluz4.alpha', 0.75)
+210:     elseif curStep == 68800 then
+211:         doTweenX('GF', 'gf', 800, 3. , 'cubeOut')
+212:     elseif curStep == 2344 then
+213:         doTweenX('Boyfriend', 'boyfriend', 1000, 1. , 'cubeOut')
+214:     end
+215: end
+\n=== MATCHUP CHARACTER JSON ===
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/cledy.json: {"image": "characters/clyde", "position": [78, 250], "camera_position": [-280, 60], "healthicon": "faker-tails", "healthbar_colors": [255, 209, 74], "flip_x": false, "scale": 1.9, "no_antialiasing": false}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/craig.json: {"image": "characters/craig", "position": [48, 180], "camera_position": [-280, 60], "healthicon": "faker-tails", "healthbar_colors": [255, 209, 74], "flip_x": false, "scale": 0.9, "no_antialiasing": false}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/jimmy c.json: {"image": "characters/jimmy c", "position": [48, 90], "camera_position": [-280, 60], "healthicon": "jimmy c", "healthbar_colors": [255, 255, 0], "flip_x": true, "scale": 1.3, "no_antialiasing": false}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/jimmy c}.json: {"image": "characters/jimmy c", "position": [28, 210], "camera_position": [-280, 60], "healthicon": "faker-tails", "healthbar_colors": [255, 209, 74], "flip_x": true, "scale": 1.3, "no_antialiasing": false}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/jimmy w.json: {"image": "characters/jimmy w", "position": [48, 90], "camera_position": [-280, 60], "healthicon": "jimmy", "healthbar_colors": [255, 255, 0], "flip_x": true, "scale": 1.3, "no_antialiasing": false}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/jimmy.json: {"image": "characters/jimmy", "position": [48, 90], "camera_position": [-280, 60], "healthicon": "jimmy", "healthbar_colors": [255, 255, 0], "flip_x": true, "scale": 1.3, "no_antialiasing": true}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/kenny 2.json: {"image": "characters/kenny", "position": [-120, 220], "camera_position": [0, 0], "healthicon": "blank", "healthbar_colors": [161, 161, 161], "flip_x": false, "scale": 0.9, "no_antialiasing": true}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/kenny c f.json: {"image": "characters/kenny c f", "position": [1470, -430], "camera_position": [0, 0], "healthicon": "kenny", "healthbar_colors": [255, 121, 40], "flip_x": false, "scale": 1.5, "no_antialiasing": true}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/kenny c.json: {"image": "characters/kenny c", "position": [-420, -50], "camera_position": [0, 0], "healthicon": "kenny", "healthbar_colors": [255, 121, 0], "flip_x": false, "scale": 1.5, "no_antialiasing": true}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/kenny run.json: {"image": "characters/kenny run", "position": [-420, -50], "camera_position": [0, 0], "healthicon": "kenny", "healthbar_colors": [255, 121, 0], "flip_x": false, "scale": 1.5, "no_antialiasing": false}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/kenny s.json: {"image": "characters/kenny s", "position": [0, 70], "camera_position": [0, 0], "healthicon": "kenny s", "healthbar_colors": [255, 115, 1], "flip_x": false, "scale": 1, "no_antialiasing": false}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/kenny.json: {"image": "characters/kenny", "position": [0, 140], "camera_position": [0, 0], "healthicon": "blank", "healthbar_colors": [161, 161, 161], "flip_x": false, "scale": 0.8, "no_antialiasing": false}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/tolkien c.json: {"image": "characters/tolkien c", "position": [48, 70], "camera_position": [-280, 60], "healthicon": "faker-tails", "healthbar_colors": [255, 209, 74], "flip_x": false, "scale": 1, "no_antialiasing": false}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/tolkien f.json: {"image": "characters/tolkien f", "position": [-444, 70], "camera_position": [-280, 60], "healthicon": "tolkien c", "healthbar_colors": [55, 0, 114], "flip_x": true, "scale": 1.5, "no_antialiasing": false}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/tolkien run.json: {"image": "characters/tolkien run", "position": [-12, 230], "camera_position": [-280, 60], "healthicon": "faker-tails", "healthbar_colors": [255, 209, 74], "flip_x": true, "scale": 0.9, "no_antialiasing": false}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/tolkien s.json: {"image": "characters/tolkien s", "position": [128, 70], "camera_position": [-280, 60], "healthicon": "faker-tails", "healthbar_colors": [255, 209, 74], "flip_x": false, "scale": 1, "no_antialiasing": false}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/tolkien.json: {"image": "characters/tolkien", "position": [138, 70], "camera_position": [-280, 60], "healthicon": "faker-tails", "healthbar_colors": [255, 209, 74], "flip_x": false, "scale": 1, "no_antialiasing": false}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/tweek a.json: {"image": "characters/tweek a", "position": [-2, 200], "camera_position": [-280, 60], "healthicon": "tweek", "healthbar_colors": [255, 209, 74], "flip_x": true, "scale": 1.3, "no_antialiasing": false}
+fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/characters/tweek.json: {"image": "characters/tweek", "position": [-2, 200], "camera_position": [-280, 60], "healthicon": "tolkien", "healthbar_colors": [135, 20, 100], "flip_x": true, "scale": 1.3, "no_antialiasing": false}
 
 === SOUTH STAGE LUA REFERENCES ===
 FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/stages/south.lua
