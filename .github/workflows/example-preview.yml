@@ -82,7 +82,7 @@ jobs:
                   output.extend(f"{i+1}: {line}" for i,line in enumerate(zf.read(name).decode("utf-8","replace").splitlines()))
 
               output.append("\\n=== CHARACTER / BG TIMELINE LUA MATCHES ===")
-              terms=re.compile(r"tolkien|tweek|jimmy|clyde|cledy|craig|kenny|bg2|bg3|bg4|change character|changecharacter|addLuaSprite|removeLuaSprite|setProperty\\s*\\(.*?alpha|setProperty\\s*\\(.*?visible",re.I)
+              terms=re.compile(r"tolkien|tweek|jimmy|clyde|cledy|craig|kenny|bg2|bg3|bg4|change character|changecharacter|addLuaSprite|removeLuaSprite|alpha|visible",re.I)
               for name in names:
                   if not name.lower().endswith(".lua"):
                       continue
