@@ -1,4 +1,4 @@
-TRIGGER: Second inspection: locate any script/chart references to Comedy Central and extract shader event map.
+TRIGGER: Inspect complete Comedy Central Logo.lua positioning and visibility logic.
 ARCHIVE MEMBERS: 2587
 
 === LOGO IMAGE CANDIDATES ===
@@ -211,6 +211,25 @@ FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/stages/south.lua
 210:     elseif curStep == 68800 then
 211:         doTweenX('GF', 'gf', 800, 3. , 'cubeOut')
 212:     elseif curStep == 2344 then
+\n=== COMPLETE COMEDY CENTRAL LOGO SCRIPT ===
+FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/scripts/Logo.lua
+1: function onCreate()
+2: 	if downscroll then
+3: 	makeLuaSprite('Comedy Central', 'Comedy Central', 1000, 60);
+4: 	scaleObject('Comedy Central', 0.3, 0.3)
+5:   setScrollFactor('Comedy Central', 1, 1);
+6: 	setObjectCamera('Comedy Central', 'hud')
+7: 	addLuaSprite('Comedy Central', true)
+8:    setProperty('Comedy Central.alpha', 0.8)
+9: 	end
+10: 	if not downscroll then
+11: 		makeLuaSprite('Comedy Central', 'Comedy Central', 1000, 600);
+12: 	scaleObject('Comedy Central', 0.3, 0.3)
+13:   setScrollFactor('Comedy Central', 1, 1);
+14: 	setObjectCamera('Comedy Central', 'hud')
+15: 	addLuaSprite('Comedy Central', true)
+16: 	end
+17: end
 \n=== ALL TEXT REFERENCES TO COMEDY CENTRAL ===
 FILE: fnf bloodbath RTX fix/fnf bloodbath RTX FIX!/mods/scripts/Logo.lua
 3: makeLuaSprite('Comedy Central', 'Comedy Central', 1000, 60);
