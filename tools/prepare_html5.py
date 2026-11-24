@@ -739,17 +739,17 @@ def patch_south_stage(
 			background.animation.addByPrefix('idle', 'idle', 24, true);
 			background.animation.play('idle', true);
 			background.active = true;
-			background.x = -1970; // Match the original south.lua coordinates.
-			background.y = -1040;
-			background.scale.set(5.4, 5.4);
+			background.x = -1322; // Match the viewport-fitted clean playground transform.
+			background.y = -775;
+			background.scale.set(3.8116, 3.8116);
 		}
 		else
 		{
 			background.loadGraphic(Paths.image('bg2 s'));
 			background.active = false;
-			background.x = -1970; // Match the original south.lua coordinates.
-			background.y = -1040;
-			background.scale.set(2.7, 2.7);
+			background.x = -1322; // Keep both Kenny backgrounds at the same screen origin.
+			background.y = -775;
+			background.scale.set(1.9058, 1.9058);
 		}
 
 		background.offset.set(0, 0);
@@ -1045,11 +1045,11 @@ def patch_south_stage(
 				add(southLightOverlay42);
 				southAnimatedObjects.set('bgluz42', southLightOverlay42);
 
-				// Shift the whole playground stack down to cover the viewport's lower edge.
-				// Reuse one playground sprite for both Kenny forms. The chart swaps
-				// its graphic while keeping one consistent origin and scroll factor.
-				var southBackground2:BGSprite = new BGSprite('bg2 s', -1970, -1040);
-				southBackground2.scale.set(2.7, 2.7);
+				// Fit only the playground artwork to the 16:9 viewport at the chart's
+				// 0.35 camera framing. Character sprites and camera zoom stay unchanged.
+				// Both Kenny forms reuse this one sprite and share the same origin.
+				var southBackground2:BGSprite = new BGSprite('bg2 s', -1322, -775);
+				southBackground2.scale.set(1.9058, 1.9058);
 				southBackground2.offset.set(0, 0);
 				southBackground2.origin.set(0, 0);
 				southBackground2.alpha = 0;
@@ -1057,14 +1057,14 @@ def patch_south_stage(
 				southAnimatedObjects.set('bg2', southBackground2);
 				southAnimatedObjects.set('bg2 n', southBackground2);
 
-				southLightOverlay2 = new BGSprite('bg2luz', -1970, -1040);
+				southLightOverlay2 = new BGSprite('bg2luz', -1322, -775);
 				southLightOverlay2.scale.set(2.7, 2.7);
 				southLightOverlay2.flipX = true;
 				southLightOverlay2.alpha = 0;
 				add(southLightOverlay2);
 				southAnimatedObjects.set('bgluz2', southLightOverlay2);
 
-				var southSnow:BGSprite = new BGSprite('nieve', -1970, -1040);
+				var southSnow:BGSprite = new BGSprite('nieve', -1322, -775);
 				southSnow.scale.set(2.7, 2.7);
 				southSnow.alpha = 0;
 				add(southSnow);
