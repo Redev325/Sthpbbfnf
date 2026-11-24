@@ -1434,7 +1434,7 @@ def patch_south_stage(
         if (curStage == 'south' && (note.noteType == 'Clyde Note' || note.noteType == 'Craig Note'))
         {
             var isClydeNote:Bool = note.noteType == 'Clyde Note';
-            var clydeStillInChart:Bool = Conductor.songPosition >= 208083.333 && Conductor.songPosition < 255916.667;
+            var clydeStillInChart:Bool = Conductor.songPosition >= 208083.333 && Conductor.songPosition < 256083.333;
             var extraOpponentCharacter:Character = isClydeNote ? southCledyCharacter : southCraigCharacter;
             var extraOpponentAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
             if (isClydeNote && !clydeStillInChart)
@@ -1492,7 +1492,7 @@ def patch_south_stage(
         if (curStage == 'south' && (note.noteType == 'Clyde Note' || note.noteType == 'Craig Note'))
         {
             var isClydeNote:Bool = note.noteType == 'Clyde Note';
-            var clydeStillInChart:Bool = Conductor.songPosition >= 208083.333 && Conductor.songPosition < 253555.556;
+            var clydeStillInChart:Bool = Conductor.songPosition >= 208083.333 && Conductor.songPosition < 256083.333;
             var extraPlayerCharacter:Character = isClydeNote ? southCledyCharacter : southCraigCharacter;
             var extraPlayerAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
             if (isClydeNote && !clydeStillInChart)
@@ -2506,7 +2506,22 @@ function hideSouthClydeDuplicateSprite(candidate:FlxSprite):Void
 			}
 		}
 	}
-function updateSouthThirdPartCharacters():Void
+function updateSouthClydeVisibility():Void
+	{
+		if (curStage != 'south' || !generatedMusic || southCledyCharacter == null) return;
+		var songMs:Float = Conductor.songPosition;
+		// Keep Clyde through the final 2.5-second sustain, then remove him
+		// as the following GF Sing section begins. Run this both before and
+		// after note callbacks so the last sustain cannot resurrect him.
+		if (songMs < 208083.333 || songMs >= 256083.333)
+		{
+			FlxTween.cancelTweensOf(southCledyCharacter);
+			southCledyCharacter.alpha = 0;
+			southCledyCharacter.visible = false;
+		}
+	}
+
+	function updateSouthThirdPartCharacters():Void
 	{
 		if (curStage != 'south' || !generatedMusic) return;
 		var songMs:Float = Conductor.songPosition;
@@ -2561,19 +2576,7 @@ function updateSouthThirdPartCharacters():Void
 \t\t\t}
 \t\t}
 
-\t\t// Clyde's custom notes run from 3:28.083 through the final sustain ending at 4:15.917. Do not force
-\t\t// him visible throughout that window: charted afadeout events must
-\t\t// remain authoritative after the character has been removed/killed.
-\t\tif (southCledyCharacter != null)
-\t\t{
-\t\t\tvar clydeOutsideChartWindow:Bool = songMs < 208083.333 || songMs >= 255916.667;
-\t\t\tif (clydeOutsideChartWindow)
-\t\t\t{
-\t\t\t\tFlxTween.cancelTweensOf(southCledyCharacter);
-\t\t\t\tsouthCledyCharacter.alpha = 0;
-\t\t\t\tsouthCledyCharacter.visible = false;
-\t\t\t}
-\t\t}
+		updateSouthClydeVisibility();
 
 \t\t// Craig enters on his first custom-note sequence and is faded by the
 		// chart's "afadeout craig" event at 5:06.417.
@@ -2912,7 +2915,8 @@ function updateSouthThirdPartCharacters():Void
             "\t\tupdateSouthScriptedCameraFollow();\n" + camera_update_marker,
             1,
         )
-    if "updateSouthSmoothCameraPost(elapsed);" not in source:
+    if "updateSouthSmoothCameraPost(elapsed);
+		updateSouthClydeVisibility();" not in source:
         if source.count(camera_update_marker) != 1:
             raise RuntimeError("Could not locate the onUpdatePost point for Bloodbath smooth camera.")
         source = source.replace(
