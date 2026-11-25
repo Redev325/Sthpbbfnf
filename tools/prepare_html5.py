@@ -545,7 +545,6 @@ def patch_south_stage(
 	var southKyleCCharacter:Character;
 	var southCraigCharacter:Character;
 	var southCledyCharacter:Character;
-	var southClydeDeathStarted:Bool = false;
 	var southKyleCorruptionStarted:Bool = false;
 	var southKyleCorruptionActive:Bool = false;
 	var badAppleWhiteBg:FlxSprite;
@@ -905,7 +904,6 @@ def patch_south_stage(
 			hideSouthExtraKyles();
 		}
 		if (isSouthBackgroundLayer(normalizedKey)) setSouthBackgroundLayer(normalizedKey, 0.35);
-		if (normalizedKey == 'anim2 c') hideSouthClydeForDeath();
 		stageSprite.visible = true;
 		stageSprite.alpha = 1;
 		if (animationName.length > 0) stageSprite.animation.play(animationName, true);
@@ -1148,6 +1146,11 @@ def patch_south_stage(
                 add(southCraigCharacter);
 
                 southCledyCharacter = new Character(700, 220, 'cledy');
+                // Match cledy.lua exactly: (700,220) with scale 1.9.
+                // Do not inherit cledy.json's extra [78,250] position or 3.04 scale.
+                southCledyCharacter.setPosition(700, 220);
+                southCledyCharacter.setGraphicSize(Std.int(southCledyCharacter.frameWidth * 1.9));
+                southCledyCharacter.updateHitbox();
                 southCledyCharacter.singDuration = 6;
                 southCledyCharacter.addOffset('idle', -10, -65);
                 southCledyCharacter.addOffset('singLEFT', 77, -69);
@@ -1439,7 +1442,7 @@ def patch_south_stage(
         if (curStage == 'south' && (note.noteType == 'Clyde Note' || note.noteType == 'Craig Note'))
         {
             var isClydeNote:Bool = note.noteType == 'Clyde Note';
-            var clydeStillInChart:Bool = !southClydeDeathStarted && Conductor.songPosition >= 208083.333 && Conductor.songPosition < 256083.333;
+            var clydeStillInChart:Bool = Conductor.songPosition >= 208083.333 && Conductor.songPosition < 255916.667;
             var extraOpponentCharacter:Character = isClydeNote ? southCledyCharacter : southCraigCharacter;
             var extraOpponentAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
             if (isClydeNote && !clydeStillInChart)
@@ -1456,6 +1459,7 @@ def patch_south_stage(
                 extraOpponentCharacter.alpha = 1;
                 extraOpponentCharacter.playAnim(extraOpponentAnim, true);
                 extraOpponentCharacter.holdTimer = 0;
+                if (isClydeNote) hideDuplicateSouthClydeCharacters();
             }
         }
 
@@ -1500,7 +1504,7 @@ def patch_south_stage(
         if (curStage == 'south' && (note.noteType == 'Clyde Note' || note.noteType == 'Craig Note'))
         {
             var isClydeNote:Bool = note.noteType == 'Clyde Note';
-            var clydeStillInChart:Bool = !southClydeDeathStarted && Conductor.songPosition >= 208083.333 && Conductor.songPosition < 256083.333;
+            var clydeStillInChart:Bool = Conductor.songPosition >= 208083.333 && Conductor.songPosition < 255916.667;
             var extraPlayerCharacter:Character = isClydeNote ? southCledyCharacter : southCraigCharacter;
             var extraPlayerAnim:String = singAnimations[Std.int(Math.abs(note.noteData))];
             if (isClydeNote && !clydeStillInChart)
@@ -1517,6 +1521,7 @@ def patch_south_stage(
                 extraPlayerCharacter.alpha = 1;
                 extraPlayerCharacter.playAnim(extraPlayerAnim, true);
                 extraPlayerCharacter.holdTimer = 0;
+                if (isClydeNote) hideDuplicateSouthClydeCharacters();
             }
         }
 
@@ -2373,6 +2378,12 @@ function hideSouthClydeDuplicateSprite(candidate:FlxSprite):Void
 				var characterId:String = character.curCharacter.toLowerCase();
 				duplicateByCharacterId = characterId == 'cledy' || characterId == 'clyde';
 			}
+			if (character.imageFile != null)
+			{
+				var imageId:String = character.imageFile.toLowerCase();
+				duplicateByCharacterId = duplicateByCharacterId
+					|| imageId == 'characters/clyde' || imageId == 'characters/cledy';
+			}
 		}
 
 		// cledy.lua makes an AnimatedLuaSprite in the root PlayState member
@@ -2426,6 +2437,14 @@ function hideSouthClydeDuplicateSprite(candidate:FlxSprite):Void
 			for (characterName in gfMap.keys())
 				hideSouthClydeDuplicateSprite(gfMap.get(characterName));
 
+		if (boyfriend != null) hideSouthClydeDuplicateSprite(boyfriend);
+		if (dad != null) hideSouthClydeDuplicateSprite(dad);
+		if (gf != null) hideSouthClydeDuplicateSprite(gf);
+
+		// Lua-era builds store makeAnimatedLuaSprite objects in this map.
+		if (modchartSprites != null && modchartSprites.exists('cledy'))
+			hideSouthClydeDuplicateSprite(cast modchartSprites.get('cledy'));
+
 		// Inspect the whole PlayState display tree, including nested groups.
 		if (members != null)
 			for (member in members)
@@ -2472,48 +2491,26 @@ function hideSouthClydeDuplicateSprite(candidate:FlxSprite):Void
 					hideSouthJimmyCandidate(cast member);
 	}
 
-function updateSouthClydeDeathOverlay():Void
-	{
-		// anim2 c is a one-shot cinematic sprite. Flixel keeps its final frame
-		// visible after a non-looping animation finishes, so explicitly remove
-		// the overlay at that exact completion point.
-		var deathOverlay:BGSprite = southAnimatedObjects.get('anim2 c');
-		if (deathOverlay == null || !deathOverlay.visible || deathOverlay.animation == null) return;
-		if (deathOverlay.animation.curAnim != null && deathOverlay.animation.curAnim.finished)
-		{
-			deathOverlay.alpha = 0;
-			deathOverlay.visible = false;
-		}
-	}
-
-	function hideSouthClydeForDeath():Void
-	{
-		// The chart plays the full-screen anim2 c Clyde death sequence.
-		// Hide the separate live actor before the overlay appears, preventing
-		// the base Clyde from being rendered over the death animation.
-		southClydeDeathStarted = true;
-		if (southCledyCharacter != null)
-		{
-			FlxTween.cancelTweensOf(southCledyCharacter);
-			southCledyCharacter.alpha = 0;
-			southCledyCharacter.visible = false;
-		}
-		// Also remove any Lua-era/cached copy of Clyde at the same transition.
-		hideDuplicateSouthClydeCharacters();
-	}
-
-	function updateSouthClydeVisibility():Void
+function updateSouthClydeVisibility():Void
 	{
 		if (curStage != 'south' || !generatedMusic || southCledyCharacter == null) return;
 		var songMs:Float = Conductor.songPosition;
 		// Keep Clyde through the final 2.5-second sustain, then remove him
 		// as the following GF Sing section begins. Run this both before and
 		// after note callbacks so the last sustain cannot resurrect him.
-		if (southClydeDeathStarted || songMs < 208083.333 || songMs >= 256083.333)
+		var clydeNoteSectionActive:Bool = songMs >= 208083.333 && songMs < 255916.667;
+		if (!clydeNoteSectionActive)
 		{
 			FlxTween.cancelTweensOf(southCledyCharacter);
 			southCledyCharacter.alpha = 0;
 			southCledyCharacter.visible = false;
+			hideDuplicateSouthClydeCharacters();
+		}
+		else if (southCledyCharacter.visible && southCledyCharacter.alpha > 0.01)
+		{
+			// The native replacement is active: the original/cached Clyde copy
+			// must be hidden so only one Clyde is rendered.
+			hideDuplicateSouthClydeCharacters();
 		}
 	}
 
@@ -2916,7 +2913,7 @@ function updateSouthClydeDeathOverlay():Void
             raise RuntimeError("Could not locate the onUpdatePost point for Bloodbath smooth camera.")
         source = source.replace(
             camera_update_marker,
-            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);\n\t\tupdateSouthClydeVisibility();\n\t\tupdateSouthClydeDeathOverlay();\n\t\thideInactiveSouthCharacterGroups();\n\t\thideDuplicateSouthClydeCharacters();\n\t\thideSouthThirdStageJimmyCharacters();",
+            camera_update_marker + "\n\t\tupdateSouthSmoothCameraPost(elapsed);\n\t\tupdateSouthClydeVisibility();\n\t\thideInactiveSouthCharacterGroups();\n\t\thideDuplicateSouthClydeCharacters();\n\t\thideSouthThirdStageJimmyCharacters();",
             1,
         )
     update_code = update_marker + "\n\t\trestoreSouthSmoothCameraFrame();\n\t\tupdateBadAppleCameraFollow();\n\t\tupdateSouthOverlayRecovery();\n\t\tupdateSouthKyleCorruptionTimeline();"
