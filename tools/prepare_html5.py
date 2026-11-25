@@ -1146,11 +1146,10 @@ def patch_south_stage(
                 add(southCraigCharacter);
 
                 southCledyCharacter = new Character(700, 220, 'cledy');
-                // Match cledy.lua exactly: (700,220) with scale 1.9.
-                // Do not inherit cledy.json's extra [78,250] position or 3.04 scale.
+                // Use the native cledy.json scale (3.04) so Clyde matches
+                // the other full-size characters in the HTML5 stage. The
+                // Lua-era 1.9 sprite scale made this replacement visibly too small.
                 southCledyCharacter.setPosition(700, 220);
-                southCledyCharacter.setGraphicSize(Std.int(southCledyCharacter.frameWidth * 1.9));
-                southCledyCharacter.updateHitbox();
                 southCledyCharacter.singDuration = 6;
                 southCledyCharacter.addOffset('idle', -10, -65);
                 southCledyCharacter.addOffset('singLEFT', 77, -69);
