@@ -67,13 +67,22 @@ def main() -> int:
     args = parser.parse_args()
 
     data_dir = args.engine.resolve() / "assets" / "preload" / "data" / "bloodbath"
-    chart = data_dir / "bloodbath-hard.json"
+    chart_files = [
+        data_dir / "bloodbath-easy.json",
+        data_dir / "bloodbath.json",
+        data_dir / "bloodbath-hard.json",
+    ]
     extra_events = data_dir / "events.json"
 
-    if not chart.is_file():
-        raise FileNotFoundError(f"Bloodbath chart not found: {chart}")
+    for chart in chart_files:
+        if not chart.is_file():
+            raise FileNotFoundError(f"Bloodbath difficulty chart not found: {chart}")
 
-    removed = sanitize_file(chart)
+    removed = 0
+    for chart in chart_files:
+        chart_removed = sanitize_file(chart)
+        removed += chart_removed
+        print(f"Sanitized {chart.name}: removed {chart_removed} unsafe property events.")
     removed += sanitize_file(extra_events)
     print(f"Removed {removed} Set Property events that target desktop Lua sprites.")
     print("Retained standard Psych Engine events and Set Property: defaultCamZoom.")
