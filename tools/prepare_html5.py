@@ -4661,10 +4661,10 @@ def main() -> int:
     )
 
     character_names = {"stan", "kenny", "cartman"}
+    if not isinstance(song, dict):
+        raise RuntimeError("Bloodbath song metadata was not loaded before character preloading.")
     for role in ("player1", "player2", "gfVersion"):
         role_name = str(song.get(role, "")).strip()
-        if not isinstance(song, dict):
-            raise RuntimeError("Bloodbath song metadata was not loaded before character preloading.")
         if role_name:
             character_names.add(role_name)
 
