@@ -4527,20 +4527,99 @@ def main() -> int:
     week_list.write_text("week-SPT\n", encoding="utf-8")
 
     # The release ZIP contains the instrumental but no Voices.ogg/Voices.mp3.
+    # Build all three standard Psych Engine difficulties from the included Hard
+    # chart. Custom-note events and sustains are preserved in every difficulty;
+    # ordinary tap-note groups are thinned consistently so chords stay together.
     chart_file = engine / "assets" / "preload" / "data" / "bloodbath" / "bloodbath-hard.json"
     if not chart_file.is_file():
         raise FileNotFoundError("Bloodbath Hard chart was not copied into the engine.")
-    chart = json.loads(chart_file.read_text(encoding="utf-8"))
-    song = chart.get("song", chart)
-    song["needsVoices"] = False
-    song["stage"] = "south"
-    chart_file.write_text(json.dumps(chart, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    hard_chart = json.loads(chart_file.read_text(encoding="utf-8"))
+    hard_song = hard_chart.get("song", hard_chart)
+    hard_song["needsVoices"] = False
+    hard_song["stage"] = "south"
+    chart_file.write_text(
+        json.dumps(hard_chart, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
+
+    def create_simplified_difficulty(keep_pattern: str) -> tuple[dict, int, int]:
+        import copy
+
+        variant = copy.deepcopy(hard_chart)
+        variant_song = variant.get("song", variant)
+        sections = variant_song.get("notes", [])
+        before_count = 0
+        after_count = 0
+        for section in sections:
+            if not isinstance(section, dict):
+                continue
+            section_notes = section.get("sectionNotes", [])
+            if not isinstance(section_notes, list):
+                continue
+
+            # Group notes by timestamp so chords remain intact.
+            grouped: dict[float, list] = {}
+            ordered_times: list[float] = []
+            for note in section_notes:
+                if not isinstance(note, list) or len(note) < 3:
+                    continue
+                try:
+                    note_time = round(float(note[0]), 3)
+                except (TypeError, ValueError):
+                    continue
+                if note_time not in grouped:
+                    grouped[note_time] = []
+                    ordered_times.append(note_time)
+                grouped[note_time].append(note)
+
+            before_count += len(section_notes)
+            kept_notes = []
+            for group_index, note_time in enumerate(ordered_times):
+                note_group = grouped[note_time]
+                # Never thin holds or custom gameplay notes (Clyde, Craig,
+                # Stan, Kyle, etc.). Keep their original chart timing in all modes.
+                special_or_sustain = any(
+                    (len(note) > 2 and float(note[2] or 0) > 0)
+                    or (len(note) > 3 and str(note[3]).strip() not in ("", "Default"))
+                    for note in note_group
+                )
+                if special_or_sustain:
+                    kept_notes.extend(note_group)
+                    continue
+
+                if keep_pattern == "normal":
+                    keep_group = (group_index % 4) != 3  # retain about 75% of tap groups
+                else:
+                    keep_group = (group_index % 2) == 0  # retain about 50% of tap groups
+                if keep_group:
+                    kept_notes.extend(note_group)
+
+            section["sectionNotes"] = kept_notes
+            after_count += len(kept_notes)
+
+        if before_count > 0 and after_count <= 0:
+            raise RuntimeError(f"Generated {keep_pattern} Bloodbath chart contains no notes.")
+        return variant, before_count, after_count
+
+    easy_chart, hard_note_count, easy_note_count = create_simplified_difficulty("easy")
+    normal_chart, normal_source_count, normal_note_count = create_simplified_difficulty("normal")
+    chart_dir = chart_file.parent
+    (chart_dir / "bloodbath-easy.json").write_text(
+        json.dumps(easy_chart, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    # Normal is Psych's default difficulty, so its file has no suffix.
+    (chart_dir / "bloodbath.json").write_text(
+        json.dumps(normal_chart, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
 
     # Use an existing week-menu image instead of the missing storymenu/stage.png.
     # The three character definitions and icons are in this package; expose them
     # in the week select row instead of leaving empty portrait slots.
     week_file = engine / "assets" / "preload" / "weeks" / "week-SPT.json"
     week = json.loads(week_file.read_text(encoding="utf-8"))
+    week["difficulties"] = "Easy,Normal,Hard"
     week["weekBackground"] = "week1"
     # StoryMenuState uses these as opponent, player, girlfriend portraits.
     week["weekCharacters"] = ["stan", "kenny", "cartman"]
@@ -4548,6 +4627,26 @@ def main() -> int:
     if not story_bg.is_file():
         raise FileNotFoundError(f"Fallback week menu background is missing: {story_bg}")
     week_file.write_text(json.dumps(week, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
+    # Fail the build if any selectable difficulty is missing or empty.
+    for difficulty_file in ("bloodbath-easy.json", "bloodbath.json", "bloodbath-hard.json"):
+        generated_path = chart_dir / difficulty_file
+        if not generated_path.is_file():
+            raise FileNotFoundError(f"Missing Bloodbath difficulty chart: {generated_path}")
+        generated_data = json.loads(generated_path.read_text(encoding="utf-8"))
+        generated_song = generated_data.get("song", generated_data)
+        generated_sections = generated_song.get("notes", [])
+        if not any(
+            isinstance(section, dict) and section.get("sectionNotes")
+            for section in generated_sections
+        ):
+            raise RuntimeError(f"Bloodbath difficulty chart has no playable notes: {difficulty_file}")
+
+    print(
+        "Bloodbath difficulties generated: "
+        f"Easy {easy_note_count}/{hard_note_count} notes, "
+        f"Normal {normal_note_count}/{normal_source_count} notes, Hard {hard_note_count} notes."
+    )
 
     # Remove unrelated stock-week libraries and resize oversized browser textures.
     patch_project(engine)
