@@ -25,8 +25,11 @@ def copy_tree(source: Path, destination: Path) -> None:
         destination.mkdir(parents=True, exist_ok=True)
         shutil.copytree(source, destination, dirs_exist_ok=True)
 
-def whiten_story_mode_yellow_background(image_path: Path) -> int:
-    """Turn yellow pixels in the Story Mode week background white."""
+def whiten_south_stage_yellow_background(image_path: Path) -> int:
+    """Turn the South stage's yellow gameplay backdrop white, preserving figures."""
+    if not image_path.is_file():
+        raise FileNotFoundError(f"South stage background is missing: {image_path}")
+
     with Image.open(image_path) as source:
         artwork = source.convert("RGBA")
 
@@ -38,15 +41,15 @@ def whiten_story_mode_yellow_background(image_path: Path) -> int:
             if alpha == 0:
                 continue
 
-            # Target yellow/gold hues while leaving dark outlines and other
-            # non-yellow artwork intact.
+            # Match the bright golden-yellow backdrop shown in the game while
+            # preserving the black silhouette, white symbol, and other artwork.
             if (
-                red >= 105
-                and green >= 85
-                and blue <= 175
-                and red - blue >= 35
-                and green - blue >= 25
-                and red >= green * 0.82
+                red >= 175
+                and green >= 140
+                and blue <= 150
+                and red - green >= 12
+                and green - blue >= 42
+                and red - blue >= 65
             ):
                 pixels[x, y] = (255, 255, 255, alpha)
                 changed += 1
@@ -54,9 +57,11 @@ def whiten_story_mode_yellow_background(image_path: Path) -> int:
     if changed:
         artwork.save(image_path, format="PNG", optimize=True)
     print(
-        "Story Mode week background: changed "
+        "South gameplay background: changed "
         f"{changed} yellow/gold pixels to white in {image_path.name}."
     )
+    if changed == 0:
+        print("WARNING: no yellow pixels matched in the South stage background.")
     return changed
 
 
@@ -4604,6 +4609,9 @@ def main() -> int:
     # Embed every non-script resource folder from the mod, not just JSON files.
     # This preserves atlases, XML/animation metadata, text data and other sidecars.
     copy_tree(mod / "images", engine / "assets" / "preload" / "images")
+    whiten_south_stage_yellow_background(
+        engine / "assets" / "preload" / "images" / "bg.png"
+    )
     remove_unused_stan_v2_atlas(game, engine / "assets" / "preload" / "images")
     custom_menu_art_report = install_custom_menu_art(
         Path(__file__).resolve().parents[1],
@@ -4728,7 +4736,6 @@ def main() -> int:
     story_bg = engine / "assets" / "preload" / "images" / "storymenu" / "week1.png"
     if not story_bg.is_file():
         raise FileNotFoundError(f"Fallback week menu background is missing: {story_bg}")
-    whiten_story_mode_yellow_background(story_bg)
     week_file.write_text(json.dumps(week, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     # Fail the build if any selectable difficulty is missing or empty.
