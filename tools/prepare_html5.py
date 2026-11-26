@@ -25,6 +25,41 @@ def copy_tree(source: Path, destination: Path) -> None:
         destination.mkdir(parents=True, exist_ok=True)
         shutil.copytree(source, destination, dirs_exist_ok=True)
 
+def whiten_story_mode_yellow_background(image_path: Path) -> int:
+    """Turn yellow pixels in the Story Mode week background white."""
+    with Image.open(image_path) as source:
+        artwork = source.convert("RGBA")
+
+    pixels = artwork.load()
+    changed = 0
+    for y in range(artwork.height):
+        for x in range(artwork.width):
+            red, green, blue, alpha = pixels[x, y]
+            if alpha == 0:
+                continue
+
+            # Target yellow/gold hues while leaving dark outlines and other
+            # non-yellow artwork intact.
+            if (
+                red >= 105
+                and green >= 85
+                and blue <= 175
+                and red - blue >= 35
+                and green - blue >= 25
+                and red >= green * 0.82
+            ):
+                pixels[x, y] = (255, 255, 255, alpha)
+                changed += 1
+
+    if changed:
+        artwork.save(image_path, format="PNG", optimize=True)
+    print(
+        "Story Mode week background: changed "
+        f"{changed} yellow/gold pixels to white in {image_path.name}."
+    )
+    return changed
+
+
 
 def install_custom_menu_art(repository_root: Path, image_dir: Path) -> dict[str, str]:
     """Install the repository's custom menu backgrounds at Psych's expected paths."""
@@ -4693,6 +4728,7 @@ def main() -> int:
     story_bg = engine / "assets" / "preload" / "images" / "storymenu" / "week1.png"
     if not story_bg.is_file():
         raise FileNotFoundError(f"Fallback week menu background is missing: {story_bg}")
+    whiten_story_mode_yellow_background(story_bg)
     week_file.write_text(json.dumps(week, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     # Fail the build if any selectable difficulty is missing or empty.
