@@ -4535,6 +4535,9 @@ def main() -> int:
         raise FileNotFoundError("Bloodbath Hard chart was not copied into the engine.")
     hard_chart = json.loads(chart_file.read_text(encoding="utf-8"))
     hard_song = hard_chart.get("song", hard_chart)
+    # Keep the downstream preparation pipeline's shared song reference intact.
+    # Later stages read player1/player2/gfVersion and custom event metadata from it.
+    song = hard_song
     hard_song["needsVoices"] = False
     hard_song["stage"] = "south"
     chart_file.write_text(
@@ -4660,6 +4663,8 @@ def main() -> int:
     character_names = {"stan", "kenny", "cartman"}
     for role in ("player1", "player2", "gfVersion"):
         role_name = str(song.get(role, "")).strip()
+        if not isinstance(song, dict):
+            raise RuntimeError("Bloodbath song metadata was not loaded before character preloading.")
         if role_name:
             character_names.add(role_name)
 
