@@ -33,6 +33,7 @@ def install_custom_menu_art(repository_root: Path, image_dir: Path) -> dict[str,
         "menublue.png": "menuBGBlue.png",
         "menudesat.png": "menuDesat.png",
         "menumagenta.png": "menuBGMagenta.png",
+        "weekbbkenny.png": "weekbbkenny.png",
     }
     image_dir.mkdir(parents=True, exist_ok=True)
     for source_name, target_name in artwork.items():
@@ -480,6 +481,69 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
 
     print("South-stage aligned layers: " + json.dumps(report, sort_keys=True))
     return stage_code
+
+
+def patch_week_menu_kenny_art(engine: Path) -> None:
+    """Replace the three Bloodbath week portraits with one custom Kenny image."""
+    story_file = engine / "source" / "StoryMenuState.hx"
+    story = story_file.read_text(encoding="utf-8")
+
+    old_block = """\t\tWeekData.setDirectoryFromWeek(loadedWeeks[0]);
+\t\tvar charArray:Array<String> = loadedWeeks[0].weekCharacters;
+\t\tfor (char in 0...3)
+\t\t{
+\t\t\tvar weekCharacterThing:MenuCharacter = new MenuCharacter((FlxG.width * 0.25) * (1 + char) - 150, charArray[char]);
+\t\t\tweekCharacterThing.y += 70;
+\t\t\tgrpWeekCharacters.add(weekCharacterThing);
+\t\t}
+"""
+    new_block = """\t\tWeekData.setDirectoryFromWeek(loadedWeeks[0]);
+\t\tvar charArray:Array<String> = loadedWeeks[0].weekCharacters;
+\t\tvar customWeekArt:FlxSprite = null;
+\t\tif (charArray != null && charArray.length > 0 && charArray[0] == 'weekbbkenny')
+\t\t{
+\t\t\t// Bloodbath uses its single full illustration instead of the three
+\t\t\t// repeated opponent/player/girlfriend MenuCharacter portraits.
+\t\t\tcustomWeekArt = new FlxSprite().loadGraphic(Paths.image('weekbbkenny'));
+\t\t\tvar maxArtWidth:Float = FlxG.width * 0.92;
+\t\t\tvar maxArtHeight:Float = 360;
+\t\t\tvar artScale:Float = Math.min(maxArtWidth / customWeekArt.frameWidth, maxArtHeight / customWeekArt.frameHeight);
+\t\t\tcustomWeekArt.scale.set(artScale, artScale);
+\t\t\tcustomWeekArt.updateHitbox();
+\t\t\tcustomWeekArt.x = (FlxG.width - customWeekArt.width) / 2;
+\t\t\tcustomWeekArt.y = bgSprite.y + (386 - customWeekArt.height) / 2;
+\t\t\tcustomWeekArt.antialiasing = ClientPrefs.globalAntialiasing;
+\t\t}
+\t\telse
+\t\t{
+\t\t\tfor (char in 0...3)
+\t\t\t{
+\t\t\t\tvar weekCharacterThing:MenuCharacter = new MenuCharacter((FlxG.width * 0.25) * (1 + char) - 150, charArray[char]);
+\t\t\t\tweekCharacterThing.y += 70;
+\t\t\t\tgrpWeekCharacters.add(weekCharacterThing);
+\t\t\t}
+\t\t}
+"""
+    if old_block in story:
+        story = story.replace(old_block, new_block, 1)
+    elif "var customWeekArt:FlxSprite = null;" not in story:
+        raise RuntimeError("Could not locate the three portrait creation loop in StoryMenuState.hx.")
+
+    old_add = """\t\tadd(bgYellow);
+\t\tadd(bgSprite);
+\t\tadd(grpWeekCharacters);
+"""
+    new_add = """\t\tadd(bgYellow);
+\t\tadd(bgSprite);
+\t\tif (customWeekArt != null) add(customWeekArt);
+\t\tadd(grpWeekCharacters);
+"""
+    if old_add in story:
+        story = story.replace(old_add, new_add, 1)
+    elif "if (customWeekArt != null) add(customWeekArt);" not in story:
+        raise RuntimeError("Could not locate the StoryMenuState week-art display order.")
+
+    story_file.write_text(story, encoding="utf-8")
 
 
 def patch_south_playground_character_positions(character_dir: Path) -> dict[str, list[int]]:
@@ -4625,7 +4689,7 @@ def main() -> int:
     week["difficulties"] = "Easy,Normal,Hard"
     week["weekBackground"] = "week1"
     # StoryMenuState uses these as opponent, player, girlfriend portraits.
-    week["weekCharacters"] = ["stan", "kenny", "cartman"]
+    week["weekCharacters"] = ["weekbbkenny"]
     story_bg = engine / "assets" / "preload" / "images" / "storymenu" / "week1.png"
     if not story_bg.is_file():
         raise FileNotFoundError(f"Fallback week menu background is missing: {story_bg}")
@@ -4654,6 +4718,7 @@ def main() -> int:
     # Remove unrelated stock-week libraries and resize oversized browser textures.
     patch_project(engine)
     patch_menu_background_fit(engine)
+    patch_week_menu_kenny_art(engine)
     image_report = optimize_browser_images(
         engine / "assets" / "preload" / "images",
         max_dimension=2048,
