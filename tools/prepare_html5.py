@@ -992,7 +992,8 @@ def patch_south_stage(
 		var stageSprite:BGSprite = southAnimatedObjects.get(stageSpriteKey);
 		if (stageSprite == null) return false;
 		var animationName:String = requestedAnimation == null ? "" : requestedAnimation.trim();
-		if (animationName.length > 0 && stageSprite.animation.getByName(animationName) == null)
+		if (normalizedKey != 'oh' && animationName.length > 0
+			&& stageSprite.animation.getByName(animationName) == null)
 		{
 			// BGSprite animation aliases are registered explicitly by the stage
 			// setup; this pinned Flixel build has no public animation-name iterator.
@@ -1024,7 +1025,8 @@ def patch_south_stage(
 		if (isSouthBackgroundLayer(normalizedKey)) setSouthBackgroundLayer(normalizedKey, 0.35);
 		stageSprite.visible = true;
 		stageSprite.alpha = 1;
-		if (animationName.length > 0) stageSprite.animation.play(animationName, true);
+		if (normalizedKey != 'oh' && animationName.length > 0)
+			stageSprite.animation.play(animationName, true);
 		return true;
 	}
 
@@ -1197,8 +1199,9 @@ def patch_south_stage(
 				add(southKyle);
 				southAnimatedObjects.set('kyle s', southKyle);
 
-				var southOh:BGSprite = new BGSprite('oh', 608, 164, 1, 1, ['oh'], false);
-				southOh.animation.addByPrefix('anim', 'oh', 16, false);
+				// oh.png is a single static Clyde-looking-down sprite, not an
+				// animation atlas. It remains visible until anim2 c completes.
+				var southOh:BGSprite = new BGSprite('oh', 608, 164);
 				southOh.scale.set(1.9, 1.9);
 				southOh.alpha = 0;
 				add(southOh);
@@ -1305,7 +1308,7 @@ def patch_south_stage(
 				add(southAnim2);
 				southAnimatedObjects.set('anim2', southAnim2);
 
-				var southAnim2C:BGSprite = new BGSprite('anim2 c', 0, 0, 1, 1, ['anim2 c a'], true);
+				var southAnim2C:BGSprite = new BGSprite('anim2 c', 0, 0, 1, 1, ['anim2 c a'], false);
 				southAnim2C.animation.addByPrefix('anim', 'anim2 c a', 24, false);
 				fitSouthCutsceneOverlay(southAnim2C);
 				southAnim2C.cameras = [camHUD];
@@ -2711,7 +2714,7 @@ function updateSouthClydeVisibility():Void
 	function hideFinishedSouthCutsceneOverlays():Void
 	{
 		if (curStage != 'south' || southAnimatedObjects == null) return;
-		for (overlayKey in ['anim', 'anim2', 'anim2 c', 'anim3', 'oh'])
+		for (overlayKey in ['anim', 'anim2', 'anim2 c', 'anim3'])
 		{
 			var overlay:BGSprite = southAnimatedObjects.get(overlayKey);
 			if (overlay == null || !overlay.visible || overlay.animation == null || overlay.animation.curAnim == null)
@@ -2721,6 +2724,19 @@ function updateSouthClydeVisibility():Void
 				FlxTween.cancelTweensOf(overlay);
 				overlay.alpha = 0;
 				overlay.visible = false;
+
+				// The static oh.png sprite is the visual held during anim2 c.
+				// Remove it only after that actual animation has finished.
+				if (overlayKey == 'anim2 c')
+				{
+					var ohSprite:BGSprite = southAnimatedObjects.get('oh');
+					if (ohSprite != null)
+					{
+						FlxTween.cancelTweensOf(ohSprite);
+						ohSprite.alpha = 0;
+						ohSprite.visible = false;
+					}
+				}
 			}
 		}
 	}
