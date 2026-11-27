@@ -649,6 +649,7 @@ def patch_south_stage(
 	var southKyleCCharacter:Character;
 	var southCraigCharacter:Character;
 	var southOhHasAppeared:Bool = false;
+	var southOhSprite:BGSprite;
 	var southCledyCharacter:Character;
 	var southKyleCorruptionStarted:Bool = false;
 	var southKyleCorruptionActive:Bool = false;
@@ -1001,16 +1002,16 @@ def patch_south_stage(
 			return false;
 		}
 
-		// The Oh sprite is Craig's alternate appearance. Hide the normal Craig
-		// character as soon as this one-shot sequence starts.
+		// oh.png is the alternate Clyde-looking-down character. Hide the
+		// regular Clyde character while this character sequence is active.
 		if (normalizedKey == 'oh')
 		{
 			southOhHasAppeared = true;
-			if (southCraigCharacter != null)
+			if (southCledyCharacter != null)
 			{
-				FlxTween.cancelTweensOf(southCraigCharacter);
-				southCraigCharacter.alpha = 0;
-				southCraigCharacter.visible = false;
+				FlxTween.cancelTweensOf(southCledyCharacter);
+				southCledyCharacter.alpha = 0;
+				southCledyCharacter.visible = false;
 			}
 		}
 
@@ -1199,13 +1200,13 @@ def patch_south_stage(
 				add(southKyle);
 				southAnimatedObjects.set('kyle s', southKyle);
 
-				// oh.png is a single static Clyde-looking-down sprite, not an
-				// animation atlas. It remains visible until anim2 c completes.
-				var southOh:BGSprite = new BGSprite('oh', 608, 164);
-				southOh.scale.set(1.9, 1.9);
-				southOh.alpha = 0;
-				add(southOh);
-				southAnimatedObjects.set('oh', southOh);
+				// oh.png is a single-frame character image with a beat-driven idle bounce.
+				// anim2 c controls when this alternate Clyde appearance is removed.
+				southOhSprite = new BGSprite('oh', 608, 164);
+				southOhSprite.scale.set(1.9, 1.9);
+				southOhSprite.alpha = 0;
+				add(southOhSprite);
+				southAnimatedObjects.set('oh', southOhSprite);
 
                 // The original scripts create two different Craig sprites.
                 // south.lua's dormant stage prop is at (1700, 490); craig.lua's
@@ -1530,6 +1531,14 @@ def patch_south_stage(
                 && !southKyleCCharacter.animation.curAnim.name.startsWith('sing')
                 && curBeat % southKyleCCharacter.danceEveryNumBeats == 0)
                 southKyleCCharacter.dance();
+
+            // Give the single-frame oh.png character a normal beat bop.
+            if (southOhSprite != null && southOhSprite.visible && southOhSprite.alpha > 0.01)
+            {
+                FlxTween.cancelTweensOf(southOhSprite.scale);
+                southOhSprite.scale.set(2.02, 2.02);
+                FlxTween.tween(southOhSprite.scale, {x: 1.9, y: 1.9}, 0.16, {ease: FlxEase.quadOut});
+            }
         }
 
         lastBeatHit = curBeat;"""
@@ -2691,23 +2700,13 @@ function updateSouthClydeVisibility():Void
 
 		updateSouthClydeVisibility();
 
-\t\t// Craig enters on his first custom-note sequence and is faded by the
-		// chart's "afadeout craig" event at 5:06.417.
-		if (southCraigCharacter != null)
+\t\t// Keep the normal Clyde hidden after the alternate oh.png character appears.
+		// Craig is a separate character and follows his own chart notes normally.
+		if (southCledyCharacter != null && southOhHasAppeared)
 		{
-			var southOhSprite:BGSprite = southAnimatedObjects.get('oh');
-			var southOhIsActive:Bool = southOhSprite != null
-				&& southOhSprite.visible && southOhSprite.alpha > 0.01;
-			if (southOhHasAppeared || southOhIsActive || songMs < 212083 || songMs >= 307900)
-			{
-				southCraigCharacter.alpha = 0;
-				southCraigCharacter.visible = false;
-			}
-			else if (songMs < 306417)
-			{
-				southCraigCharacter.alpha = 1;
-				southCraigCharacter.visible = true;
-			}
+			FlxTween.cancelTweensOf(southCledyCharacter);
+			southCledyCharacter.alpha = 0;
+			southCledyCharacter.visible = false;
 		}
 	}
 
