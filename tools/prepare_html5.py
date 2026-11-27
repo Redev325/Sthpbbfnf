@@ -723,6 +723,8 @@ def patch_south_playground_character_positions(character_dir: Path) -> dict[str,
         # their vertical placement or the later kenny c f finale.
         "kenny s": [60, 70],
         "kenny c": [-360, -50],
+        # Lower the Kenny C F finale slightly without changing its horizontal position.
+        "kenny c f": [1470, -370],
         # Jimmy and Timmy already share the same authored anchor in both forms.
         "jimmy w": [48, 90],
         "jimmy": [48, 90],
@@ -3178,7 +3180,7 @@ function updateSouthClydeVisibility():Void
 \t\t{
 \t\t\tsouthKennyCSceneOffsetCharacter = dad;
 \t\t\tsouthKennyCSceneOriginalX = dad.x;
-\t\t\tdad.x += 35;
+\t\t\tdad.x += 55;
 \t\t}
 \t}
 \tfunction updateSouthOverlayRecovery():Void
