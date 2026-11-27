@@ -3370,13 +3370,14 @@ def patch_botplay_pause_menu(engine: Path) -> None:
 \t\tbotplayTxt.borderSize = 1.25;
 \t\tbotplayTxt.visible = cpuControlled;
 \t\tadd(botplayTxt);"""
-    botplay_hud_new = """\t\tbotplayTxt = new FlxText(400, timeBarBG.y + 55, FlxG.width - 800, "", 32);
+    botplay_hud_new = """\t\t// Bloodbath: keep Psych's Botplay HUD object hidden; the active state
+\t\t// is shown only by the pause-menu option, never as an on-screen notice.
+\t\tbotplayTxt = new FlxText(400, timeBarBG.y + 55, FlxG.width - 800, "", 32);
 \t\tbotplayTxt.setFormat(Paths.font("vcr.ttf"), 32, FlxColor.WHITE, CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 \t\tbotplayTxt.scrollFactor.set();
 \t\tbotplayTxt.borderSize = 1.25;
 \t\tbotplayTxt.visible = false;
-\t\tadd(botplayTxt);
-\t\tif (cpuControlled) showBotplayStatus(true);"""
+\t\tadd(botplayTxt);"""
     if botplay_hud_old in play_source:
         play_source = play_source.replace(botplay_hud_old, botplay_hud_new, 1)
     elif botplay_hud_new not in play_source:
@@ -3384,11 +3385,14 @@ def patch_botplay_pause_menu(engine: Path) -> None:
 
     status_method = """\tpublic function showBotplayStatus(enabled:Bool):Void
 \t{
-\t\tif (botplayTxt == null) return;
-\t\tbotplayTxt.text = enabled ? "BOTPLAY ENABLED" : "BOTPLAY DISABLED";
-\t\tbotplayTxt.visible = true;
-\t\tbotplayTxt.alpha = 1;
-\t\tbotplayStatusTimer = 2.0;
+\t\t// Intentionally keep the gameplay HUD silent. The pause-menu label
+\t\t// already communicates the current Botplay state.
+\t\tif (botplayTxt != null)
+\t\t{
+\t\t\tbotplayTxt.text = "";
+\t\t\tbotplayTxt.visible = false;
+\t\t\tbotplayTxt.alpha = 1;
+\t\t}
 \t}
 
 """
@@ -3417,8 +3421,8 @@ def patch_botplay_pause_menu(engine: Path) -> None:
     elif botplay_countdown not in play_source:
         raise RuntimeError("Could not replace the permanent blinking BOTPLAY label update.")
 
-    if "BOTPLAY ENABLED" not in play_source or "BOTPLAY DISABLED" not in play_source:
-        raise RuntimeError("Botplay status message strings are missing from PlayState.")
+    if "public function showBotplayStatus(enabled:Bool):Void" not in play_source or "botplayTxt.visible = false;" not in play_source:
+        raise RuntimeError("Hidden gameplay Botplay HUD guard was not installed.")
     play_file.write_text(play_source, encoding="utf-8")
 
     # Show an enabled/disabled message when the pause-menu option is toggled.
