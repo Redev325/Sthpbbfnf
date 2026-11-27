@@ -523,6 +523,126 @@ def align_south_stage_layer_scales(stage_code: str, image_dir: Path) -> str:
     return stage_code
 
 
+
+def fit_south_late_backgrounds(stage_code: str, image_dir: Path) -> str:
+    """Fit bg3/bg4 to the same 16:9 world-space frame used by bg2.
+
+    bg2 was specially framed for the browser viewport. The last two scene
+    backgrounds kept the source Lua coordinates/scales, which gave them
+    different footprints and camera framing. Match their artwork bounds and
+    centers to bg2, then let align_south_stage_layer_scales fit the light PNGs.
+    """
+    def asset_dimensions(asset_name: str, animated: bool) -> tuple[float, float]:
+        image_file = image_dir / f"{asset_name}.png"
+        if not image_file.is_file():
+            raise FileNotFoundError(f"South-stage fit image is missing: {image_file}")
+        if animated:
+            atlas_file = image_file.with_suffix(".xml")
+            if not atlas_file.is_file():
+                raise FileNotFoundError(f"South-stage fit atlas is missing: {atlas_file}")
+            try:
+                root = ET.parse(atlas_file).getroot()
+            except ET.ParseError as error:
+                raise RuntimeError(f"Invalid South-stage fit atlas: {atlas_file}") from error
+            frame = root.find(".//SubTexture")
+            if frame is None:
+                raise RuntimeError(f"South-stage fit atlas has no SubTexture entries: {atlas_file}")
+            width = float(frame.get("frameWidth") or frame.get("width") or 0)
+            height = float(frame.get("frameHeight") or frame.get("height") or 0)
+        else:
+            with Image.open(image_file) as image:
+                width, height = map(float, image.size)
+        if width <= 0 or height <= 0:
+            raise RuntimeError(f"Invalid South-stage fit dimensions for {asset_name}: {width}x{height}")
+        return width, height
+
+    def sprite_scale(sprite_name: str) -> tuple[float, float]:
+        pattern = re.compile(
+            rf"(?m)^[ \\t]*{re.escape(sprite_name)}\\.scale\\.set\\(\\s*"
+            rf"([-+0-9.eE]+)\\s*,\\s*([-+0-9.eE]+)\\s*\\);"
+        )
+        match = pattern.search(stage_code)
+        if not match:
+            raise RuntimeError(f"Could not read South-stage scale for {sprite_name}.")
+        return float(match.group(1)), float(match.group(2))
+
+    def sprite_position(sprite_name: str) -> tuple[float, float]:
+        pattern = re.compile(
+            rf"(?m)^[ \\t]*(?:var\\s+)?{re.escape(sprite_name)}"
+            rf"(?:\\s*:\\s*BGSprite)?\\s*=\\s*new BGSprite\\(\\s*['\\"][^'\\"]+['\\"]\\s*,\\s*"
+            rf"([-+0-9.eE]+)\\s*,\\s*([-+0-9.eE]+)"
+        )
+        match = pattern.search(stage_code)
+        if not match:
+            raise RuntimeError(f"Could not read South-stage position for {sprite_name}.")
+        return float(match.group(1)), float(match.group(2))
+
+    def replace_position(sprite_name: str, x: float, y: float) -> None:
+        nonlocal stage_code
+        pattern = re.compile(
+            rf"(?m)^([ \\t]*(?:var\\s+)?{re.escape(sprite_name)}"
+            rf"(?:\\s*:\\s*BGSprite)?\\s*=\\s*new BGSprite\\(\\s*['\\"][^'\\"]+['\\"]\\s*,\\s*)"
+            rf"[-+0-9.eE]+\\s*,\\s*[-+0-9.eE]+"
+        )
+        if not pattern.search(stage_code):
+            raise RuntimeError(f"Could not update South-stage position for {sprite_name}.")
+        stage_code = pattern.sub(
+            lambda match: match.group(1) + f"{x:.4f}, {y:.4f}",
+            stage_code,
+            count=1,
+        )
+
+    def replace_scale(sprite_name: str, scale: float) -> None:
+        nonlocal stage_code
+        pattern = re.compile(
+            rf"(?m)^([ \\t]*){re.escape(sprite_name)}\\.scale\\.set\\(\\s*"
+            rf"[-+0-9.eE]+\\s*,\\s*[-+0-9.eE]+\\s*\\);"
+        )
+        match = pattern.search(stage_code)
+        if not match:
+            raise RuntimeError(f"Could not update South-stage scale for {sprite_name}.")
+        indent = match.group(1)
+        scale_line = f"{indent}{sprite_name}.scale.set({scale:.6f}, {scale:.6f});"
+        stage_code = pattern.sub(lambda _: scale_line, stage_code, count=1)
+        hitbox_line = f"{indent}{sprite_name}.updateHitbox();"
+        if hitbox_line not in stage_code:
+            stage_code = stage_code.replace(scale_line, scale_line + "\\n" + hitbox_line, 1)
+
+    # bg2 is the reference scene already fitted to the game's 16:9 camera frame.
+    reference_width, reference_height = asset_dimensions("bg2 s", False)
+    reference_scale_x, reference_scale_y = sprite_scale("southBackground2")
+    reference_x, reference_y = sprite_position("southBackground2")
+    target_width = reference_width * reference_scale_x
+    target_height = reference_height * reference_scale_y
+    center_x = reference_x + target_width * 0.5
+    center_y = reference_y + target_height * 0.5
+
+    report = []
+    backgrounds = (
+        ("southBackground3", "bg3", True, ("southLightOverlay3",)),
+        ("southBackground4", "bg4", True, ("southLightOverlay4", "southLightOverlay42")),
+    )
+    for sprite_name, asset_name, animated, paired_overlays in backgrounds:
+        width, height = asset_dimensions(asset_name, animated)
+        # Use a uniform cover scale so the complete 16:9 viewport is filled.
+        fit_scale = max(target_width / width, target_height / height)
+        x = center_x - width * fit_scale * 0.5
+        y = center_y - height * fit_scale * 0.5
+        replace_scale(sprite_name, fit_scale)
+        replace_position(sprite_name, x, y)
+        for overlay_name in paired_overlays:
+            replace_position(overlay_name, x, y)
+        report.append({
+            "background": asset_name,
+            "frameSize": [width, height],
+            "fitScale": round(fit_scale, 6),
+            "position": [round(x, 4), round(y, 4)],
+            "worldSize": [round(width * fit_scale, 2), round(height * fit_scale, 2)],
+        })
+
+    print("South-stage fitted late backgrounds: " + json.dumps(report, sort_keys=True))
+    return stage_code
+
 def patch_week_menu_kenny_art(engine: Path) -> None:
     """Replace the three Bloodbath week portraits with one custom Kenny image."""
     story_file = engine / "source" / "StoryMenuState.hx"
@@ -1431,8 +1551,12 @@ def patch_south_stage(
         )
         stage_code = stage_code[:match.end()] + scale_code + stage_code[match.end():]
 
-    # Use the corrupted playground as the master frame and fit the clean
-    # pre-corruption background plus its lighting overlays to that framing.
+    # Fit bg3/bg4 to bg2's proven 16:9 world-space viewport frame. Their
+    # light overlays are then re-scaled against the fitted artwork dimensions.
+    stage_code = fit_south_late_backgrounds(
+        stage_code,
+        engine / "assets" / "preload" / "images",
+    )
     stage_code = align_south_stage_layer_scales(
         stage_code,
         engine / "assets" / "preload" / "images",
