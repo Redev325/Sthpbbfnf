@@ -1200,9 +1200,12 @@ def patch_south_stage(
 				add(southKyle);
 				southAnimatedObjects.set('kyle s', southKyle);
 
-				// oh.png is a single-frame character image with a beat-driven idle bounce.
-				// anim2 c controls when this alternate Clyde appearance is removed.
-				southOhSprite = new BGSprite('oh', 608, 164);
+				// Load oh as its Sparrow atlas so its actual idle frames animate.
+				// The idle sequence is restarted on the same beat callback as
+				// normal stage characters; anim2 c controls when it is removed.
+				southOhSprite = new BGSprite('oh', 608, 164, 1, 1, ['oh'], true);
+				southOhSprite.animation.addByPrefix('idle', 'oh', 16, true);
+				southOhSprite.animation.play('idle');
 				southOhSprite.scale.set(1.9, 1.9);
 				southOhSprite.alpha = 0;
 				add(southOhSprite);
@@ -1532,13 +1535,11 @@ def patch_south_stage(
                 && curBeat % southKyleCCharacter.danceEveryNumBeats == 0)
                 southKyleCCharacter.dance();
 
-            // Give the single-frame oh.png character a normal beat bop.
-            if (southOhSprite != null && southOhSprite.visible && southOhSprite.alpha > 0.01)
-            {
-                FlxTween.cancelTweensOf(southOhSprite.scale);
-                southOhSprite.scale.set(2.02, 2.02);
-                FlxTween.tween(southOhSprite.scale, {x: 1.9, y: 1.9}, 0.16, {ease: FlxEase.quadOut});
-            }
+            // Match Psych Engine's idle-character beat handling: restart
+            // oh's real idle frames every two beats, without scaling the sprite.
+            if (southOhSprite != null && southOhSprite.visible && southOhSprite.alpha > 0.01
+                && southOhSprite.animation.curAnim != null && curBeat % 2 == 0)
+                southOhSprite.animation.play('idle', true);
         }
 
         lastBeatHit = curBeat;"""
