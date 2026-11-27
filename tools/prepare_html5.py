@@ -648,6 +648,7 @@ def patch_south_stage(
 	var southKyleCharacter:Character;
 	var southKyleCCharacter:Character;
 	var southCraigCharacter:Character;
+	var southOhHasAppeared:Bool = false;
 	var southCledyCharacter:Character;
 	var southKyleCorruptionStarted:Bool = false;
 	var southKyleCorruptionActive:Bool = false;
@@ -1001,11 +1002,15 @@ def patch_south_stage(
 
 		// The Oh sprite is Craig's alternate appearance. Hide the normal Craig
 		// character as soon as this one-shot sequence starts.
-		if (normalizedKey == 'oh' && southCraigCharacter != null)
+		if (normalizedKey == 'oh')
 		{
-			FlxTween.cancelTweensOf(southCraigCharacter);
-			southCraigCharacter.alpha = 0;
-			southCraigCharacter.visible = false;
+			southOhHasAppeared = true;
+			if (southCraigCharacter != null)
+			{
+				FlxTween.cancelTweensOf(southCraigCharacter);
+				southCraigCharacter.alpha = 0;
+				southCraigCharacter.visible = false;
+			}
 		}
 
 		// Switch to the dedicated animated Kyle atlas when he confronts Cartman.
@@ -2690,7 +2695,7 @@ function updateSouthClydeVisibility():Void
 			var southOhSprite:BGSprite = southAnimatedObjects.get('oh');
 			var southOhIsActive:Bool = southOhSprite != null
 				&& southOhSprite.visible && southOhSprite.alpha > 0.01;
-			if (southOhIsActive || songMs < 212083 || songMs >= 307900)
+			if (southOhHasAppeared || southOhIsActive || songMs < 212083 || songMs >= 307900)
 			{
 				southCraigCharacter.alpha = 0;
 				southCraigCharacter.visible = false;
