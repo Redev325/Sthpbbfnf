@@ -3152,33 +3152,35 @@ function updateSouthClydeVisibility():Void
 \t\tsouthBlackDiagnosticText.text = report;
 \t}
 
-	\function updateSouthKennyCScenePosition():Void
-	\{
-		\if (curStage != 'south' || !generatedMusic || southAnimatedObjects == null) return;
+\tfunction updateSouthKennyCScenePosition():Void
+\t{
+\t\tif (curStage != 'south' || !generatedMusic || southAnimatedObjects == null) return;
 
-		\var bg2:BGSprite = southAnimatedObjects.get('bg2');
-		\var bg3:BGSprite = southAnimatedObjects.get('bg3');
-		\var bg2Active:Bool = bg2 != null && bg2.visible && bg2.alpha > 0.01;
-		\var bg3Active:Bool = bg3 != null && bg3.visible && bg3.alpha > 0.01;
-		\var kennyCActive:Bool = dad != null && dad.curCharacter != null
-			\&& dad.curCharacter.toLowerCase() == 'kenny c'
-			\&& (bg2Active || bg3Active);
+\t\tvar bg2:BGSprite = southAnimatedObjects.get('bg2');
+\t\tvar bg3:BGSprite = southAnimatedObjects.get('bg3');
+\t\tvar bg2Active:Bool = bg2 != null && bg2.visible && bg2.alpha > 0.01;
+\t\tvar bg3Active:Bool = bg3 != null && bg3.visible && bg3.alpha > 0.01;
+\t\tvar kennyCActive:Bool = dad != null && dad.curCharacter != null
+\t\t\t&& dad.curCharacter.toLowerCase() == 'kenny c'
+\t\t\t&& (bg2Active || bg3Active);
 
-		\if (southKennyCSceneOffsetCharacter != null
-			\&& (!kennyCActive || southKennyCSceneOffsetCharacter != dad))
-		\{
-			\southKennyCSceneOffsetCharacter.x = southKennyCSceneOriginalX;
-			\southKennyCSceneOffsetCharacter = null;
-		\}
+\t\t// Restore the previous character before a swap or scene transition so
+\t\t// this adjustment never carries into other backgrounds.
+\t\tif (southKennyCSceneOffsetCharacter != null
+\t\t\t&& (!kennyCActive || southKennyCSceneOffsetCharacter != dad))
+\t\t{
+\t\t\tsouthKennyCSceneOffsetCharacter.x = southKennyCSceneOriginalX;
+\t\t\tsouthKennyCSceneOffsetCharacter = null;
+\t\t}
 
-		\if (kennyCActive && southKennyCSceneOffsetCharacter == null)
-		\{
-			\southKennyCSceneOffsetCharacter = dad;
-			\southKennyCSceneOriginalX = dad.x;
-			\dad.x += 35;
-		}
-	\}
-
+\t\t// Shift Kenny C slightly right only while bg2 or bg3 is on screen.
+\t\tif (kennyCActive && southKennyCSceneOffsetCharacter == null)
+\t\t{
+\t\t\tsouthKennyCSceneOffsetCharacter = dad;
+\t\t\tsouthKennyCSceneOriginalX = dad.x;
+\t\t\tdad.x += 35;
+\t\t}
+\t}
 \tfunction updateSouthOverlayRecovery():Void
 \t{
 \t\tupdateSouthThirdPartCharacters();
