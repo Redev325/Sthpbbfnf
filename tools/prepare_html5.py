@@ -999,6 +999,15 @@ def patch_south_stage(
 			return false;
 		}
 
+		// The Oh sprite is Craig's alternate appearance. Hide the normal Craig
+		// character as soon as this one-shot sequence starts.
+		if (normalizedKey == 'oh' && southCraigCharacter != null)
+		{
+			FlxTween.cancelTweensOf(southCraigCharacter);
+			southCraigCharacter.alpha = 0;
+			southCraigCharacter.visible = false;
+		}
+
 		// Switch to the dedicated animated Kyle atlas when he confronts Cartman.
 		if (normalizedKey == 'kyle s')
 		{
@@ -1183,8 +1192,8 @@ def patch_south_stage(
 				add(southKyle);
 				southAnimatedObjects.set('kyle s', southKyle);
 
-				var southOh:BGSprite = new BGSprite('oh', 608, 164, 1, 1, ['oh'], true);
-				southOh.animation.addByPrefix('anim', 'oh', 16, true);
+				var southOh:BGSprite = new BGSprite('oh', 608, 164, 1, 1, ['oh'], false);
+				southOh.animation.addByPrefix('anim', 'oh', 16, false);
 				southOh.scale.set(1.9, 1.9);
 				southOh.alpha = 0;
 				add(southOh);
@@ -2678,7 +2687,10 @@ function updateSouthClydeVisibility():Void
 		// chart's "afadeout craig" event at 5:06.417.
 		if (southCraigCharacter != null)
 		{
-			if (songMs < 212083 || songMs >= 307900)
+			var southOhSprite:BGSprite = southAnimatedObjects.get('oh');
+			var southOhIsActive:Bool = southOhSprite != null
+				&& southOhSprite.visible && southOhSprite.alpha > 0.01;
+			if (southOhIsActive || songMs < 212083 || songMs >= 307900)
 			{
 				southCraigCharacter.alpha = 0;
 				southCraigCharacter.visible = false;
@@ -2694,7 +2706,7 @@ function updateSouthClydeVisibility():Void
 	function hideFinishedSouthCutsceneOverlays():Void
 	{
 		if (curStage != 'south' || southAnimatedObjects == null) return;
-		for (overlayKey in ['anim', 'anim2', 'anim2 c', 'anim3'])
+		for (overlayKey in ['anim', 'anim2', 'anim2 c', 'anim3', 'oh'])
 		{
 			var overlay:BGSprite = southAnimatedObjects.get(overlayKey);
 			if (overlay == null || !overlay.visible || overlay.animation == null || overlay.animation.curAnim == null)
