@@ -624,10 +624,20 @@ def fit_south_late_backgrounds(stage_code: str, image_dir: Path) -> str:
     )
     for sprite_name, asset_name, animated, paired_overlays in backgrounds:
         width, height = asset_dimensions(asset_name, animated)
-        # Use a uniform cover scale so the complete 16:9 viewport is filled.
+
+        # Preserve this background's own source-scene center. The original
+        # bg3/bg4 Lua placements intentionally differ; using bg2's center for
+        # both made the later scenes slide sideways during their transitions.
+        original_scale_x, original_scale_y = sprite_scale(sprite_name)
+        original_x, original_y = sprite_position(sprite_name)
+        scene_center_x = original_x + width * original_scale_x * 0.5
+        scene_center_y = original_y + height * original_scale_y * 0.5
+
+        # Use a uniform cover scale so the complete 16:9 viewport is filled,
+        # while keeping the scene's original world-space anchor.
         fit_scale = max(target_width / width, target_height / height)
-        x = center_x - width * fit_scale * 0.5
-        y = center_y - height * fit_scale * 0.5
+        x = scene_center_x - width * fit_scale * 0.5
+        y = scene_center_y - height * fit_scale * 0.5
         replace_scale(sprite_name, fit_scale)
         replace_position(sprite_name, x, y)
         for overlay_name in paired_overlays:
