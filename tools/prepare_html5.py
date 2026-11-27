@@ -3327,7 +3327,9 @@ def patch_botplay_pause_menu(engine: Path) -> None:
         source = source.replace(menu_marker, menu_addition, 1)
 
     if "case 'Open Chart Editor':" not in source:
-        editor_case_marker = "\t\t\t\tcase 'BOTPLAY ENABLED' | 'BOTPLAY DISABLED':"
+        # Match the upstream engine's original case, then replace it with
+        # the state-aware labels used by the customized pause menu.
+        editor_case_marker = "\t\t\t\tcase 'Toggle Botplay':"
         editor_case = """\t\t\t\tcase 'Open Chart Editor':
 \t\t\t\t\tPlayState.instance.openChartEditor();
 \t\t\t\tcase 'BOTPLAY ENABLED' | 'BOTPLAY DISABLED':"""
