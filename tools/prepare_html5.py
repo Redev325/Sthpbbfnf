@@ -3313,12 +3313,13 @@ def patch_botplay_pause_menu(engine: Path) -> None:
 \t\t\tif (chartEditorIndex < 0) chartEditorIndex = menuItemsOG.length;
 \t\t\tmenuItemsOG.insert(chartEditorIndex, 'Open Chart Editor');
 \t\t}
-\t\t// Bloodbath: expose Botplay during normal gameplay as well as Charting Mode.
-\t\tif (!menuItemsOG.contains('Toggle Botplay'))
+\t\t// Bloodbath: expose the current Botplay state in the pause menu.
+\t\tvar botplayMenuLabel:String = PlayState.instance.cpuControlled ? 'BOTPLAY ENABLED' : 'BOTPLAY DISABLED';
+\t\tif (!menuItemsOG.contains('BOTPLAY ENABLED') && !menuItemsOG.contains('BOTPLAY DISABLED'))
 \t\t{
 \t\t\tvar botplayIndex:Int = menuItemsOG.indexOf('Exit to menu');
 \t\t\tif (botplayIndex < 0) botplayIndex = menuItemsOG.length;
-\t\t\tmenuItemsOG.insert(botplayIndex, 'Toggle Botplay');
+\t\t\tmenuItemsOG.insert(botplayIndex, botplayMenuLabel);
 \t\t}
 \t\tmenuItems = menuItemsOG;"""
         if menu_marker not in source:
@@ -3326,18 +3327,18 @@ def patch_botplay_pause_menu(engine: Path) -> None:
         source = source.replace(menu_marker, menu_addition, 1)
 
     if "case 'Open Chart Editor':" not in source:
-        editor_case_marker = "\t\t\t\tcase 'Toggle Botplay':"
+        editor_case_marker = "\t\t\t\tcase 'BOTPLAY ENABLED' | 'BOTPLAY DISABLED':"
         editor_case = """\t\t\t\tcase 'Open Chart Editor':
 \t\t\t\t\tPlayState.instance.openChartEditor();
-\t\t\t\tcase 'Toggle Botplay':"""
+\t\t\t\tcase 'BOTPLAY ENABLED' | 'BOTPLAY DISABLED':"""
         if source.count(editor_case_marker) != 1:
             raise RuntimeError("Could not find the shared Botplay pause-menu handler.")
         source = source.replace(editor_case_marker, editor_case, 1)
 
     if "case 'Open Chart Editor':" not in source or "PlayState.instance.openChartEditor();" not in source:
         raise RuntimeError("Chart Editor pause-menu action was not installed.")
-    if "case 'Toggle Botplay':" not in source or "PlayState.instance.cpuControlled = !PlayState.instance.cpuControlled;" not in source:
-        raise RuntimeError("Psych Engine's built-in Botplay toggle handler is missing.")
+    if "case 'BOTPLAY ENABLED' | 'BOTPLAY DISABLED':" not in source or "PlayState.instance.cpuControlled = !PlayState.instance.cpuControlled;" not in source:
+        raise RuntimeError("Psych Engine's state-labeled Botplay toggle handler is missing.")
     pause_file.write_text(source, encoding="utf-8")
 
     # The upstream method already switches to editors.ChartingState using the
@@ -3422,7 +3423,11 @@ def patch_botplay_pause_menu(engine: Path) -> None:
     botplay_toggle_old = """\t\t\t\t\tPlayState.instance.botplayTxt.visible = PlayState.instance.cpuControlled;
 \t\t\t\t\tPlayState.instance.botplayTxt.alpha = 1;
 \t\t\t\t\tPlayState.instance.botplaySine = 0;"""
-    botplay_toggle_new = """\t\t\t\t\tPlayState.instance.showBotplayStatus(PlayState.instance.cpuControlled);"""
+    botplay_toggle_new = """\t\t\t\t\tPlayState.instance.showBotplayStatus(PlayState.instance.cpuControlled);
+\t\t\t\t\tvar updatedBotplayLabel:String = PlayState.instance.cpuControlled ? 'BOTPLAY ENABLED' : 'BOTPLAY DISABLED';
+\t\t\t\t\tmenuItems[curSelected] = updatedBotplayLabel;
+\t\t\t\t\tif (curSelected < grpMenuShit.members.length && grpMenuShit.members[curSelected] != null)
+\t\t\t\t\t\tgrpMenuShit.members[curSelected].text = updatedBotplayLabel;"""
     if botplay_toggle_old in source:
         source = source.replace(botplay_toggle_old, botplay_toggle_new, 1)
     elif "PlayState.instance.showBotplayStatus(PlayState.instance.cpuControlled);" not in source:
