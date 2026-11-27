@@ -3351,7 +3351,83 @@ def patch_botplay_pause_menu(engine: Path) -> None:
         play_source = play_source.replace(private_signature, "\tpublic function openChartEditor()", 1)
     if "public function openChartEditor()" not in play_source:
         raise RuntimeError("PlayState.openChartEditor() was not made public.")
+
+    # Replace Psych's permanent blinking "BOTPLAY" HUD label with a short
+    # status message after Botplay is enabled or disabled.
+    botplay_field = "\tpublic var botplaySine:Float = 0;"
+    botplay_field_replacement = botplay_field + "\n\tpublic var botplayStatusTimer:Float = 0;"
+    if "public var botplayStatusTimer:Float = 0;" not in play_source:
+        if play_source.count(botplay_field) != 1:
+            raise RuntimeError("Could not locate PlayState Botplay status fields.")
+        play_source = play_source.replace(botplay_field, botplay_field_replacement, 1)
+
+    botplay_hud_old = """\t\tbotplayTxt = new FlxText(400, timeBarBG.y + 55, FlxG.width - 800, "BOTPLAY", 32);
+\t\tbotplayTxt.setFormat(Paths.font("vcr.ttf"), 32, FlxColor.WHITE, CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+\t\tbotplayTxt.scrollFactor.set();
+\t\tbotplayTxt.borderSize = 1.25;
+\t\tbotplayTxt.visible = cpuControlled;
+\t\tadd(botplayTxt);"""
+    botplay_hud_new = """\t\tbotplayTxt = new FlxText(400, timeBarBG.y + 55, FlxG.width - 800, "", 32);
+\t\tbotplayTxt.setFormat(Paths.font("vcr.ttf"), 32, FlxColor.WHITE, CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+\t\tbotplayTxt.scrollFactor.set();
+\t\tbotplayTxt.borderSize = 1.25;
+\t\tbotplayTxt.visible = false;
+\t\tadd(botplayTxt);
+\t\tif (cpuControlled) showBotplayStatus(true);"""
+    if botplay_hud_old in play_source:
+        play_source = play_source.replace(botplay_hud_old, botplay_hud_new, 1)
+    elif botplay_hud_new not in play_source:
+        raise RuntimeError("Could not replace the original BOTPLAY HUD label.")
+
+    status_method = """\tpublic function showBotplayStatus(enabled:Bool):Void
+\t{
+\t\tif (botplayTxt == null) return;
+\t\tbotplayTxt.text = enabled ? "BOTPLAY ENABLED" : "BOTPLAY DISABLED";
+\t\tbotplayTxt.visible = true;
+\t\tbotplayTxt.alpha = 1;
+\t\tbotplayStatusTimer = 2.0;
+\t}
+
+"""
+    update_marker = "\toverride public function update(elapsed:Float)"
+    if "public function showBotplayStatus(enabled:Bool):Void" not in play_source:
+        if play_source.count(update_marker) != 1:
+            raise RuntimeError("Could not locate PlayState.update() for the Botplay status method.")
+        play_source = play_source.replace(update_marker, status_method + update_marker, 1)
+
+    botplay_pulse = """\t\tif(botplayTxt.visible) {
+\t\t\tbotplaySine += 180 * elapsed;
+\t\t\tbotplayTxt.alpha = 1 - Math.sin((Math.PI * botplaySine) / 180);
+\t\t}"""
+    botplay_countdown = """\t\tif (botplayStatusTimer > 0)
+\t\t{
+\t\t\tbotplayStatusTimer -= elapsed;
+\t\t\tif (botplayStatusTimer <= 0)
+\t\t\t{
+\t\t\t\tbotplayStatusTimer = 0;
+\t\t\t\tbotplayTxt.visible = false;
+\t\t\t\tbotplayTxt.alpha = 1;
+\t\t\t}
+\t\t}"""
+    if botplay_pulse in play_source:
+        play_source = play_source.replace(botplay_pulse, botplay_countdown, 1)
+    elif botplay_countdown not in play_source:
+        raise RuntimeError("Could not replace the permanent blinking BOTPLAY label update.")
+
+    if "BOTPLAY ENABLED" not in play_source or "BOTPLAY DISABLED" not in play_source:
+        raise RuntimeError("Botplay status message strings are missing from PlayState.")
     play_file.write_text(play_source, encoding="utf-8")
+
+    # Show an enabled/disabled message when the pause-menu option is toggled.
+    botplay_toggle_old = """\t\t\t\t\tPlayState.instance.botplayTxt.visible = PlayState.instance.cpuControlled;
+\t\t\t\t\tPlayState.instance.botplayTxt.alpha = 1;
+\t\t\t\t\tPlayState.instance.botplaySine = 0;"""
+    botplay_toggle_new = """\t\t\t\t\tPlayState.instance.showBotplayStatus(PlayState.instance.cpuControlled);"""
+    if botplay_toggle_old in source:
+        source = source.replace(botplay_toggle_old, botplay_toggle_new, 1)
+    elif "PlayState.instance.showBotplayStatus(PlayState.instance.cpuControlled);" not in source:
+        raise RuntimeError("Could not update the pause-menu Botplay toggle notification.")
+    pause_file.write_text(source, encoding="utf-8")
 
 
 def patch_chart_editor_optional_vocals(engine: Path) -> None:
