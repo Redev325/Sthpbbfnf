@@ -775,6 +775,8 @@ def patch_south_stage(
 	var southAnimatedObjects:Map<String, BGSprite> = new Map();
 	var southKnownCharacterNames:Array<String> = __KNOWN_CHARACTER_NAMES__;
 	var southKennyBackgroundMode:Int = -1;
+	var southKennyCSceneOffsetCharacter:Character;
+	var southKennyCSceneOriginalX:Float = 0;
 	var southKyleCharacter:Character;
 	var southKyleCCharacter:Character;
 	var southCraigCharacter:Character;
@@ -3150,10 +3152,38 @@ function updateSouthClydeVisibility():Void
 \t\tsouthBlackDiagnosticText.text = report;
 \t}
 
+	\function updateSouthKennyCScenePosition():Void
+	\{
+		\if (curStage != 'south' || !generatedMusic || southAnimatedObjects == null) return;
+
+		\var bg2:BGSprite = southAnimatedObjects.get('bg2');
+		\var bg3:BGSprite = southAnimatedObjects.get('bg3');
+		\var bg2Active:Bool = bg2 != null && bg2.visible && bg2.alpha > 0.01;
+		\var bg3Active:Bool = bg3 != null && bg3.visible && bg3.alpha > 0.01;
+		\var kennyCActive:Bool = dad != null && dad.curCharacter != null
+			\&& dad.curCharacter.toLowerCase() == 'kenny c'
+			\&& (bg2Active || bg3Active);
+
+		\if (southKennyCSceneOffsetCharacter != null
+			\&& (!kennyCActive || southKennyCSceneOffsetCharacter != dad))
+		\{
+			\southKennyCSceneOffsetCharacter.x = southKennyCSceneOriginalX;
+			\southKennyCSceneOffsetCharacter = null;
+		\}
+
+		\if (kennyCActive && southKennyCSceneOffsetCharacter == null)
+		\{
+			\southKennyCSceneOffsetCharacter = dad;
+			\southKennyCSceneOriginalX = dad.x;
+			\dad.x += 35;
+		}
+	\}
+
 \tfunction updateSouthOverlayRecovery():Void
 \t{
 \t\tupdateSouthThirdPartCharacters();
 \t\tupdateSouthKennyFormBackground();
+\t\tupdateSouthKennyCScenePosition();
 \t\thideInactiveSouthCharacterGroups();
 \t\thideDuplicateSouthClydeCharacters();
 
