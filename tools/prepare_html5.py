@@ -5360,6 +5360,66 @@ def patch_south_runtime_shaders(engine: Path) -> None:
     play_file.write_text(source, encoding="utf-8")
 
 
+def clear_red_vignette_at_segment_end(song: dict) -> int:
+    """Insert RedVG-off beside the chart event that fades out its vignette segment."""
+    events = song.get("events")
+    if not isinstance(events, list):
+        raise RuntimeError("Bloodbath chart has no event timeline for the RedVG reset.")
+
+    ordered_events = []
+    for group in events:
+        if not isinstance(group, list) or len(group) < 2:
+            continue
+        try:
+            event_time = float(group[0])
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(group[1], list):
+            group[1] = []
+        ordered_events.append((event_time, group))
+
+    ordered_events.sort(key=lambda item: item[0])
+    red_vignette_active = False
+    reset_count = 0
+
+    for event_time, group in ordered_events:
+        entries = group[1]
+        for event in list(entries):
+            if not isinstance(event, list) or len(event) < 3:
+                continue
+
+            event_name = str(event[0]).strip().lower()
+            value1 = str(event[1]).strip().lower()
+
+            if event_name == "redvg":
+                try:
+                    red_vignette_active = float(value1) > 0
+                except ValueError:
+                    red_vignette_active = value1 in {"on", "true"}
+                continue
+
+            # The chart's afadeout Vignette marks the end of the red-tinted
+            # playground segment. Clear only the RedVG shader, leaving the
+            # independent stage vignette sprite's authored fade untouched.
+            if event_name == "afadeout" and value1 == "vignette" and red_vignette_active:
+                already_cleared = any(
+                    isinstance(candidate, list)
+                    and len(candidate) >= 2
+                    and str(candidate[0]).strip().lower() == "redvg"
+                    and str(candidate[1]).strip().lower() in {"0", "off", "false"}
+                    for candidate in entries
+                )
+                if not already_cleared:
+                    entries.append(["RedVG", "0", ""])
+                    reset_count += 1
+                red_vignette_active = False
+
+    events.sort(key=lambda group: float(group[0]) if isinstance(group, list) and group else float("inf"))
+    if red_vignette_active:
+        raise RuntimeError("RedVG is enabled in the Bloodbath chart but has no matching segment-end vignette fade.")
+    return reset_count
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--engine", required=True, type=Path)
@@ -5422,6 +5482,12 @@ def main() -> int:
     # Keep the downstream preparation pipeline's shared song reference intact.
     # Later stages read player1/player2/gfVersion and custom event metadata from it.
     song = hard_song
+    red_vignette_resets = clear_red_vignette_at_segment_end(song)
+    if red_vignette_resets != 1:
+        raise RuntimeError(
+            f"Expected one RedVG segment-end reset, inserted {red_vignette_resets}."
+        )
+    print(f"RedVG segment-end resets inserted: {red_vignette_resets}")
     hard_song["needsVoices"] = False
     hard_song["stage"] = "south"
     chart_file.write_text(
