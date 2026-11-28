@@ -3122,7 +3122,7 @@ function updateSouthClydeVisibility():Void
 \t\tvar kennyId:String = dad == null || dad.curCharacter == null ? "" : dad.curCharacter.toLowerCase();
 \t\tvar tolkienId:String = boyfriend == null || boyfriend.curCharacter == null ? "" : boyfriend.curCharacter.toLowerCase();
 \t\tvar faceoffActive:Bool = songMs >= 309416.667
-\t\t\t&& kennyId.indexOf('kenny') == 0
+\t\t\t&& kennyId == 'kenny c f'
 \t\t\t&& tolkienId.indexOf('tolkien') == 0;
 
 \t\t// Restore the saved chart positions when the solo matchup ends or
@@ -3165,14 +3165,14 @@ function updateSouthClydeVisibility():Void
 \t\t\t// different sprite heights and should not be forced onto one shared hitbox floor.
 \t\t}
 
-\t\t// Separate the two solo characters instead of pulling them into the
-\t\t// same center lane. Keep Kenny's modest rightward nudge so his left
-\t\t// side remains in frame, while moving Tolkien outward to the right.
+\t\t// Keep the Kenny C F / Tolkien pairing spaced as a face-off, but
+\t\t// shift the whole matchup right so Kenny's left side stays in frame.
+\t\t// Tolkien is placed farther right to preserve a clear gap between them.
 \t\tif (faceoffActive && southKennyTolkienFaceoffKenny == dad
 \t\t\t&& southKennyTolkienFaceoffTolkien == boyfriend)
 \t\t{
-\t\t\tdad.x = southKennyTolkienKennyOriginalX - 55;
-\t\t\tboyfriend.x = southKennyTolkienTolkienOriginalX + 55;
+\t\t\tdad.x = southKennyTolkienKennyOriginalX + 55;
+\t\t\tboyfriend.x = southKennyTolkienTolkienOriginalX + 165;
 \t\t}
 \t}
 
