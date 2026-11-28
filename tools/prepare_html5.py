@@ -3243,24 +3243,18 @@ function updateSouthClydeVisibility():Void
 \t\t\tsouthKennyTolkienTolkienOriginalX = boyfriend.x;
 \t\t\tsouthKennyTolkienTolkienOriginalY = boyfriend.y;
 
-\t\t\t// Level both characters' feet for a cleaner face-to-face composition.
-\t\t\tvar sharedFloorY:Float = Math.max(dad.y + dad.height, boyfriend.y + boyfriend.height);
-\t\t\tdad.y = sharedFloorY - dad.height;
-\t\t\tboyfriend.y = sharedFloorY - boyfriend.height;
+\t\t\t// Keep the chart-authored vertical anchors: these characters have
+\t\t\t// different sprite heights and should not be forced onto one shared hitbox floor.
 \t\t}
 
-\t\t// Recalculate Kenny's face-off position from the saved base every frame.
-\t\t// This keeps his full left leg/foot in view and prevents background
-\t\t// transitions from overwriting the adjustment.
-\t\tif (faceoffActive && southKennyTolkienFaceoffKenny == dad)
+\t\t// Separate the two solo characters instead of pulling them into the
+\t\t// same center lane. Keep Kenny's modest rightward nudge so his left
+\t\t// side remains in frame, while moving Tolkien outward to the right.
+\t\tif (faceoffActive && southKennyTolkienFaceoffKenny == dad
+\t\t\t&& southKennyTolkienFaceoffTolkien == boyfriend)
 \t\t{
-\t\t\tvar sceneExtraX:Float = 0;
-\t\t\tvar activeBg2:BGSprite = southAnimatedObjects.get('bg2');
-\t\t\tvar activeBg3:BGSprite = southAnimatedObjects.get('bg3');
-\t\t\tif ((activeBg2 != null && activeBg2.visible && activeBg2.alpha > 0.01)
-\t\t\t\t|| (activeBg3 != null && activeBg3.visible && activeBg3.alpha > 0.01))
-\t\t\t\tsceneExtraX = 95;
-\t\t\tdad.x = southKennyTolkienKennyOriginalX + 110 + sceneExtraX;
+\t\t\tdad.x = southKennyTolkienKennyOriginalX - 55;
+\t\t\tboyfriend.x = southKennyTolkienTolkienOriginalX + 55;
 \t\t}
 \t}
 
