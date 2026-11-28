@@ -74,6 +74,7 @@ def install_custom_menu_art(repository_root: Path, image_dir: Path) -> dict[str,
         "menudesat.png": "menuDesat.png",
         "menumagenta.png": "menuBGMagenta.png",
         "weekbbkenny.png": "weekbbkenny.png",
+        "bloodbathbumpin'.png": "logoBumpin.png",
     }
     image_dir.mkdir(parents=True, exist_ok=True)
     for source_name, target_name in artwork.items():
@@ -101,6 +102,67 @@ def install_custom_menu_art(repository_root: Path, image_dir: Path) -> dict[str,
                 f"Custom menu artwork was not copied to the engine: {target_file}"
             )
     return artwork
+
+
+def patch_bloodbath_title_logo(engine: Path) -> None:
+    """Use the Bloodbath logo PNG and reproduce the original beat-synced bump."""
+    title_file = engine / "source" / "TitleState.hx"
+    source = title_file.read_text(encoding="utf-8")
+
+    if "var logoBaseScale:Float = 1;" not in source:
+        logo_declaration = "\tvar logoBl:FlxSprite;\n"
+        if logo_declaration not in source:
+            raise RuntimeError("Could not locate the TitleState logo sprite declaration.")
+        source = source.replace(
+            logo_declaration,
+            logo_declaration + "\tvar logoBaseScale:Float = 1;\n",
+            1,
+        )
+
+    original_logo_setup = (
+        "\t\tlogoBl = new FlxSprite(titleJSON.titlex, titleJSON.titley);\n"
+        "\t\tlogoBl.frames = Paths.getSparrowAtlas('logoBumpin');\n"
+        "\n"
+        "\t\tlogoBl.antialiasing = ClientPrefs.globalAntialiasing;\n"
+        "\t\tlogoBl.animation.addByPrefix('bump', 'logo bumpin', 24, false);\n"
+        "\t\tlogoBl.animation.play('bump');\n"
+        "\t\tlogoBl.updateHitbox();"
+    )
+    static_logo_setup = (
+        "\t\t// Bloodbath supplies a single transparent PNG instead of a Sparrow atlas.\n"
+        "\t\tlogoBl = new FlxSprite(titleJSON.titlex, titleJSON.titley);\n"
+        "\t\tlogoBl.loadGraphic(Paths.image('logoBumpin'));\n"
+        "\t\tlogoBl.antialiasing = ClientPrefs.globalAntialiasing;\n"
+        "\t\tvar logoFitWidth:Float = FlxG.width * 0.75;\n"
+        "\t\tvar logoFitHeight:Float = FlxG.height * 0.62;\n"
+        "\t\tlogoBaseScale = Math.min(logoFitWidth / logoBl.frameWidth, logoFitHeight / logoBl.frameHeight);\n"
+        "\t\tlogoBl.scale.set(logoBaseScale, logoBaseScale);\n"
+        "\t\tlogoBl.updateHitbox();\n"
+        "\t\tlogoBl.centerOrigin();\n"
+        "\t\tlogoBl.x = (FlxG.width - logoBl.width) * 0.5;\n"
+        "\t\tlogoBl.y = titleJSON.titley;"
+    )
+    if original_logo_setup in source:
+        source = source.replace(original_logo_setup, static_logo_setup, 1)
+    elif "logoBl.loadGraphic(Paths.image('logoBumpin'));" not in source:
+        raise RuntimeError("Could not locate the original TitleState logo atlas setup.")
+
+    original_beat = "\t\tif(logoBl != null)\n\t\t\tlogoBl.animation.play('bump', true);"
+    bumped_beat = (
+        "\t\t// Match the stock logo's beat timing with a lightweight scale pulse.\n"
+        "\t\tif(logoBl != null)\n"
+        "\t\t{\n"
+        "\t\t\tFlxTween.cancelTweensOf(logoBl.scale);\n"
+        "\t\t\tlogoBl.scale.set(logoBaseScale * 1.06, logoBaseScale * 0.94);\n"
+        "\t\t\tFlxTween.tween(logoBl.scale, {x: logoBaseScale, y: logoBaseScale}, 0.16, {ease: FlxEase.backOut});\n"
+        "\t\t}"
+    )
+    if original_beat in source:
+        source = source.replace(original_beat, bumped_beat, 1)
+    elif "Match the stock logo's beat timing with a lightweight scale pulse." not in source:
+        raise RuntimeError("Could not locate the original TitleState logo beat animation.")
+
+    title_file.write_text(source, encoding="utf-8")
 
 
 def patch_menu_background_fit(engine: Path) -> None:
@@ -5476,6 +5538,7 @@ def main() -> int:
     # Remove unrelated stock-week libraries and resize oversized browser textures.
     patch_project(engine)
     patch_menu_background_fit(engine)
+    patch_bloodbath_title_logo(engine)
     patch_week_menu_kenny_art(engine)
     image_report = optimize_browser_images(
         engine / "assets" / "preload" / "images",
