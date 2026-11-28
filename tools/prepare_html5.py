@@ -719,10 +719,10 @@ def patch_week_menu_kenny_art(engine: Path) -> None:
 def patch_south_playground_character_positions(character_dir: Path) -> dict[str, list[int]]:
     """Keep the Kenny/Jimmy/Timmy playground forms aligned across swaps."""
     positions = {
-        # Move both Kenny playground forms slightly right without changing
-        # their vertical placement or the later kenny c f finale.
+        # Move Kenny C clearly farther right in his normal (non-face-off)
+        # playground appearance; keep his vertical placement unchanged.
         "kenny s": [60, 70],
-        "kenny c": [-360, -50],
+        "kenny c": [-240, -50],
         # Lower the Kenny C F finale slightly without changing its horizontal position.
         "kenny c f": [1470, -370],
         # Jimmy and Timmy already share the same authored anchor in both forms.
