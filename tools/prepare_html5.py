@@ -3180,7 +3180,7 @@ function updateSouthClydeVisibility():Void
 \t\t{
 \t\t\tsouthKennyCSceneOffsetCharacter = dad;
 \t\t\tsouthKennyCSceneOriginalX = dad.x;
-\t\t\tdad.x += 55;
+\t\t\tdad.x += 75;
 \t\t}
 \t}
 \tfunction updateSouthOverlayRecovery():Void
