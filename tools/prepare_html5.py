@@ -779,6 +779,12 @@ def patch_south_stage(
 	var southKennyBackgroundMode:Int = -1;
 	var southKennyCSceneOffsetCharacter:Character;
 	var southKennyCSceneOriginalX:Float = 0;
+	var southKennyTolkienFaceoffKenny:Character;
+	var southKennyTolkienFaceoffTolkien:Boyfriend;
+	var southKennyTolkienKennyOriginalX:Float = 0;
+	var southKennyTolkienKennyOriginalY:Float = 0;
+	var southKennyTolkienTolkienOriginalX:Float = 0;
+	var southKennyTolkienTolkienOriginalY:Float = 0;
 	var southKyleCharacter:Character;
 	var southKyleCCharacter:Character;
 	var southCraigCharacter:Character;
@@ -3183,11 +3189,60 @@ function updateSouthClydeVisibility():Void
 \t\t\tdad.x += 95;
 \t\t}
 \t}
+\tfunction updateSouthKennyTolkienFaceoffPosition():Void
+\t{
+\t\tif (curStage != 'south' || !generatedMusic) return;
+
+\t\tvar songMs:Float = Conductor.songPosition;
+\t\tvar kennyId:String = dad == null || dad.curCharacter == null ? "" : dad.curCharacter.toLowerCase();
+\t\tvar tolkienId:String = boyfriend == null || boyfriend.curCharacter == null ? "" : boyfriend.curCharacter.toLowerCase();
+\t\tvar faceoffActive:Bool = songMs >= 309416.667
+\t\t\t&& kennyId.indexOf('kenny') == 0
+\t\t\t&& tolkienId.indexOf('tolkien') == 0;
+
+\t\t// Restore the saved chart positions when the solo matchup ends or
+\t\t// either character changes, so these offsets cannot leak into another section.
+\t\tif (southKennyTolkienFaceoffKenny != null
+\t\t\t&& (!faceoffActive || southKennyTolkienFaceoffKenny != dad))
+\t\t{
+\t\t\tsouthKennyTolkienFaceoffKenny.x = southKennyTolkienKennyOriginalX;
+\t\t\tsouthKennyTolkienFaceoffKenny.y = southKennyTolkienKennyOriginalY;
+\t\t\tsouthKennyTolkienFaceoffKenny = null;
+\t\t}
+\t\tif (southKennyTolkienFaceoffTolkien != null
+\t\t\t&& (!faceoffActive || southKennyTolkienFaceoffTolkien != boyfriend))
+\t\t{
+\t\t\tsouthKennyTolkienFaceoffTolkien.x = southKennyTolkienTolkienOriginalX;
+\t\t\tsouthKennyTolkienFaceoffTolkien.y = southKennyTolkienTolkienOriginalY;
+\t\t\tsouthKennyTolkienFaceoffTolkien = null;
+\t\t}
+
+\t\tif (faceoffActive && southKennyTolkienFaceoffKenny == null
+\t\t\t&& southKennyTolkienFaceoffTolkien == null)
+\t\t{
+\t\t\tsouthKennyTolkienFaceoffKenny = dad;
+\t\t\tsouthKennyTolkienFaceoffTolkien = boyfriend;
+\t\t\tsouthKennyTolkienKennyOriginalX = dad.x;
+\t\t\tsouthKennyTolkienKennyOriginalY = dad.y;
+\t\t\tsouthKennyTolkienTolkienOriginalX = boyfriend.x;
+\t\t\tsouthKennyTolkienTolkienOriginalY = boyfriend.y;
+
+\t\t\t// Bring the two solo characters slightly toward the center of the
+\t\t\t// frame and level their feet for a cleaner face-to-face composition.
+\t\t\tdad.x += 55;
+\t\t\tboyfriend.x -= 55;
+\t\t\tvar sharedFloorY:Float = Math.max(dad.y + dad.height, boyfriend.y + boyfriend.height);
+\t\t\tdad.y = sharedFloorY - dad.height;
+\t\t\tboyfriend.y = sharedFloorY - boyfriend.height;
+\t\t}
+\t}
+
 \tfunction updateSouthOverlayRecovery():Void
 \t{
 \t\tupdateSouthThirdPartCharacters();
 \t\tupdateSouthKennyFormBackground();
 \t\tupdateSouthKennyCScenePosition();
+\t\tupdateSouthKennyTolkienFaceoffPosition();
 \t\thideInactiveSouthCharacterGroups();
 \t\thideDuplicateSouthClydeCharacters();
 
