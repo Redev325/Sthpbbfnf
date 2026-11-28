@@ -723,8 +723,8 @@ def patch_south_playground_character_positions(character_dir: Path) -> dict[str,
         # playground appearance; keep his vertical placement unchanged.
         "kenny s": [60, 70],
         "kenny c": [-240, -50],
-        # Lower the Kenny C F finale slightly without changing its horizontal position.
-        "kenny c f": [1590, -370],
+        # Lower Kenny C F by 70 pixels while preserving the face-off X alignment.
+        "kenny c f": [1590, -300],
         # Jimmy and Timmy already share the same authored anchor in both forms.
         "jimmy w": [48, 90],
         "jimmy": [48, 90],
@@ -969,6 +969,44 @@ def patch_south_stage(
 		}
 	}
 
+	function placeSouthLightOverlaysAboveCharacters():Void
+	{
+		if (curStage != 'south') return;
+
+		var lightLayers:Array<BGSprite> = [
+			southLightOverlay,
+			southLightOverlay2,
+			southLightOverlay3,
+			southLightOverlay4,
+			southLightOverlay42
+		];
+
+		// Draw the illumination overlays after the gameplay character groups.
+		var characterGroupIndex:Int = -1;
+		if (boyfriendGroup != null) characterGroupIndex = members.indexOf(boyfriendGroup);
+		if (characterGroupIndex < 0 && dadGroup != null)
+			characterGroupIndex = members.indexOf(dadGroup);
+		if (characterGroupIndex < 0) return;
+
+		for (light in lightLayers)
+		{
+			if (light != null && members.indexOf(light) >= 0) remove(light, false);
+		}
+
+		characterGroupIndex = -1;
+		if (boyfriendGroup != null) characterGroupIndex = members.indexOf(boyfriendGroup);
+		if (characterGroupIndex < 0 && dadGroup != null)
+			characterGroupIndex = members.indexOf(dadGroup);
+		if (characterGroupIndex < 0) return;
+
+		var drawIndex:Int = characterGroupIndex + 1;
+		for (light in lightLayers)
+		{
+			if (light == null) continue;
+			insert(drawIndex, light);
+			drawIndex++;
+		}
+	}
 	function resolveSouthCharacterName(requestedName:String):String
 	{
 		if (requestedName == null) return "";
@@ -1977,7 +2015,33 @@ def patch_south_stage_fades(engine: Path) -> None:
             1,
         )
 
+    if "var southScreenFlashOverlay:FlxSprite;" not in source:
+        source = source.replace(
+            "	var southBlackFlashOverlay:FlxSprite;",
+            "	var southBlackFlashOverlay:FlxSprite;\n	var southScreenFlashOverlay:FlxSprite;",
+            1,
+        )
+
     function_marker = "\tfunction applySouthHealthIcon(iconName:String, leftHex:String, rightHex:String):Void"
+    screen_flash_function = """	function flashSouthScreen(color:FlxColor, duration:Float):Void
+	{
+		if (curStage != 'south' || southScreenFlashOverlay == null) return;
+		if (Math.isNaN(duration) || duration <= 0) duration = 0.75;
+		if (duration > 2.5) duration = 2.5;
+
+		FlxTween.cancelTweensOf(southScreenFlashOverlay);
+		southScreenFlashOverlay.color = color;
+		southScreenFlashOverlay.alpha = 1;
+		FlxTween.tween(southScreenFlashOverlay, {alpha: 0}, duration, {
+			ease: FlxEase.quadOut
+		});
+	}
+"""
+    if "function flashSouthScreen(color:FlxColor, duration:Float):Void" not in source:
+        if function_marker not in source:
+            raise RuntimeError("Could not locate the South screen-flash helper insertion point.")
+        source = source.replace(function_marker, screen_flash_function + function_marker, 1)
+
 
     camera_functions = """\tfunction southCameraAnimationName(character:Character):String
 \t{
@@ -2166,6 +2230,26 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\tsouthBlackFlashOverlay.alpha = 0;
 \t\tadd(southBlackFlashOverlay);
 
+		// Put the background light sprites above gameplay actors, below the HUD.
+		placeSouthLightOverlaysAboveCharacters();
+
+		// Fixed viewport-sized HUD sprite: gameplay zoom/follow cannot crop it.
+		southScreenFlashOverlay = new FlxSprite(0, 0);
+		southScreenFlashOverlay.makeGraphic(FlxG.width, FlxG.height, FlxColor.WHITE);
+		southScreenFlashOverlay.scrollFactor.set(0, 0);
+		southScreenFlashOverlay.cameras = [camHUD];
+		southScreenFlashOverlay.alpha = 0;
+		var southFlashInsertIndex:Int = -1;
+		if (strumLineNotes != null) southFlashInsertIndex = members.indexOf(strumLineNotes);
+		if (southFlashInsertIndex < 0 && healthBarBG != null)
+			southFlashInsertIndex = members.indexOf(healthBarBG);
+		if (southFlashInsertIndex >= 0)
+			insert(southFlashInsertIndex, southScreenFlashOverlay);
+		else if (boyfriendGroup != null && members.indexOf(boyfriendGroup) >= 0)
+			insert(members.indexOf(boyfriendGroup) + 1, southScreenFlashOverlay);
+		else
+			add(southScreenFlashOverlay);
+
 \t\tcallOnLuas('onCreatePost', []);"""
     if "southBlackFlashOverlay = new FlxSprite(0, 0);" not in source:
         if create_marker not in source:
@@ -2237,7 +2321,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\tflashSouthStageLight(blackEffectDuration);
 \t\t\t\t\t// Flash in fixed screen space so it always fills the browser viewport,
 \t\t\t\t\t// independent of gameplay camera zoom or follow position.
-\t\t\t\t\tif (camHUD != null) camHUD.flash(FlxColor.WHITE, blackEffectDuration, null, true);
+\t\t\t\t\tflashSouthScreen(FlxColor.WHITE, blackEffectDuration);
 \t\t\t\t}
 
 \t\t\tcase 'Camera Flash' | 'Flash' | 'Flash Camera' | 'Flash Red':
@@ -2253,7 +2337,7 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\t\t? FlxColor.RED : FlxColor.WHITE;
 \t\t\t\t\t// Keep white/red camera flashes locked to the full screen instead
 \t\t\t\t\t// of letting the gameplay camera zoom shift their coverage.
-\t\t\t\t\tif (camHUD != null) camHUD.flash(flashColor, flashDuration, null, true);
+\t\t\t\t\tflashSouthScreen(flashColor, flashDuration);
 \t\t\t\t}
 
 case 'badapplelol':
