@@ -1288,6 +1288,35 @@ def patch_south_stage(
 		moveCameraSection();
 	}
 
+	function tweenSouthCameraZoom(targetZoom:Float, duration:Float, easeFunction:Float->Float):Void
+	{
+		if (camGame == null || Math.isNaN(targetZoom) || targetZoom <= 0 || targetZoom > 4) return;
+		if (southCameraZoomTween != null)
+		{
+			southCameraZoomTween.cancel();
+			southCameraZoomTween = null;
+		}
+		if (Math.isNaN(duration) || duration <= 0)
+		{
+			defaultCamZoom = targetZoom;
+			applySouthCameraZoom(targetZoom);
+			return;
+		}
+		if (duration > 30) duration = 30;
+		var startZoom:Float = camGame.zoom;
+		if (Math.isNaN(startZoom) || startZoom <= 0 || startZoom > 4)
+			startZoom = (defaultCamZoom > 0 && defaultCamZoom <= 4) ? defaultCamZoom : 0.6;
+		southCameraZoomTween = FlxTween.num(startZoom, targetZoom, duration, {
+			ease: easeFunction,
+			onComplete: function(_:FlxTween) {
+				applySouthCameraZoom(targetZoom);
+				defaultCamZoom = targetZoom;
+				southCameraZoomTween = null;
+			}
+		}, function(zoomValue:Float) {
+			applySouthCameraZoom(zoomValue);
+		});
+	}
 	function applySouthHealthIcon(iconName:String, leftHex:String, rightHex:String):Void
 	{
 		if (iconP1 != null) iconP1.changeIcon(iconName);
@@ -2444,14 +2473,20 @@ case 'badapplelol':
 					}
 				}
 			case 'South Smooth Add Camera Zoom':
-				if (curStage == 'south' && camGame != null && ClientPrefs.camZooms && camGame.zoom < 1.35)
+				if (curStage == 'south' && camGame != null)
 				{
 					var addGameZoom:Float = Std.parseFloat(value1);
 					var addHudZoom:Float = Std.parseFloat(value2);
 					if (Math.isNaN(addGameZoom)) addGameZoom = 0.015;
 					if (Math.isNaN(addHudZoom)) addHudZoom = 0.03;
-					camGame.zoom += addGameZoom;
-					if (camHUD != null) camHUD.zoom += addHudZoom;
+					initializeSouthSmoothCameraState();
+					if (ClientPrefs.camZooms && camGame.zoom < 1.35)
+					{
+						camGame.zoom += addGameZoom;
+						if (camHUD != null) camHUD.zoom += addHudZoom;
+					}
+					// smoothcam.lua advances its smoothed zoom accumulator for each pulse.
+					southSmoothCamZoom += addGameZoom;
 				}
 
 			case 'aofisetiBF' | 'ofisetiBF' | 'aofisetiBF-fest':
@@ -2493,41 +2528,13 @@ case 'badapplelol':
 					var cameraZoomDuration:Float = Std.parseFloat(value2);
 					if (!Math.isNaN(targetCameraZoom) && targetCameraZoom > 0 && targetCameraZoom <= 4)
 					{
-						\t\t\t\t\t\tdefaultCamZoom = targetCameraZoom;
-if (southCameraZoomTween != null)
-						{
-							southCameraZoomTween.cancel();
-							southCameraZoomTween = null;
-						}
-
-						var currentCameraZoom:Float = camGame.zoom;
-						if (Math.isNaN(currentCameraZoom) || currentCameraZoom <= 0 || currentCameraZoom > 4)
-							currentCameraZoom = (defaultCamZoom > 0 && defaultCamZoom <= 4) ? defaultCamZoom : 0.6;
-
-						if (Math.isNaN(cameraZoomDuration) || cameraZoomDuration <= 0)
-						{
-							applySouthCameraZoom(targetCameraZoom);
-						}
-						else
-						{
-							if (cameraZoomDuration > 30) cameraZoomDuration = 30;
-							var zoomEvent:String = eventName.toLowerCase();
-							var cameraZoomEase:Float->Float = zoomEvent == 'acamarazoom1'
-								? FlxEase.expoOut
-								: (zoomEvent == 'acamarazoom3' ? FlxEase.expoIn : FlxEase.sineInOut);
-							southCameraZoomTween = FlxTween.num(currentCameraZoom, targetCameraZoom, cameraZoomDuration, {
-								ease: cameraZoomEase,
-								onComplete: function(_:FlxTween) {
-									applySouthCameraZoom(targetCameraZoom);
-									southCameraZoomTween = null;
-								}
-							}, function(zoomValue:Float) {
-								applySouthCameraZoom(zoomValue);
-							});
-						}
+						var zoomEvent:String = eventName.toLowerCase();
+						var cameraZoomEase:Float->Float = zoomEvent == 'acamarazoom1'
+							? FlxEase.expoOut
+							: (zoomEvent == 'acamarazoom3' ? FlxEase.expoIn : FlxEase.sineInOut);
+						tweenSouthCameraZoom(targetCameraZoom, cameraZoomDuration, cameraZoomEase);
 					}
 				}
-
 
 			case "Bitto's zoom event":
 				if (curStage == 'south' && camGame != null)
@@ -2537,9 +2544,13 @@ if (southCameraZoomTween != null)
 						var regularZoom:Float = Std.parseFloat(value2);
 						if (!Math.isNaN(regularZoom) && regularZoom > 0 && regularZoom <= 4)
 						{
-							if (southCameraZoomTween != null) southCameraZoomTween.cancel();
-							\t\t\t\t\t\t\tdefaultCamZoom = regularZoom;
-applySouthCameraZoom(regularZoom);
+							if (southCameraZoomTween != null)
+							{
+								southCameraZoomTween.cancel();
+								southCameraZoomTween = null;
+							}
+							defaultCamZoom = regularZoom;
+							applySouthCameraZoom(regularZoom);
 						}
 					}
 					else if (value1 != null && value1.toLowerCase().trim() == 'custom')
@@ -2552,9 +2563,6 @@ applySouthCameraZoom(regularZoom);
 							var bittoEaseName:String = zoomParts.length > 2 ? zoomParts[2].toLowerCase().trim() : 'linear';
 							if (!Math.isNaN(bittoTarget) && bittoTarget > 0 && bittoTarget <= 4)
 							{
-								\t\t\t\t\t\t\t\tdefaultCamZoom = bittoTarget;
-if (southCameraZoomTween != null) southCameraZoomTween.cancel();
-								var bittoStart:Float = camGame.zoom;
 								var bittoEase:Float->Float = FlxEase.linear;
 								switch (bittoEaseName)
 								{
@@ -2572,27 +2580,11 @@ if (southCameraZoomTween != null) southCameraZoomTween.cancel();
 									case 'backin': bittoEase = FlxEase.backIn;
 									case 'backout': bittoEase = FlxEase.backOut;
 								}
-								if (Math.isNaN(bittoDuration) || bittoDuration <= 0)
-								{
-									applySouthCameraZoom(bittoTarget);
-								}
-								else
-								{
-									if (bittoDuration > 30) bittoDuration = 30;
-									southCameraZoomTween = FlxTween.num(bittoStart, bittoTarget, bittoDuration, {
-										ease: bittoEase,
-										onComplete: function(_:FlxTween) {
-											applySouthCameraZoom(bittoTarget);
-											southCameraZoomTween = null;
-										}
-									}, function(zoomValue:Float) {
-										applySouthCameraZoom(zoomValue);
-									});
-								}
+								tweenSouthCameraZoom(bittoTarget, bittoDuration, bittoEase);
 							}
 						}
 					}
-				}
+			}
 
 			case 'Set Property':
 				if (curStage == 'south' && camGame != null && value1 != null && value1.toLowerCase().trim() == 'defaultcamzoom')
@@ -2601,7 +2593,7 @@ if (southCameraZoomTween != null) southCameraZoomTween.cancel();
 					if (!Math.isNaN(propertyZoom) && propertyZoom > 0 && propertyZoom <= 4)
 					{
 						\t\t\t\t\t\tdefaultCamZoom = propertyZoom;
-if (southCameraZoomTween != null) southCameraZoomTween.cancel();
+if (southCameraZoomTween != null) { southCameraZoomTween.cancel(); southCameraZoomTween = null; }
 						applySouthCameraZoom(propertyZoom);
 					}
 				}
@@ -2652,6 +2644,13 @@ case 'Camera Follow Pos':"""
     missing = [item for item in required if item not in source]
     if missing:
         raise RuntimeError("South overlay/flash event patch is incomplete: " + repr(missing))
+    native_zoom_line = "\t\t\tFlxG.camera.zoom = FlxMath.lerp(defaultCamZoom, FlxG.camera.zoom, CoolUtil.boundTo(1 - (elapsed * 3.125 * camZoomingDecay * playbackRate), 0, 1));"
+    native_zoom_guard = "\t\t\tif (!(curStage == 'south' && southCameraZoomTween != null))\n" + native_zoom_line
+    if native_zoom_guard not in source:
+        if source.count(native_zoom_line) != 1:
+            raise RuntimeError("Could not locate Psych's native camera zoom decay line for the South tween guard.")
+        source = source.replace(native_zoom_line, native_zoom_guard, 1)
+
     move_camera_marker = "\tfunction moveCameraSection():Void {"
     move_camera_code = move_camera_marker + """
 \t\tif (curStage == 'south')
