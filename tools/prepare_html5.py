@@ -5391,6 +5391,98 @@ def patch_south_runtime_shaders(engine: Path) -> None:
     play_file.write_text(source, encoding="utf-8")
 
 
+def patch_bloodbath_achievement(engine: Path, repository_root: Path) -> dict[str, object]:
+    """Register a persistent Bloodbath-clear achievement and install its icon."""
+    achievements_file = engine / "source" / "Achievements.hx"
+    achievements_source = achievements_file.read_text(encoding="utf-8")
+    achievement_id = "beatbbaward"
+
+    if achievement_id not in achievements_source:
+        achievement_array_end = "\n\t];\n\tpublic static var achievementsMap:Map<String, Bool>"
+        if achievements_source.count(achievement_array_end) != 1:
+            raise RuntimeError("Could not locate the Psych achievement registry end.")
+        achievement_row = (
+            ",\n"
+            "\t\t[\"Bloodbath Conqueror\", "
+            "\"Beat Bloodbath without Practice Mode or Botplay.\", "
+            "'beatbbaward', false]"
+            "\n\t];\n\tpublic static var achievementsMap:Map<String, Bool>"
+        )
+        achievements_source = achievements_source.replace(
+            achievement_array_end,
+            achievement_row,
+            1,
+        )
+        achievements_file.write_text(achievements_source, encoding="utf-8")
+
+    play_file = engine / "source" / "PlayState.hx"
+    play_source = play_file.read_text(encoding="utf-8")
+
+    end_song_list = "'ur_good', 'hype', 'two_keys', 'toastie', 'debugger']);"
+    if achievement_id not in play_source:
+        if play_source.count(end_song_list) != 1:
+            raise RuntimeError("Could not locate PlayState's end-of-song achievement check list.")
+        play_source = play_source.replace(
+            end_song_list,
+            "'ur_good', 'hype', 'two_keys', 'toastie', 'debugger', 'beatbbaward']);",
+            1,
+        )
+
+    debugger_case = (
+        "\t\t\t\t\tcase 'debugger':\n"
+        "\t\t\t\t\t\tif(Paths.formatToSongPath(SONG.song) == 'test' && !usedPractice) {\n"
+        "\t\t\t\t\t\t\tunlock = true;\n"
+        "\t\t\t\t\t\t}\n"
+    )
+    if "case 'beatbbaward':" not in play_source:
+        if play_source.count(debugger_case) != 1:
+            raise RuntimeError("Could not locate the debugger achievement case insertion point.")
+        play_source = play_source.replace(
+            debugger_case,
+            debugger_case
+            + "\t\t\t\t\tcase 'beatbbaward':\n"
+            + "\t\t\t\t\t\tif (Paths.formatToSongPath(SONG.song) == 'bloodbath' && !usedPractice && SONG.validScore)\n"
+            + "\t\t\t\t\t\t\tunlock = true;\n",
+            1,
+        )
+    play_file.write_text(play_source, encoding="utf-8")
+
+    source_icon = repository_root / "Beatbbaward.png"
+    if not source_icon.is_file():
+        raise FileNotFoundError(f"Bloodbath award image is missing: {source_icon}")
+
+    icon_dir = engine / "assets" / "preload" / "images" / "achievements"
+    icon_dir.mkdir(parents=True, exist_ok=True)
+    target_icon = icon_dir / "beatbbaward.png"
+    try:
+        with Image.open(source_icon) as original:
+            if original.format != "PNG":
+                raise RuntimeError("Beatbbaward.png must be a PNG image.")
+            original.verify()
+        with Image.open(source_icon) as original:
+            artwork = original.convert("RGBA")
+            resampling = getattr(Image, "Resampling", Image)
+            if artwork.size != (128, 128):
+                artwork.thumbnail((128, 128), resampling.LANCZOS)
+            artwork.save(target_icon, format="PNG", optimize=True)
+    except Exception as error:
+        raise RuntimeError(f"Could not prepare Bloodbath award image: {error}") from error
+
+    if not target_icon.is_file() or target_icon.stat().st_size == 0:
+        raise RuntimeError("Bloodbath award icon was not installed in Psych's achievements assets.")
+    with Image.open(target_icon) as prepared_icon:
+        icon_size = list(prepared_icon.size)
+
+    if "Bloodbath Conqueror" not in achievements_source or "case 'beatbbaward':" not in play_source:
+        raise RuntimeError("Bloodbath achievement registration or unlock logic is incomplete.")
+
+    return {
+        "id": achievement_id,
+        "image": target_icon.relative_to(engine / "assets" / "preload" / "images").as_posix(),
+        "imageSize": icon_size,
+    }
+
+
 def clear_red_vignette_at_segment_end(song: dict) -> int:
     """Insert RedVG-off beside the chart event that fades out its vignette segment."""
     events = song.get("events")
@@ -5636,6 +5728,11 @@ def main() -> int:
     patch_project(engine)
     patch_menu_background_fit(engine)
     patch_bloodbath_title_logo(engine)
+    achievement_report = patch_bloodbath_achievement(
+        engine,
+        Path(__file__).resolve().parents[1],
+    )
+    print("Bloodbath achievement installed: " + json.dumps(achievement_report, sort_keys=True))
     patch_week_menu_kenny_art(engine)
     image_report = optimize_browser_images(
         engine / "assets" / "preload" / "images",
