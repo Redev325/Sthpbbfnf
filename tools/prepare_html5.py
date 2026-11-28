@@ -720,6 +720,16 @@ def patch_week_menu_kenny_art(engine: Path) -> None:
     story_file = engine / "source" / "StoryMenuState.hx"
     story = story_file.read_text(encoding="utf-8")
 
+    # Psych's original StoryMenuState draws the week-preview panel as a solid
+    # yellow rectangle (0xFFF9CF51). This is the actual yellow in the browser
+    # screenshot; the menu_week1 image sits above it and does not control it.
+    yellow_panel = "var bgYellow:FlxSprite = new FlxSprite(0, 56).makeGraphic(FlxG.width, 386, 0xFFF9CF51);"
+    white_panel = "var bgYellow:FlxSprite = new FlxSprite(0, 56).makeGraphic(FlxG.width, 386, FlxColor.WHITE);"
+    if yellow_panel in story:
+        story = story.replace(yellow_panel, white_panel, 1)
+    elif white_panel not in story:
+        raise RuntimeError("Could not find the StoryMenuState week-preview background fill to turn white.")
+
     old_block = """\t\tWeekData.setDirectoryFromWeek(loadedWeeks[0]);
 \t\tvar charArray:Array<String> = loadedWeeks[0].weekCharacters;
 \t\tfor (char in 0...3)
