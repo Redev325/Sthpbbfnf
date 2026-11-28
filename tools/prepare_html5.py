@@ -716,9 +716,9 @@ def patch_week_menu_kenny_art(engine: Path) -> None:
     story_file.write_text(story, encoding="utf-8")
 
 
-def patch_south_playground_character_positions(character_dir: Path) -> dict[str, list[int]]:
-    """Keep the Kenny/Jimmy/Timmy playground forms aligned across swaps."""
-    positions = {
+def patch_south_playground_character_positions(character_dir: Path) -> dict[str, list[float]]:
+    """Keep the Kenny/Jimmy/Timmy forms aligned and center every Cartman variant."""
+    positions: dict[str, list[float]] = {
         # Move Kenny C clearly farther right in his normal (non-face-off)
         # playground appearance; keep his vertical placement unchanged.
         "kenny s": [60, 70],
@@ -733,7 +733,7 @@ def patch_south_playground_character_positions(character_dir: Path) -> dict[str,
         "timmy c": [288, -57],
     }
 
-    applied: dict[str, list[int]] = {}
+    applied: dict[str, list[float]] = {}
     for character_name, position in positions.items():
         character_file = character_dir / f"{character_name}.json"
         if not character_file.is_file():
@@ -749,6 +749,55 @@ def patch_south_playground_character_positions(character_dir: Path) -> dict[str,
             )
         applied[character_name] = position
 
+    # Use the shipped Kyle and Stan anchors as the reference midpoint. Change
+    # only the "position" field, leaving each Cartman form's scale, camera
+    # position, health icon, animations, and atlas untouched.
+    anchor_positions: dict[str, list[float]] = {}
+    for anchor_name in ("kyle", "stan"):
+        anchor_file = character_dir / f"{anchor_name}.json"
+        if not anchor_file.is_file():
+            raise FileNotFoundError(
+                f"Cannot center Cartman variants: missing {anchor_file}"
+            )
+        anchor_data = json.loads(anchor_file.read_text(encoding="utf-8"))
+        anchor = anchor_data.get("position")
+        if (
+            not isinstance(anchor, list)
+            or len(anchor) < 2
+            or not all(isinstance(value, (int, float)) for value in anchor[:2])
+        ):
+            raise RuntimeError(
+                f"Cannot center Cartman variants: invalid position in {anchor_file}"
+            )
+        anchor_positions[anchor_name] = [float(anchor[0]), float(anchor[1])]
+
+    cartman_center = [
+        round((anchor_positions["kyle"][0] + anchor_positions["stan"][0]) / 2, 2),
+        round((anchor_positions["kyle"][1] + anchor_positions["stan"][1]) / 2, 2),
+    ]
+    cartman_files = sorted(
+        file for file in character_dir.glob("*.json")
+        if "cartman" in file.stem.lower()
+    )
+    for character_file in cartman_files:
+        character_data = json.loads(character_file.read_text(encoding="utf-8"))
+        if character_data.get("position") != cartman_center:
+            character_data["position"] = cartman_center
+            character_file.write_text(
+                json.dumps(character_data, ensure_ascii=False, separators=(",", ":")),
+                encoding="utf-8",
+            )
+        applied[character_file.stem] = cartman_center
+
+    print(
+        "Centered Cartman variants between Kyle and Stan: "
+        + json.dumps({
+            "kyle": anchor_positions["kyle"],
+            "stan": anchor_positions["stan"],
+            "center": cartman_center,
+            "cartmanVariants": [file.stem for file in cartman_files],
+        }, sort_keys=True)
+    )
     return applied
 
 
@@ -2186,7 +2235,9 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\tif (blackEffectDuration > 0.9) blackEffectDuration = 0.9;
 \t\t\t\t\tif (blackEffectDuration < 0.35) blackEffectDuration = 0.35;
 \t\t\t\t\tflashSouthStageLight(blackEffectDuration);
-\t\t\t\t\tcamGame.flash(FlxColor.WHITE, blackEffectDuration, null, true);
+\t\t\t\t\t// Flash in fixed screen space so it always fills the browser viewport,
+\t\t\t\t\t// independent of gameplay camera zoom or follow position.
+\t\t\t\t\tif (camHUD != null) camHUD.flash(FlxColor.WHITE, blackEffectDuration, null, true);
 \t\t\t\t}
 
 \t\t\tcase 'Camera Flash' | 'Flash' | 'Flash Camera' | 'Flash Red':
@@ -2200,7 +2251,9 @@ def patch_south_stage_fades(engine: Path) -> None:
 \t\t\t\t\tflashSouthStageLight(flashDuration);
 \t\t\t\t\tvar flashColor:FlxColor = eventName.toLowerCase().trim() == 'flash red'
 \t\t\t\t\t\t? FlxColor.RED : FlxColor.WHITE;
-\t\t\t\t\tcamGame.flash(flashColor, flashDuration, null, true);
+\t\t\t\t\t// Keep white/red camera flashes locked to the full screen instead
+\t\t\t\t\t// of letting the gameplay camera zoom shift their coverage.
+\t\t\t\t\tif (camHUD != null) camHUD.flash(flashColor, flashDuration, null, true);
 \t\t\t\t}
 
 case 'badapplelol':
