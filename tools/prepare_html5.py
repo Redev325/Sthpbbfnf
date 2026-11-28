@@ -3288,7 +3288,7 @@ function updateSouthClydeVisibility():Void
 \t\t#if !flash\n\t\tif (curStage == 'south') handleSouthShaderEvent(eventName, value1, value2);\n\t\t#end\n\t\tswitch(eventName) {"""
     if event_marker not in source:
         raise RuntimeError("Could not locate triggerEventNote() for South event normalization.")
-        source = source.replace(event_marker, event_code, 1)
+    source = source.replace(event_marker, event_code, 1)
 
     required = (
         "function recoverLateBlackout():Void",
