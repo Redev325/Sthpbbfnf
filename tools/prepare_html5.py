@@ -5750,7 +5750,10 @@ def main() -> int:
         character_max_dimension=1280,
     )
 
-    character_names = {"stan", "kenny", "cartman"}
+    # Keep Psych's default BF definition as well: Graphics Settings creates
+    # a BF preview for the Anti-Aliasing option even in this Bloodbath-only build.
+    # Its JSON and referenced atlas are retained by the same asset-validation loop.
+    character_names = {"stan", "kenny", "cartman", "bf"}
     if not isinstance(song, dict):
         raise RuntimeError("Bloodbath song metadata was not loaded before character preloading.")
     for role in ("player1", "player2", "gfVersion"):
