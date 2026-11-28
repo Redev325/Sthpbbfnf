@@ -724,7 +724,7 @@ def patch_south_playground_character_positions(character_dir: Path) -> dict[str,
         "kenny s": [60, 70],
         "kenny c": [-240, -50],
         # Lower the Kenny C F finale slightly without changing its horizontal position.
-        "kenny c f": [1470, -370],
+        "kenny c f": [1590, -370],
         # Jimmy and Timmy already share the same authored anchor in both forms.
         "jimmy w": [48, 90],
         "jimmy": [48, 90],
@@ -3286,7 +3286,6 @@ function updateSouthClydeVisibility():Void
 \t\t}
 
 \t\t#if !flash\n\t\tif (curStage == 'south') handleSouthShaderEvent(eventName, value1, value2);\n\t\t#end\n\t\tswitch(eventName) {"""
-    
         if event_marker not in source:
             raise RuntimeError("Could not locate triggerEventNote() for South event normalization.")
         source = source.replace(event_marker, event_code, 1)
