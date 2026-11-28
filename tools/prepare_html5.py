@@ -4447,6 +4447,11 @@ def copy_south_runtime_shader_sources(mod: Path, engine: Path) -> dict[str, obje
                         ("curUV.y<0", "curUV.y<0.0"),
                         ("curUV.y>1", "curUV.y>1.0"),
                     ],
+                    # The radial chromatic blur is full-screen and multi-sampled.
+                    # Six fixed iterations retain it with fewer texture reads.
+                    "chromaticRadialBlur.frag": [
+                        ("int sampleCount = 15;", "const int sampleCount = 6;"),
+                    ],
                 }
                 for old_expression, webgl_expression in compatibility_fixes.get(source_file.name, []):
                     if old_expression in shader_text:
@@ -4572,6 +4577,19 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \tvar southShaderUniformTweens:Map<String, FlxTween> = new Map();
 \tvar southShaderFeatureFlags:Map<String, Bool> = new Map();
 \tvar southShaderClock:Float = 0;
+\tvar southRainbowEnabled:Bool = false;
+\tvar southRainbowMode:Int = 1;
+\tvar southRainbowIndex:Int = 0;
+\tvar southRainbowProgress:Float = 0;
+\tvar southRainbowDuration:Float = 0.25;
+\tvar southIconGlitchShaderP1:FlxRuntimeShader;
+\tvar southIconGlitchShaderP2:FlxRuntimeShader;
+\tvar southDadGlitchShader:FlxRuntimeShader;
+\tvar southDadGlitchTimer:Float = 0;
+\tvar southOpponentStrumGlitchShaders:Array<FlxRuntimeShader> = [];
+\tvar southOpponentStrumGlitchTimers:Array<Float> = [];
+\tvar southGlitchSpritesInitialized:Bool = false;
+\tvar southGlitchLastStep:Int = -1;
 \t#end
 """
     field_marker = "\tvar badAppleWhiteBg:FlxSprite;"
@@ -4616,6 +4634,10 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \t\t\tcase 'colorola':
 \t\t\t\treturn Math.abs(value('zoom', 1) - 1) > 0.0001
 \t\t\t\t\t|| Math.abs(value('red', 1) - 1) > 0.0001
+\t\t\t\t\t|| Math.abs(value('green', 1) - 1) > 0.0001
+\t\t\t\t\t|| Math.abs(value('blue', 1) - 1) > 0.0001;
+\t\t\tcase 'color':
+\t\t\t\treturn Math.abs(value('red', 1) - 1) > 0.0001
 \t\t\t\t\t|| Math.abs(value('green', 1) - 1) > 0.0001
 \t\t\t\t\t|| Math.abs(value('blue', 1) - 1) > 0.0001;
 \t\t\tcase 'scan':
@@ -4699,6 +4721,179 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \t\treturn southShaderFeatureFlags.exists(key) && southShaderFeatureFlags.get(key) == true;
 \t}
 
+\tfunction southRainbowChannel(index:Int, channel:Int):Float
+\t{
+\t\tvar normalizedIndex:Int = (index + 6) % 6;
+\t\tif (southRainbowMode == 2)
+\t\t{
+\t\t\tswitch (normalizedIndex)
+\t\t\t{
+\t\t\t\tcase 0: return channel == 0 ? 1 : 0;
+\t\t\t\tcase 1: return channel == 0 || channel == 1 ? 1 : 0;
+\t\t\t\tcase 2: return channel == 1 ? 1 : 0;
+\t\t\t\tcase 3: return channel == 1 || channel == 2 ? 1 : 0;
+\t\t\t\tcase 4: return channel == 2 ? 1 : 0;
+\t\t\t\tdefault: return channel == 0 || channel == 2 ? 1 : 0;
+\t\t\t}
+\t\t}
+\t\tswitch (normalizedIndex)
+\t\t{
+\t\t\tcase 0: return channel == 0 ? 1 : 0.5;
+\t\t\tcase 1: return channel == 0 || channel == 1 ? 1 : 0.5;
+\t\t\tcase 2: return channel == 1 ? 1 : 0.5;
+\t\t\tcase 3: return channel == 1 || channel == 2 ? 1 : 0.5;
+\t\t\tcase 4: return channel == 2 ? 1 : 0.5;
+\t\t\tdefault: return channel == 0 || channel == 2 ? 1 : 0.5;
+\t\t}
+\t}
+
+\tfunction startSouthRainbowCycle(mode:Int, duration:Float):Void
+\t{
+\t\tsouthRainbowEnabled = true;
+\t\tsouthRainbowMode = mode;
+\t\tsouthRainbowIndex = 0;
+\t\tsouthRainbowProgress = 0;
+\t\tif (Math.isNaN(duration) || duration <= 0) duration = 0.15;
+\t\tif (duration > 2) duration = 2;
+\t\tsouthRainbowDuration = duration;
+\t\tsetSouthShaderUniform('color', 'red', southRainbowChannel(0, 0));
+\t\tsetSouthShaderUniform('color', 'green', southRainbowChannel(0, 1));
+\t\tsetSouthShaderUniform('color', 'blue', southRainbowChannel(0, 2));
+\t}
+
+\tfunction stopSouthRainbowCycle(duration:Float):Void
+\t{
+\t\tsouthRainbowEnabled = false;
+\t\tif (Math.isNaN(duration) || duration <= 0) duration = 0.15;
+\t\ttweenSouthShaderUniform('color', 'red', 1, duration);
+\t\ttweenSouthShaderUniform('color', 'green', 1, duration);
+\t\ttweenSouthShaderUniform('color', 'blue', 1, duration);
+\t}
+
+\tfunction updateSouthRainbowCycle(elapsed:Float):Void
+\t{
+\t\tif (!southRainbowEnabled) return;
+\t\tsouthRainbowProgress += elapsed;
+\t\twhile (southRainbowProgress >= southRainbowDuration)
+\t\t{
+\t\t\tsouthRainbowProgress -= southRainbowDuration;
+\t\t\tsouthRainbowIndex = (southRainbowIndex + 1) % 6;
+\t\t}
+\t\tvar amount:Float = southRainbowProgress / southRainbowDuration;
+\t\tvar nextIndex:Int = (southRainbowIndex + 1) % 6;
+\t\tvar red:Float = FlxMath.lerp(southRainbowChannel(southRainbowIndex, 0), southRainbowChannel(nextIndex, 0), amount);
+\t\tvar green:Float = FlxMath.lerp(southRainbowChannel(southRainbowIndex, 1), southRainbowChannel(nextIndex, 1), amount);
+\t\tvar blue:Float = FlxMath.lerp(southRainbowChannel(southRainbowIndex, 2), southRainbowChannel(nextIndex, 2), amount);
+\t\tsetSouthShaderUniform('color', 'red', red);
+\t\tsetSouthShaderUniform('color', 'green', green);
+\t\tsetSouthShaderUniform('color', 'blue', blue);
+\t}
+
+\tfunction initializeSouthGlitchSprites():Void
+\t{
+\t\tif (southGlitchSpritesInitialized || curStage != 'south' || !ClientPrefs.shaders) return;
+\t\tif (iconP1 == null || iconP2 == null || opponentStrums == null || opponentStrums.members == null
+\t\t\t|| opponentStrums.members.length < 4) return;
+
+\t\tsouthIconGlitchShaderP1 = createRuntimeShader('NewGlitch2');
+\t\tsouthIconGlitchShaderP2 = createRuntimeShader('NewGlitch2');
+\t\tif (southIconGlitchShaderP1 != null)
+\t\t{
+\t\t\ticonP1.shader = southIconGlitchShaderP1;
+\t\t\tsouthIconGlitchShaderP1.setFloat('binaryIntensity', 100);
+\t\t\tsouthIconGlitchShaderP1.setFloat('negativity', 0);
+\t\t}
+\t\tif (southIconGlitchShaderP2 != null)
+\t\t{
+\t\t\ticonP2.shader = southIconGlitchShaderP2;
+\t\t\tsouthIconGlitchShaderP2.setFloat('binaryIntensity', 5);
+\t\t\tsouthIconGlitchShaderP2.setFloat('negativity', 0);
+\t\t}
+
+\t\tfor (i in 0...4)
+\t\t{
+\t\t\tvar strum:StrumNote = opponentStrums.members[i];
+\t\t\tif (strum == null) continue;
+\t\t\tvar strumShader:FlxRuntimeShader = createRuntimeShader('NewGlitch2');
+\t\t\tif (strumShader == null) continue;
+\t\t\tstrum.shader = strumShader;
+\t\t\tstrumShader.setFloat('binaryIntensity', 4);
+\t\t\tstrumShader.setFloat('negativity', 0);
+\t\t\tsouthOpponentStrumGlitchShaders.push(strumShader);
+\t\t\tsouthOpponentStrumGlitchTimers.push(0);
+\t\t}
+\t\tsouthGlitchSpritesInitialized = true;
+\t}
+
+\tfunction updateSouthGlitchSprites(elapsed:Float):Void
+\t{
+\t\tif (curStage != 'south' || !ClientPrefs.shaders) return;
+\t\tinitializeSouthGlitchSprites();
+\t\tif (!southGlitchSpritesInitialized) return;
+
+\t\tif (curStep != southGlitchLastStep)
+\t\t{
+\t\t\tsouthGlitchLastStep = curStep;
+\t\t\tif (southIconGlitchShaderP2 != null)
+\t\t\t\tsouthIconGlitchShaderP2.setFloat('binaryIntensity', health >= 1.6 ? FlxG.random.float(2, 8) : 50);
+\t\t\tif (southIconGlitchShaderP1 != null)
+\t\t\t\tsouthIconGlitchShaderP1.setFloat('binaryIntensity', health >= 0.4 ? 100 : FlxG.random.float(2, 8));
+\t\t\tfor (shader in southOpponentStrumGlitchShaders)
+\t\t\t\tif (shader != null) shader.setFloat('binaryIntensity', FlxG.random.float(2, 6));
+\t\t}
+
+\t\tfor (i in 0...southOpponentStrumGlitchTimers.length)
+\t\t{
+\t\t\tif (southOpponentStrumGlitchTimers[i] > 0)
+\t\t\t{
+\t\t\t\tsouthOpponentStrumGlitchTimers[i] -= elapsed;
+\t\t\t\tif (southOpponentStrumGlitchTimers[i] <= 0 && i < southOpponentStrumGlitchShaders.length)
+\t\t\t\t{
+\t\t\t\t\tvar shader:FlxRuntimeShader = southOpponentStrumGlitchShaders[i];
+\t\t\t\t\tif (shader != null) shader.setFloat('binaryIntensity', FlxG.random.float(2, 6));
+\t\t\t\t}
+\t\t\t}
+\t\t}
+
+\t\tif (southDadGlitchTimer > 0)
+\t\t{
+\t\t\tsouthDadGlitchTimer -= elapsed;
+\t\t\tif (southDadGlitchTimer <= 0 && southDadGlitchShader != null)
+\t\t\t{
+\t\t\t\tsouthDadGlitchShader.setFloat('binaryIntensity', 1000);
+\t\t\t\tsouthDadGlitchShader.setFloat('negativity', 0);
+\t\t\t}
+\t\t}
+\t}
+
+\tfunction applySouthGlitchNote(note:Note):Void
+\t{
+\t\tif (curStage != 'south' || !ClientPrefs.shaders || note == null) return;
+\t\tinitializeSouthGlitchSprites();
+\t\tvar strumIndex:Int = Std.int(Math.abs(note.noteData));
+\t\tif (strumIndex >= 0 && strumIndex < southOpponentStrumGlitchShaders.length)
+\t\t{
+\t\t\tvar strumShader:FlxRuntimeShader = southOpponentStrumGlitchShaders[strumIndex];
+\t\t\tif (strumShader != null)
+\t\t\t{
+\t\t\t\tstrumShader.setFloat('binaryIntensity', FlxG.random.float(2, 5));
+\t\t\t\tsouthOpponentStrumGlitchTimers[strumIndex] = 0.15;
+\t\t\t}
+\t\t}
+
+\t\tif (note.noteType == 'Glitch Note' && dad != null)
+\t\t{
+\t\t\tif (southDadGlitchShader == null) southDadGlitchShader = createRuntimeShader('NewGlitch2');
+\t\t\tif (southDadGlitchShader != null)
+\t\t\t{
+\t\t\t\tdad.shader = southDadGlitchShader;
+\t\t\t\tsouthDadGlitchShader.setFloat('binaryIntensity', note.isSustainNote ? -0.5 : FlxG.random.float(-0.6, -0.4));
+\t\t\t\tsouthDadGlitchShader.setFloat('negativity', FlxG.random.int(0, 1) == 0 ? 2 : -10);
+\t\t\t\tsouthDadGlitchTimer = 0.14;
+\t\t\t}
+\t\t}
+\t}
+
 \tfunction refreshSouthShaderFilters():Void
 \t{
 \t\tif (curStage != 'south' || !ClientPrefs.shaders) return;
@@ -4707,7 +4902,7 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \t\t// activates the same effects through uniforms/events; a pass is attached
 \t\t// only while its actual output differs from the neutral setting.
 \t\tvar gameFilters:Array<BitmapFilter> = [];
-\t\tfor (key in ['bloomEffect', 'greyScale', 'barrel', 'blur', 'mosaic', 'chrom', 'colorola', 'vig', 'glitchy', 'sob', 'mirrorRepeat'])
+\t\tfor (key in ['bloomEffect', 'greyScale', 'barrel', 'blur', 'mosaic', 'chrom', 'colorola', 'vig', 'glitchy', 'sob', 'mirrorRepeat', 'color'])
 \t\t\tif (southShaderPassActive(key)) appendSouthShaderFilter(gameFilters, key);
 \t\tfor (key in ['invert', 'pc', 'cross', 'smok', 'old tv', 'lightsrgb', 'effect weird', 'static', 'crt distorsionnew',
 \t\t\t'starfield', 'colorswitching', 'tv', 'raytracingcube', 'blaze', 'gameboy', 'vcrshader',
@@ -4718,7 +4913,7 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \t\tvar hudFilters:Array<BitmapFilter> = [];
 \t\tfor (key in ['bloomEffect', 'greyScale', 'barrelhud', 'blur', 'mosaic', 'chrom', 'colorola', 'scan', 'glitchy', 'sob', 'mirrorRepeathud'])
 \t\t\tif (southShaderPassActive(key)) appendSouthShaderFilter(hudFilters, key);
-\t\tfor (key in ['cross', 'old tv', 'vcrshader', 'vcr with no glitch', 'rgbeffect3', 'chromaticRadialBlur'])
+\t\tfor (key in ['cross', 'old tv', 'vcrshader', 'vcr with no glitch', 'rgbeffect3'])
 \t\t\tif (southShaderPassActive(key)) appendSouthShaderFilter(hudFilters, key);
 \t\tcamHUD.setFilters(hudFilters);
 \t}
@@ -4859,6 +5054,8 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \t{
 \t\tif (curStage != 'south' || !ClientPrefs.shaders || southRuntimeShaderObjects == null) return;
 \t\tsouthShaderClock += elapsed;
+\t\tupdateSouthRainbowCycle(elapsed);
+\t\tupdateSouthGlitchSprites(elapsed);
 \t\tfor (key in ['cross', 'old tv', 'lightsrgb', 'static', 'effect weird', 'crt distorsionnew',
 \t\t\t'starfield', 'colorswitching', 'tv', 'raytracingcube', 'smok', 'vcrshader',
 \t\t\t'vcr with no glitch', 'rgbeffect3', 'blaze', 'gameboy', 'invert', 'pc'])
@@ -4957,6 +5154,107 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \t\t\tcase 'chrombeat':
 \t\t\t\tsetSouthShaderUniform('chrom', 'strength', 0.009);
 \t\t\t\ttweenSouthShaderUniform('chrom', 'strength', 0, 1);
+\t\t\tcase 'chromaticabberthing':
+\t\t\t\tvar chromPulse:Float = southShaderNumber(value1, 0);
+\t\t\t\tvar chromPulseDuration:Float = southShaderNumber(value2, 0.15);
+\t\t\t\ttweenSouthShaderUniform('chrom', 'strength', chromPulse, chromPulseDuration);
+\t\t\t\tnew FlxTimer().start(chromPulseDuration, function(_:FlxTimer) {
+\t\t\t\t\ttweenSouthShaderUniform('chrom', 'strength', 0, 0.1);
+\t\t\t\t});
+\t\t\tcase 'mirrorbeat' | 'mirrorbeatshake' | 'blurbeat2':
+\t\t\t\tvar mirrorPair:Array<Float> = southShaderPair(value1, 1, 1);
+\t\t\t\tvar mirrorGameZoom:Float = southShaderUniformValue('mirrorRepeat', 'zoom', 1);
+\t\t\t\tvar mirrorHudZoom:Float = southShaderUniformValue('mirrorRepeathud', 'zoom', 1);
+\t\t\t\ttweenSouthShaderUniform('mirrorRepeat', 'zoom', mirrorGameZoom + mirrorPair[0] - 1, 0);
+\t\t\t\ttweenSouthShaderUniform('mirrorRepeathud', 'zoom', mirrorHudZoom + mirrorPair[1] - 1, 0);
+\t\t\t\ttweenSouthShaderUniform('mirrorRepeat', 'zoom', 1, 0.4);
+\t\t\t\ttweenSouthShaderUniform('mirrorRepeathud', 'zoom', 1, 0.4);
+\t\t\t\tif (eventKey == 'blurbeat2')
+\t\t\t\t{
+\t\t\t\t\tsetSouthShaderUniform('blur', 'strength', 1);
+\t\t\t\t\ttweenSouthShaderUniform('blur', 'strength', 0, 0.4);
+\t\t\t\t}
+\t\t\tcase 'barrelx':
+\t\t\t\tvar barrelXPair:Array<Float> = southShaderPair(value1, 0, 0);
+\t\t\t\ttweenSouthShaderUniform('barrel', 'x', barrelXPair[0], southShaderNumber(value2, 0));
+\t\t\t\ttweenSouthShaderUniform('barrelhud', 'x', barrelXPair[1], southShaderNumber(value2, 0));
+\t\t\tcase 'barrely':
+\t\t\t\tvar barrelYPair:Array<Float> = southShaderPair(value1, 0, 0);
+\t\t\t\ttweenSouthShaderUniform('barrel', 'y', barrelYPair[0], southShaderNumber(value2, 0));
+\t\t\t\ttweenSouthShaderUniform('barrelhud', 'y', barrelYPair[1], southShaderNumber(value2, 0));
+\t\t\tcase 'barrelzoom':
+\t\t\t\tvar barrelZoomPair:Array<Float> = southShaderPair(value1, 1, 1);
+\t\t\t\tvar barrelZoomDuration:Float = southShaderNumber(value2, 0);
+\t\t\t\ttweenSouthShaderUniform('barrel', 'zoom', barrelZoomPair[0], barrelZoomDuration);
+\t\t\t\ttweenSouthShaderUniform('barrelhud', 'zoom', barrelZoomPair[1], barrelZoomDuration);
+\t\t\tcase 'pixel':
+\t\t\t\ttweenSouthShaderUniform('mosaic', 'strength', southShaderNumber(value1, 0), southShaderNumber(value2, 0));
+\t\t\tcase 'colorfill':
+\t\t\t\tvar colorFill:String = value1 == null ? 'off' : value1.toLowerCase().trim();
+\t\t\t\tvar redTarget:Float = colorFill == 'red' ? 1 : (colorFill == 'off' ? 1 : 0);
+\t\t\t\tvar greenTarget:Float = colorFill == 'green' ? 1 : (colorFill == 'off' ? 1 : 0);
+\t\t\t\tvar blueTarget:Float = colorFill == 'blue' ? 1 : (colorFill == 'off' ? 1 : 0);
+\t\t\t\tvar colorFillDuration:Float = southShaderNumber(value2, 0);
+\t\t\t\ttweenSouthShaderUniform('color', 'red', redTarget, colorFillDuration);
+\t\t\t\ttweenSouthShaderUniform('color', 'green', greenTarget, colorFillDuration);
+\t\t\t\ttweenSouthShaderUniform('color', 'blue', blueTarget, colorFillDuration);
+\t\t\tcase 'rainbow':
+\t\t\t\tvar rainbowMode:String = value1 == null ? 'off' : value1.toLowerCase().trim();
+\t\t\t\tvar rainbowDuration:Float = Conductor.stepCrochet * 0.001 * southShaderNumber(value2, 1);
+\t\t\t\tif (rainbowMode == 'on') startSouthRainbowCycle(1, rainbowDuration);
+\t\t\t\telse if (rainbowMode == 'on2') startSouthRainbowCycle(2, rainbowDuration);
+\t\t\t\telse if (rainbowMode == 'off') stopSouthRainbowCycle(rainbowDuration);
+\t\t\tcase 'scanline':
+\t\t\t\tvar scanValue:Float = southShaderNumber(value1, 0);
+\t\t\t\tvar scanDuration:Float = southShaderNumber(value2, 0);
+\t\t\t\ttweenSouthShaderUniform('scan', 'pixelsBetweenEachLine', scanValue, scanDuration);
+\t\t\t\ttweenSouthShaderUniform('scan', 'strength', scanValue, scanDuration);
+\t\t\tcase 'vignette':
+\t\t\t\tvar vignetteParts:Array<String> = value1 == null ? [] : value1.split(',');
+\t\t\t\tvar vignetteDuration:Float = southShaderNumber(value2, 0);
+\t\t\t\tvar vignetteStrength:Float = vignetteParts.length > 0 ? southShaderNumber(vignetteParts[0], 0) : 0;
+\t\t\t\tvar vignetteSize:Float = vignetteParts.length > 1 ? southShaderNumber(vignetteParts[1], 0) : 0;
+\t\t\t\tvar vignetteRed:Float = vignetteParts.length > 2 ? southShaderNumber(vignetteParts[2], 0) : 0;
+\t\t\t\tvar vignetteGreen:Float = vignetteParts.length > 3 ? southShaderNumber(vignetteParts[3], 0) : 0;
+\t\t\t\tvar vignetteBlue:Float = vignetteParts.length > 4 ? southShaderNumber(vignetteParts[4], 0) : 0;
+\t\t\t\ttweenSouthShaderUniform('vig', 'strength', vignetteStrength, vignetteDuration);
+\t\t\t\ttweenSouthShaderUniform('vig', 'size', vignetteSize, vignetteDuration);
+\t\t\t\ttweenSouthShaderUniform('vig', 'red', vignetteRed, vignetteDuration);
+\t\t\t\ttweenSouthShaderUniform('vig', 'green', vignetteGreen, vignetteDuration);
+\t\t\t\ttweenSouthShaderUniform('vig', 'blue', vignetteBlue, vignetteDuration);
+\t\t\tcase 'redvg':
+\t\t\t\tsetSouthShaderUniform('vig', 'size', 4);
+\t\t\t\tsetSouthShaderUniform('vig', 'red', 255);
+\t\t\t\tsetSouthShaderUniform('vig', 'green', 0);
+\t\t\t\tsetSouthShaderUniform('vig', 'blue', 0);
+\t\t\t\ttweenSouthShaderUniform('vig', 'strength', southShaderNumber(value1, 1), 0.2);
+\t\t\tcase 'chromaticradialblur':
+\t\t\t\tvar radialToggle:String = value1 == null ? 'off' : value1.toLowerCase().trim();
+\t\t\t\tif (radialToggle == 'on')
+\t\t\t\t{
+\t\t\t\t\tsetSouthShaderUniform('chromaticRadialBlur', 'blur', 0.55);
+\t\t\t\t\tsetSouthShaderUniform('chromaticRadialBlur', 'falloff', 3.95);
+\t\t\t\t}
+\t\t\t\telse
+\t\t\t\t{
+\t\t\t\t\tsetSouthShaderUniform('chromaticRadialBlur', 'blur', 0);
+\t\t\t\t\tsetSouthShaderUniform('chromaticRadialBlur', 'falloff', 0);
+\t\t\t\t}
+\t\t\tcase 'vcrwithglitch':
+\t\t\t\tsetSouthShaderFeature('vcr with no glitch', toggle);
+\t\t\t\tsetSouthShaderFeature('vcrshader', toggle);
+\t\t\tcase 'rgbeffect':
+\t\t\t\tsetSouthShaderFeature('rgbeffect3', toggle);
+\t\t\t\tif (toggle)
+\t\t\t\t{
+\t\t\t\t\tsetSouthShaderUniform('chromaticRadialBlur', 'blur', 0.35);
+\t\t\t\t\tsetSouthShaderUniform('chromaticRadialBlur', 'falloff', 3.95);
+\t\t\t\t}
+\t\t\t\telse
+\t\t\t\t{
+\t\t\t\t\tsetSouthShaderUniform('chromaticRadialBlur', 'blur', 0);
+\t\t\t\t\tsetSouthShaderUniform('chromaticRadialBlur', 'falloff', 0);
+\t\t\t\t}
 \t\t\tcase 'aglitch':
 \t\t\t\tsetSouthShaderUniform('glitchy', 'AMT', southShaderNumber(value1, 0));
 \t\t\t\tsetSouthShaderUniform('glitchy', 'SPEED', southShaderNumber(value2, 0));
@@ -4990,6 +5288,12 @@ def patch_south_runtime_shaders(engine: Path) -> None:
             1,
         )
 
+    opponent_note_marker = "\tfunction opponentNoteHit(note:Note):Void\n\t{"
+    opponent_note_code = opponent_note_marker + "\n\t\t#if !flash\n\t\tif (curStage == 'south' && note != null) applySouthGlitchNote(note);\n\t\t#end"
+    if "applySouthGlitchNote(note);" not in source:
+        if source.count(opponent_note_marker) != 1:
+            raise RuntimeError("Could not locate PlayState.opponentNoteHit() for the South glitch-note shader hook.")
+        source = source.replace(opponent_note_marker, opponent_note_code, 1)
 
     play_file.write_text(source, encoding="utf-8")
 
