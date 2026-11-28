@@ -2116,26 +2116,18 @@ def patch_south_stage_fades(engine: Path) -> None:
             1,
         )
 
-    if "var southScreenFlashOverlay:FlxSprite;" not in source:
-        source = source.replace(
-            "	var southBlackFlashOverlay:FlxSprite;",
-            "	var southBlackFlashOverlay:FlxSprite;\n	var southScreenFlashOverlay:FlxSprite;",
-            1,
-        )
 
     function_marker = "\tfunction applySouthHealthIcon(iconName:String, leftHex:String, rightHex:String):Void"
     screen_flash_function = """	function flashSouthScreen(color:FlxColor, duration:Float):Void
 	{
-		if (curStage != 'south' || southScreenFlashOverlay == null) return;
+		if (curStage != 'south' || camGame == null) return;
 		if (Math.isNaN(duration) || duration <= 0) duration = 0.75;
 		if (duration > 2.5) duration = 2.5;
 
-		FlxTween.cancelTweensOf(southScreenFlashOverlay);
-		southScreenFlashOverlay.color = color;
-		southScreenFlashOverlay.alpha = 1;
-		FlxTween.tween(southScreenFlashOverlay, {alpha: 0}, duration, {
-			ease: FlxEase.quadOut
-		});
+		// Use FlxCamera's viewport-level effect rather than a HUD sprite.
+		// This keeps flashes aligned across the full game viewport and prevents
+		// stage layers or HUD draw order from covering parts of the flash.
+		camGame.flash(color, duration, null, true);
 	}
 """
     if "function flashSouthScreen(color:FlxColor, duration:Float):Void" not in source:
@@ -2333,23 +2325,6 @@ def patch_south_stage_fades(engine: Path) -> None:
 
 		// Put the background light sprites above gameplay actors, below the HUD.
 		placeSouthLightOverlaysAboveCharacters();
-
-		// Fixed viewport-sized HUD sprite: gameplay zoom/follow cannot crop it.
-		southScreenFlashOverlay = new FlxSprite(0, 0);
-		southScreenFlashOverlay.makeGraphic(FlxG.width, FlxG.height, FlxColor.WHITE);
-		southScreenFlashOverlay.scrollFactor.set(0, 0);
-		southScreenFlashOverlay.cameras = [camHUD];
-		southScreenFlashOverlay.alpha = 0;
-		var southFlashInsertIndex:Int = -1;
-		if (strumLineNotes != null) southFlashInsertIndex = members.indexOf(strumLineNotes);
-		if (southFlashInsertIndex < 0 && healthBarBG != null)
-			southFlashInsertIndex = members.indexOf(healthBarBG);
-		if (southFlashInsertIndex >= 0)
-			insert(southFlashInsertIndex, southScreenFlashOverlay);
-		else if (boyfriendGroup != null && members.indexOf(boyfriendGroup) >= 0)
-			insert(members.indexOf(boyfriendGroup) + 1, southScreenFlashOverlay);
-		else
-			add(southScreenFlashOverlay);
 
 \t\tcallOnLuas('onCreatePost', []);"""
     if "southBlackFlashOverlay = new FlxSprite(0, 0);" not in source:
