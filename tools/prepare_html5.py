@@ -4772,6 +4772,29 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \t\tsouthShaderUniformTweens.set(uniformKey, activeTween);
 \t}
 
+\tfunction clearSouthRedVignette():Void
+\t{
+\t\t// Cancel both channels so a previous tween cannot restore the red effect.
+\t\tfor (uniformName in ['strength', 'size'])
+\t\t{
+\t\t\tvar uniformKey:String = 'vig.' + uniformName;
+\t\t\tif (southShaderUniformTweens.exists(uniformKey))
+\t\t\t{
+\t\t\t\tvar activeTween:FlxTween = southShaderUniformTweens.get(uniformKey);
+\t\t\t\tif (activeTween != null) activeTween.cancel();
+\t\t\t\tsouthShaderUniformTweens.remove(uniformKey);
+\t\t\t}
+\t\t}
+\t\t// Reset every vignette uniform, not just its strength. Setting size to
+\t\t// zero makes southShaderPassActive('vig') false and detaches the filter.
+\t\tsetSouthShaderUniform('vig', 'strength', 0);
+\t\tsetSouthShaderUniform('vig', 'size', 0);
+\t\tsetSouthShaderUniform('vig', 'red', 0);
+\t\tsetSouthShaderUniform('vig', 'green', 0);
+\t\tsetSouthShaderUniform('vig', 'blue', 0);
+\t\trefreshSouthShaderFilters();
+\t}
+
 \tfunction appendSouthShaderFilter(filters:Array<BitmapFilter>, shaderKey:String):Void
 \t{
 \t\tvar shader:FlxRuntimeShader = southRuntimeShaderObjects.get(shaderKey);
@@ -5285,11 +5308,19 @@ def patch_south_runtime_shaders(engine: Path) -> None:
 \t\t\t\ttweenSouthShaderUniform('vig', 'green', vignetteGreen, vignetteDuration);
 \t\t\t\ttweenSouthShaderUniform('vig', 'blue', vignetteBlue, vignetteDuration);
 \t\t\tcase 'redvg':
-\t\t\t\tsetSouthShaderUniform('vig', 'size', 4);
-\t\t\t\tsetSouthShaderUniform('vig', 'red', 255);
-\t\t\t\tsetSouthShaderUniform('vig', 'green', 0);
-\t\t\t\tsetSouthShaderUniform('vig', 'blue', 0);
-\t\t\t\ttweenSouthShaderUniform('vig', 'strength', southShaderNumber(value1, 1), 0.2);
+\t\t\t\tvar redVignetteMode:String = value1 == null ? 'on' : value1.trim().toLowerCase();
+\t\t\t\tif (redVignetteMode == '0' || redVignetteMode == 'off' || redVignetteMode == 'false')
+\t\t\t\t{
+\t\t\t\t\tclearSouthRedVignette();
+\t\t\t\t}
+\t\t\t\telse
+\t\t\t\t{
+\t\t\t\t\tsetSouthShaderUniform('vig', 'size', 4);
+\t\t\t\t\tsetSouthShaderUniform('vig', 'red', 255);
+\t\t\t\t\tsetSouthShaderUniform('vig', 'green', 0);
+\t\t\t\t\tsetSouthShaderUniform('vig', 'blue', 0);
+\t\t\t\t\ttweenSouthShaderUniform('vig', 'strength', southShaderNumber(value1, 1), 0.2);
+\t\t\t\t}
 \t\t\tcase 'chromaticradialblur':
 \t\t\t\tvar radialToggle:String = value1 == null ? 'off' : value1.toLowerCase().trim();
 \t\t\t\tif (radialToggle == 'on')
