@@ -3168,9 +3168,16 @@ function updateSouthClydeVisibility():Void
 \t\tvar bg3:BGSprite = southAnimatedObjects.get('bg3');
 \t\tvar bg2Active:Bool = bg2 != null && bg2.visible && bg2.alpha > 0.01;
 \t\tvar bg3Active:Bool = bg3 != null && bg3.visible && bg3.alpha > 0.01;
+\t\tvar faceoffKennyId:String = dad == null || dad.curCharacter == null ? "" : dad.curCharacter.toLowerCase();
+\t\tvar faceoffTolkienId:String = boyfriend == null || boyfriend.curCharacter == null ? "" : boyfriend.curCharacter.toLowerCase();
+\t\tvar faceoffActive:Bool = Conductor.songPosition >= 309416.667
+\t\t\t&& faceoffKennyId.indexOf('kenny') == 0
+\t\t\t&& faceoffTolkienId.indexOf('tolkien') == 0;
+\t\t// The face-off helper owns Kenny's position during the solo matchup.
+\t\t// Avoid stacking two saved offsets on the same character.
 \t\tvar kennyCActive:Bool = dad != null && dad.curCharacter != null
 \t\t\t&& dad.curCharacter.toLowerCase() == 'kenny c'
-\t\t\t&& (bg2Active || bg3Active);
+\t\t\t&& (bg2Active || bg3Active) && !faceoffActive;
 
 \t\t// Restore the previous character before a swap or scene transition so
 \t\t// this adjustment never carries into other backgrounds.
@@ -3205,7 +3212,16 @@ function updateSouthClydeVisibility():Void
 \t\tif (southKennyTolkienFaceoffKenny != null
 \t\t\t&& (!faceoffActive || southKennyTolkienFaceoffKenny != dad))
 \t\t{
-\t\t\tsouthKennyTolkienFaceoffKenny.x = southKennyTolkienKennyOriginalX;
+\t\t\tvar restoreSceneOffset:Float = 0;
+\t\t\tif (southKennyTolkienFaceoffKenny == dad)
+\t\t\t{
+\t\t\t\tvar restoreBg2:BGSprite = southAnimatedObjects.get('bg2');
+\t\t\t\tvar restoreBg3:BGSprite = southAnimatedObjects.get('bg3');
+\t\t\t\tif ((restoreBg2 != null && restoreBg2.visible && restoreBg2.alpha > 0.01)
+\t\t\t\t\t|| (restoreBg3 != null && restoreBg3.visible && restoreBg3.alpha > 0.01))
+\t\t\t\t\trestoreSceneOffset = 95;
+\t\t\t}
+\t\t\tsouthKennyTolkienFaceoffKenny.x = southKennyTolkienKennyOriginalX + restoreSceneOffset;
 \t\t\tsouthKennyTolkienFaceoffKenny.y = southKennyTolkienKennyOriginalY;
 \t\t\tsouthKennyTolkienFaceoffKenny = null;
 \t\t}
@@ -3227,13 +3243,24 @@ function updateSouthClydeVisibility():Void
 \t\t\tsouthKennyTolkienTolkienOriginalX = boyfriend.x;
 \t\t\tsouthKennyTolkienTolkienOriginalY = boyfriend.y;
 
-\t\t\t// Bring the two solo characters slightly toward the center of the
-\t\t\t// frame and level their feet for a cleaner face-to-face composition.
-\t\t\tdad.x += 55;
-\t\t\tboyfriend.x -= 55;
+\t\t\t// Level both characters' feet for a cleaner face-to-face composition.
 \t\t\tvar sharedFloorY:Float = Math.max(dad.y + dad.height, boyfriend.y + boyfriend.height);
 \t\t\tdad.y = sharedFloorY - dad.height;
 \t\t\tboyfriend.y = sharedFloorY - boyfriend.height;
+\t\t}
+
+\t\t// Recalculate Kenny's face-off position from the saved base every frame.
+\t\t// This keeps his full left leg/foot in view and prevents background
+\t\t// transitions from overwriting the adjustment.
+\t\tif (faceoffActive && southKennyTolkienFaceoffKenny == dad)
+\t\t{
+\t\t\tvar sceneExtraX:Float = 0;
+\t\t\tvar activeBg2:BGSprite = southAnimatedObjects.get('bg2');
+\t\t\tvar activeBg3:BGSprite = southAnimatedObjects.get('bg3');
+\t\t\tif ((activeBg2 != null && activeBg2.visible && activeBg2.alpha > 0.01)
+\t\t\t\t|| (activeBg3 != null && activeBg3.visible && activeBg3.alpha > 0.01))
+\t\t\t\tsceneExtraX = 95;
+\t\t\tdad.x = southKennyTolkienKennyOriginalX + 110 + sceneExtraX;
 \t\t}
 \t}
 
